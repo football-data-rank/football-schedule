@@ -2067,8 +2067,46 @@ async function loadScorers(code, showLoader = true) {
     const data = await fetchScorers(code);
     scorersCache[code] = data;
     renderScorers(data, code);
+    // 未登録選手をバックグラウンドでWikipedia検索
+    const all = [...data.goals, ...data.assists];
+    const seen = new Set();
+    const unregistered = all.filter(p => {
+      if (!p.nameEn || seen.has(p.nameEn)) return false;
+      seen.add(p.nameEn);
+      return !nameOverrides.players[p.nameEn] && !PLAYER_NAMES_JA[p.nameEn];
+    });
+    if (unregistered.length) autoLookupPlayers(unregistered, code);
   } catch(e) {
     wrap.innerHTML = `<div class="state"><span class="ico">⚠️</span>取得失敗: ${esc(e.message)}</div>`;
+  }
+}
+
+// 未登録選手を1人ずつWikipedia検索してキャッシュに保存・再描画
+async function autoLookupPlayers(players, code) {
+  let updated = false;
+  for (const p of players) {
+    if (nameOverrides.players[p.nameEn] || PLAYER_NAMES_JA[p.nameEn]) continue;
+    try {
+      const ja = await lookupWikipediaJa(p.nameEn);
+      if (ja) {
+        nameOverrides.players[p.nameEn] = ja;
+        updated = true;
+        // キャッシュの選手名を更新
+        if (scorersCache[code]) {
+          for (const list of [scorersCache[code].goals, scorersCache[code].assists]) {
+            list.forEach(pl => { if (pl.nameEn === p.nameEn) pl.name = ja; });
+          }
+        }
+        // 表示中なら再描画
+        if (activePage === 'scorers' && activeScorersCode === code) {
+          renderScorers(scorersCache[code], code);
+        }
+      }
+    } catch {}
+    await new Promise(r => setTimeout(r, 800)); // 800ms間隔でリクエスト
+  }
+  if (updated) {
+    try { localStorage.setItem('nameOverrides', JSON.stringify(nameOverrides)); } catch {}
   }
 }
 
