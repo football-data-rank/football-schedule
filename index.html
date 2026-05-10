@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Football Today</title>
+  <title>Football Today | サッカー日程表</title>
   <meta name="google-site-verification" content="36E2heKne3wfqWYS__XDLWlvbopcAhlE-k4p4K3UlxM" />
   <meta name="description" content="欧州サッカーの試合日程・結果・順位表・得点ランキングをまとめたサイト。プレミアリーグ、ラ・リーガ、セリエA、ブンデスリーガ、リーグアン、CLなど。">
   <meta name="keywords" content="サッカー,試合日程,順位表,得点ランキング,プレミアリーグ,ラ・リーガ,セリエA,ブンデスリーガ,チャンピオンズリーグ">
@@ -56,8 +56,15 @@
       top: 0;
       z-index: 30;
     }
-    .site-title { font-size: 17px; font-weight: 800; letter-spacing: -.4px; }
-    .site-title em { color: #a5b4fc; font-style: normal; }
+    .site-title {
+      font-size: 17px; font-weight: 800; letter-spacing: -.4px;
+      display: flex; align-items: center; gap: 9px;
+    }
+    .site-title em { font-style: normal; }
+    .site-logo {
+      width: 30px; height: 30px; flex-shrink: 0;
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,.4));
+    }
     .hright { display: flex; align-items: center; gap: 10px; }
     #lastUpdated { font-size: 11px; color: #64748b; white-space: nowrap; transition: color .4s; }
     #lastUpdated.fresh { color: #6ee7b7; }
@@ -393,12 +400,19 @@
 
     /* ─── Responsive ─── */
     @media (max-width: 640px) {
-      .td-comp, .hide-sm { display: none; }
+      .hide-sm { display: none; }
+      .td-comp { font-size: 10px; max-width: 70px; }
       .td-home, .td-away { font-size: 12px; }
       .t-pre { font-size: 13px; }
       .score-num { font-size: 14px; }
       .badge { width: 16px; height: 16px; }
       #lastUpdated { display: none; }
+      /* 順位表のスクロール対応 */
+      .tbl.stnd { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      /* 得点ランキングの選手名折り返し */
+      .tbl.stnd td { font-size: 12px; padding: 6px 6px; }
+      .stnd-rank { width: 24px; }
+      .stnd-num  { width: 28px; }
     }
   </style>
 </head>
@@ -436,7 +450,43 @@
 
 <!-- ── Header ── -->
 <div id="topbar">
-  <div class="site-title" id="siteTitle">Football <em>Today</em></div>
+  <div class="site-title" id="siteTitle">
+    <svg class="site-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <clipPath id="ballclip"><circle cx="50" cy="50" r="47.5"/></clipPath>
+        <radialGradient id="ballgrad" cx="38%" cy="32%" r="60%">
+          <stop offset="0%" stop-color="#ffffff"/>
+          <stop offset="100%" stop-color="#d8d8d8"/>
+        </radialGradient>
+      </defs>
+      <!-- ボール本体 -->
+      <circle cx="50" cy="50" r="48" fill="url(#ballgrad)" stroke="#aaa" stroke-width="1.5"/>
+      <!-- 黒パッチ（正五角形＋周囲5枚、白縫い目付き） -->
+      <g clip-path="url(#ballclip)" fill="#111" stroke="#fff" stroke-width="2.5" stroke-linejoin="round">
+        <!-- 中央五角形 -->
+        <polygon points="50,28 68.6,42 61.8,64 38.2,64 31.4,42"/>
+        <!-- 上 -->
+        <polygon points="35,2 65,2 72,16 68.6,42 50,28 31.4,42 28,16"/>
+        <!-- 右上 -->
+        <polygon points="72,16 95,26 98,55 80,66 68.6,42"/>
+        <!-- 右下 -->
+        <polygon points="80,66 96,88 76,102 55,102 61.8,64"/>
+        <!-- 左下 -->
+        <polygon points="20,66 4,88 24,102 45,102 38.2,64"/>
+        <!-- 左上 -->
+        <polygon points="28,16 5,26 2,55 20,66 31.4,42"/>
+      </g>
+      <!-- 外枠 -->
+      <circle cx="50" cy="50" r="48" fill="none" stroke="#999" stroke-width="1.5"/>
+    </svg>
+    <span>
+      <span style="display:block;line-height:1.1">
+        <span style="color:#fff">Football</span>
+        <em style="background:#fff;color:#111;padding:1px 5px;border-radius:3px;margin-left:3px;font-size:15px">Today</em>
+      </span>
+      <span style="display:block;font-size:9px;font-weight:400;opacity:.65;letter-spacing:.8px;margin-top:1px">サッカー日程表</span>
+    </span>
+  </div>
   <div class="hright">
     <span id="adminBadge">管理者</span>
     <span id="lastUpdated">—</span>
@@ -476,6 +526,10 @@
 <!-- ══ 得点ランキングページ ══ -->
 <div id="scorersPage" style="display:none">
   <div class="filter-bar" id="scorersFilter"></div>
+  <div class="filter-bar" id="scorersSubFilter">
+    <button class="ftab active" data-sub="goals">⚽ 得点</button>
+    <button class="ftab" data-sub="assists">🎯 アシスト</button>
+  </div>
   <div class="wrap" id="scorersWrap">
     <div class="state"><span class="ico">⚽</span>読み込み中…</div>
   </div>
@@ -1165,7 +1219,7 @@ const PLAYER_NAMES_JA = {
 const ESPN_SCHED  = 'https://site.api.espn.com/apis/site/v2/sports/soccer';
 const ESPN_STND   = 'https://site.api.espn.com/apis/v2/sports/soccer';
 const ESPN_CORE   = 'https://sports.core.api.espn.com/v2/sports/soccer/leagues';
-const REFRESH_MS  = 3 * 60 * 1000;
+const REFRESH_LIVE = 60 * 1000;  // ライブ試合中: 60秒
 const BOUNDARY_H  = 5;
 const TOP_N       = 200;  // 全件取得（最後尾まで表示）
 
@@ -1173,6 +1227,7 @@ let activePage          = 'schedule';
 let activeCountry       = 'all';
 let activeStandCode     = STANDINGS_LEAGUES[0].code;
 let activeScorersCode   = SCORERS_LEAGUES[0].code;
+let activeScorersTab    = 'goals';
 let allMatches          = [];
 const standingsCache    = {};
 const scorersCache      = {};
@@ -1368,7 +1423,11 @@ async function fetchSchedule() {
 
 function renderSchedule() {
   const wrap = document.getElementById('scheduleWrap');
-  const list = activeCountry === 'all' ? allMatches : allMatches.filter(m => m.country === activeCountry);
+  const todayJST = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' });
+  const yesterdayJST = new Date(Date.now() - 86400000).toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' });
+  const base = activeCountry === 'all' ? allMatches : allMatches.filter(m => m.country === activeCountry);
+  // 終了試合は前日(JST)以降のみ表示
+  const list = base.filter(m => m.state !== 'post' || m.logicalDate >= yesterdayJST);
   if (!list.length) { wrap.innerHTML = '<div class="state"><span class="ico">📋</span>この期間の試合はありません</div>'; return; }
 
   const sorted  = list.slice().sort((a,b) => new Date(a.utcDate) - new Date(b.utcDate));
@@ -1672,6 +1731,7 @@ function buildStandingsHtml(entries, lname, subtitle) {
   return `
     <div class="sec-head"><span class="sec-title">${esc(lname)}</span>${cntHtml}</div>
     ${legend}
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
     <table class="tbl stnd">
       <thead><tr>
         <th style="width:4px;padding:0"></th>
@@ -1681,7 +1741,8 @@ function buildStandingsHtml(entries, lname, subtitle) {
         <th class="c">差</th><th class="c">勝点</th>
       </tr></thead>
       <tbody>${rows}</tbody>
-    </table>`;
+    </table>
+    </div>`;
 }
 
 /* ════════════════════════════════════════
@@ -2014,19 +2075,25 @@ async function loadScorers(code, showLoader = true) {
 function renderScorers(data, code) {
   const wrap  = document.getElementById('scorersWrap');
   const lname = SCORERS_LEAGUES.find(l => l.code === code)?.label ?? '';
-
+  const players = activeScorersTab === 'goals' ? data.goals : data.assists;
+  const colLabel = activeScorersTab === 'goals' ? '得点' : 'アシスト';
   wrap.innerHTML = `
     <div class="sec-head"><span class="sec-title">${esc(lname)}</span></div>
-    <div class="scorers-grid">
-      <div>
-        <div class="scorer-subtitle">⚽ 得点ランキング</div>
-        ${scorerTable(data.goals, '得点')}
-      </div>
-      <div>
-        <div class="scorer-subtitle">🎯 アシストランキング</div>
-        ${scorerTable(data.assists, 'アシスト')}
-      </div>
-    </div>`;
+    ${scorerTable(players, colLabel)}`;
+}
+
+function rankStyle(rank) {
+  if (rank === 1) return 'color:#f59e0b;font-weight:900;font-size:15px';
+  if (rank === 2) return 'color:#94a3b8;font-weight:800;font-size:14px';
+  if (rank === 3) return 'color:#b45309;font-weight:800;font-size:14px';
+  return 'color:var(--muted);font-weight:700;font-size:13px';
+}
+
+function nameStyle(rank) {
+  if (rank === 1) return 'color:#d97706;font-weight:700;font-size:14px';
+  if (rank === 2) return 'color:#64748b;font-weight:600;font-size:13px';
+  if (rank === 3) return 'color:#92400e;font-weight:600;font-size:13px';
+  return 'color:var(--text);font-weight:500;font-size:13px';
 }
 
 function scorerTable(players, colLabel) {
@@ -2037,8 +2104,8 @@ function scorerTable(players, colLabel) {
       ? `<span class="admin-name" data-en="${attr(p.nameEn)}" title="クリックで編集">${esc(p.name)}</span>`
       : esc(p.name);
     return `<tr>
-      <td class="stnd-rank">${p.rank}</td>
-      <td style="font-size:13px;font-weight:500;padding:8px 10px">${nameCell}</td>
+      <td class="stnd-rank" style="${rankStyle(p.rank)}">${p.rank}</td>
+      <td style="${nameStyle(p.rank)};padding:8px 10px">${nameCell}</td>
       <td class="stnd-num hide-sm">${tl}</td>
       <td class="stnd-num hide-sm">${p.matches}</td>
       <td class="stat-val">${p.value}</td>
@@ -2097,6 +2164,15 @@ function buildScorersFilter() {
       activeScorersCode = btn.dataset.code;
       bar.querySelectorAll('.ftab').forEach(b => b.classList.toggle('active', b.dataset.code===activeScorersCode));
       loadScorers(activeScorersCode);
+    };
+  });
+  // 得点/アシスト サブタブ
+  const sub = document.getElementById('scorersSubFilter');
+  sub.querySelectorAll('.ftab').forEach(btn => {
+    btn.onclick = () => {
+      activeScorersTab = btn.dataset.sub;
+      sub.querySelectorAll('.ftab').forEach(b => b.classList.toggle('active', b.dataset.sub===activeScorersTab));
+      if (scorersCache[activeScorersCode]) renderScorers(scorersCache[activeScorersCode], activeScorersCode);
     };
   });
 }
@@ -2477,26 +2553,27 @@ async function load(showLoader = false) {
   } catch(e) {
     document.getElementById('scheduleWrap').innerHTML = `<div class="state"><span class="ico">⚠️</span>取得失敗: ${esc(e.message)}</div>`;
   } finally { btn.classList.remove('spin'); }
+  scheduleNextRefresh();
+}
+
+function scheduleNextRefresh() {
+  clearTimeout(timer);
+  const hasLive = allMatches.some(m => m.state === 'in');
+  if (!hasLive) return; // ライブ試合がなければ自動更新しない
+  timer = setTimeout(async () => {
+    await load(false);
+    scheduleNextRefresh();
+  }, REFRESH_LIVE);
 }
 
 function startAutoRefresh() {
-  clearInterval(timer);
-  timer = setInterval(async () => {
-    // 日程は常に更新
-    load(false);
-    // 順位・得点のキャッシュをクリアし、表示中なら再取得
-    Object.keys(standingsCache).forEach(k => delete standingsCache[k]);
-    Object.keys(scorersCache).forEach(k => delete scorersCache[k]);
-    Object.keys(koCache).forEach(k => delete koCache[k]);
-    if (activePage === 'standings') loadStandings(activeStandCode, false);
-    if (activePage === 'scorers')   loadScorers(activeScorersCode, false);
-  }, REFRESH_MS);
+  scheduleNextRefresh();
 }
 
 /* ════════════════════════════════════════
    起動
 ════════════════════════════════════════ */
-document.getElementById('reloadBtn').onclick = () => { load(true); startAutoRefresh(); };
+document.getElementById('reloadBtn').onclick = () => { load(true).then(() => scheduleNextRefresh()); };
 
 buildCountryFilter();
 buildLeagueFilter();
