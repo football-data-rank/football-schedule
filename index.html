@@ -401,15 +401,16 @@
     /* ─── Responsive ─── */
     @media (max-width: 640px) {
       .hide-sm { display: none; }
-      .td-comp { font-size: 10px; max-width: 70px; }
-      .td-home, .td-away { font-size: 12px; }
+      /* 試合日程: 大会名列を非表示、チーム名を省略表示 */
+      .td-comp { display: none; }
+      .td-home, .td-away { font-size: 12px; overflow: hidden; }
+      .team-inner { display: flex; width: 100%; overflow: hidden; }
+      .tn { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .t-pre { font-size: 13px; }
       .score-num { font-size: 14px; }
-      .badge { width: 16px; height: 16px; }
+      .badge { width: 16px; height: 16px; flex-shrink: 0; }
       #lastUpdated { display: none; }
-      /* 順位表のスクロール対応 */
-      .tbl.stnd { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-      /* 得点ランキングの選手名折り返し */
+      /* 順位表: overflow は buildStandingsHtml の div wrapper で対応済み */
       .tbl.stnd td { font-size: 12px; padding: 6px 6px; }
       .stnd-rank { width: 24px; }
       .stnd-num  { width: 28px; }
@@ -1451,7 +1452,7 @@ function renderSchedule() {
       <thead><tr>
         <th class="c" style="width:72px">時刻(JST)</th>
         <th class="r">ホーム</th><th class="c" style="width:66px">スコア</th>
-        <th class="l">アウェー</th><th class="l">大会</th>
+        <th class="l">アウェー</th><th class="l hide-sm">大会</th>
       </tr></thead>
       <tbody>${rows.join('')}</tbody>
     </table>`;
@@ -1467,7 +1468,7 @@ function scheduleRow(m) {
     : `<td class="td-score"><span class="score-vs">vs</span></td>`;
   const hb = m.homeLogo ? `<img class="badge" src="${attr(m.homeLogo)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '';
   const ab = m.awayLogo ? `<img class="badge" src="${attr(m.awayLogo)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '';
-  return `<tr${m.state==='in'?' class="live-row"':''}>${tc}<td class="td-home"><span class="team-inner">${hb}${esc(m.homeTeam)}</span></td>${sc}<td class="td-away"><span class="team-inner">${ab}${esc(m.awayTeam)}</span></td><td class="td-comp">${esc(m.label)}</td></tr>`;
+  return `<tr${m.state==='in'?' class="live-row"':''}>${tc}<td class="td-home"><span class="team-inner">${hb}<span class="tn">${esc(m.homeTeam)}</span></span></td>${sc}<td class="td-away"><span class="team-inner">${ab}<span class="tn">${esc(m.awayTeam)}</span></span></td><td class="td-comp hide-sm">${esc(m.label)}</td></tr>`;
 }
 
 /* ════════════════════════════════════════
