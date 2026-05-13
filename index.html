@@ -7,6 +7,9 @@
   <meta name="google-site-verification" content="36E2heKne3wfqWYS__XDLWlvbopcAhlE-k4p4K3UlxM" />
   <meta name="description" content="欧州サッカーの試合日程・結果・順位表・得点ランキングをまとめたサイト。プレミアリーグ、ラ・リーガ、セリエA、ブンデスリーガ、リーグアン、CLなど。">
   <meta name="keywords" content="サッカー,試合日程,順位表,得点ランキング,プレミアリーグ,ラ・リーガ,セリエA,ブンデスリーガ,チャンピオンズリーグ">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+1p:wght@400;700;800&family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-EK4ZTELMME"></script>
   <script>
@@ -36,7 +39,7 @@
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans JP', sans-serif;
+      font-family: 'M PLUS 1p', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: var(--bg);
       color: var(--text);
       font-size: 14px;
@@ -59,6 +62,7 @@
     .site-title {
       font-size: 17px; font-weight: 800; letter-spacing: -.4px;
       display: flex; align-items: center; gap: 9px;
+      font-family: 'BIZ UDPGothic', sans-serif;
     }
     .site-title em { font-style: normal; }
     .site-logo {
@@ -125,7 +129,8 @@
 
     /* ─── Dropdown (country / league / scorers) ─── */
     #countryTriggerBtn, #leagueTriggerBtn, #scorersTriggerBtn {
-      background: none; border: none; cursor: pointer; padding: 0;
+      background: none; border: 1.5px solid var(--indigo); cursor: pointer;
+      padding: 4px 12px; border-radius: 14px;
     }
     #countryDropdownOverlay, #leagueDropdownOverlay, #scorersDropdownOverlay {
       position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: 200; display: none;
@@ -178,7 +183,9 @@
     .tbl thead th.r { text-align: right; }
     .tbl tbody tr { border-top: 1px solid var(--border); }
     .tbl tbody tr:nth-child(even) { background: var(--row-alt); }
-    .tbl.sched td, .tbl.sched th { border: 1px solid transparent; }
+    .tbl.sched td { border-bottom: 1px solid var(--border); }
+    .tbl.sched th { border: none; }
+    .tbl.sched tbody tr:nth-child(even) { background: #fff; }
 
     /* ─── Schedule ─── */
     .tbl.sched tbody tr:hover { background: var(--row-hl); }
@@ -207,6 +214,8 @@
     .score-vs  { font-size: 12px; font-weight: 600; color: var(--muted); }
     .td-comp { max-width: 140px; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+    #scorersPage { font-family: 'BIZ UDPGothic', sans-serif; }
+
     /* ─── Standings ─── */
     .tbl.stnd td { padding: 7px 10px; vertical-align: middle; }
     .zone-bar { width: 4px !important; padding: 0 !important; }
@@ -215,6 +224,7 @@
     .stnd-team-inner { display: flex; align-items: center; gap: 8px; }
     .stnd-badge { width: 22px; height: 22px; object-fit: contain; flex-shrink: 0; }
     .stnd-num { width: 36px; text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; }
+    .scorer-sub-row { display: flex; gap: 8px; margin-bottom: 10px; }
     .scorer-sub { padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; border: 1px solid var(--border); background: none; cursor: pointer; color: var(--muted); }
     .scorer-sub.active { background: var(--indigo); color: #fff; border-color: var(--indigo); }
     .stnd-w   { color: #16a34a; font-weight: 700; }
@@ -442,24 +452,24 @@
       }
       /* 試合日程 */
       #scheduleWrap { padding-left: 2px; padding-right: 2px; }
-      .tbl.sched td { padding: 22px 0; }
+      .tbl.sched td { padding: 4px 0; }
       .tbl tr.drow td { padding: 6px 8px; }
       .th-time  { width: 38px; }
       .th-score { width: 44px; }
       .th-comp  { width: 40px; }
-      .td-score { width: 44px; padding: 22px 0; vertical-align: middle; position: relative; text-align: center; }
-      .score-inner { display: block; width: 100%; text-align: center; }
-      .score-inner .t-pre,
-      .score-inner .t-fin,
-      .score-inner .t-live { position: absolute; top: 5px; left: 0; right: 0; font-size: 13px; font-weight: 700; text-align: center; }
-      .td-comp  { width: 40px; max-width: 40px; font-size: 10px; padding: 22px 0; color: var(--text); font-weight: 600; border-left: 2px solid #94a3b8 !important; }
-      .td-home, .td-away { font-size: 14px; padding: 22px 0; overflow: hidden; }
+      .td-score { width: 44px; padding: 4px 0; vertical-align: middle; text-align: center; }
+      .score-inner { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+      .score-inner .t-pre  { position: static; font-size: 13px; font-weight: 700; color: #ec4899; line-height: 1.15; -webkit-text-stroke: 0.3px #000; }
+      .score-inner .t-fin  { position: static; font-size: 13px; font-weight: 500; line-height: 1.15; }
+      .score-inner .t-live { position: static; font-size: 13px; font-weight: 700; line-height: 1.15; }
+      .td-comp  { width: 40px; max-width: 40px; font-size: 10px; padding: 4px 0; color: var(--text); font-weight: 600; border-left: 2px solid #94a3b8 !important; }
+      .td-home, .td-away { font-size: 14px; padding: 4px 0; overflow: hidden; }
       .team-inner { display: flex; width: 100%; overflow: hidden; }
-      .tn { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+      .tn { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; color: #475569; }
       .t-pre { font-size: 14px; }
-      .score-num { font-size: 13px; }
-      .score-vs  { color: var(--indigo); font-weight: 700; }
-      .score-comp { position: absolute; bottom: 4px; left: 0; right: 0; font-size: 9px; color: var(--muted); text-align: center; }
+      .score-num { font-size: 13px; line-height: 1.15; }
+      .score-vs  { color: #94a3b8; font-weight: 600; font-size: 11px; line-height: 1.15; }
+      .score-comp { position: static; font-size: 9px; color: var(--muted); line-height: 1.1; }
       .badge { width: 16px; height: 16px; flex-shrink: 0; }
       #lastUpdated { display: none; }
       /* 順位表: overflow は buildStandingsHtml の div wrapper で対応済み */
@@ -634,19 +644,19 @@
    データ定義
 ════════════════════════════════════════ */
 const SCHEDULE_LEAGUES = [
-  { code: 'eng.1',               label: 'プレミアリーグ',      short: 'プレミア', country: 'england' },
-  // { code: 'eng.fa_cup',          label: 'FAカップ',            short: 'FAカップ', country: 'england' },
-  { code: 'esp.1',               label: 'ラ・リーガ',           short: 'ラリーガ', country: 'spain'   },
-  { code: 'esp.copa_del_rey',    label: 'コパ・デル・レイ',     short: 'コパ',     country: 'spain'   },
-  { code: 'ger.1',               label: 'ブンデスリーガ',        short: 'ブンデス', country: 'germany' },
-  { code: 'ger.dfb_pokal',       label: 'DFBポカール',          short: 'ポカール', country: 'germany' },
-  { code: 'ita.1',               label: 'セリエA',              short: 'セリエA',  country: 'italy'   },
-  { code: 'ita.coppa_italia',    label: 'コッパ・イタリア',      short: 'コッパ',   country: 'italy'   },
-  { code: 'fra.1',               label: 'リーグ・アン',          short: 'リーグアン', country: 'france'  },
-  { code: 'fra.coupe_de_france', label: 'クープ・ド・フランス',  short: 'クープ',   country: 'france'  },
-  { code: 'uefa.champions',      label: 'チャンピオンズリーグ',  short: 'CL',       country: 'europe'  },
-  { code: 'uefa.europa',         label: 'ヨーロッパリーグ',      short: 'EL',       country: 'europe'  },
-  { code: 'uefa.europa.conf',    label: 'カンファレンスリーグ',  short: 'UECL',     country: 'europe'  },
+  { code: 'eng.1',               label: 'プレミアリーグ',      short: 'プレミア',   country: 'england', color: '#6d28d9' },
+  // { code: 'eng.fa_cup',          label: 'FAカップ',            short: 'FAカップ', country: 'england', color: '#6d28d9' },
+  { code: 'esp.1',               label: 'ラ・リーガ',           short: 'ラリーガ',   country: 'spain',   color: '#dc2626' },
+  { code: 'esp.copa_del_rey',    label: 'コパ・デル・レイ',     short: 'コパ',       country: 'spain',   color: '#dc2626' },
+  { code: 'ger.1',               label: 'ブンデスリーガ',        short: 'ブンデス',   country: 'germany', color: '#d97706' },
+  { code: 'ger.dfb_pokal',       label: 'DFBポカール',          short: 'ポカール',   country: 'germany', color: '#d97706' },
+  { code: 'ita.1',               label: 'セリエA',              short: 'セリエA',    country: 'italy',   color: '#2563eb' },
+  { code: 'ita.coppa_italia',    label: 'コッパ・イタリア',      short: 'コッパ',     country: 'italy',   color: '#2563eb' },
+  { code: 'fra.1',               label: 'リーグ・アン',          short: 'リーグアン', country: 'france',  color: '#059669' },
+  { code: 'fra.coupe_de_france', label: 'クープ・ド・フランス',  short: 'クープ',     country: 'france',  color: '#059669' },
+  { code: 'uefa.champions',      label: 'チャンピオンズリーグ',  short: 'CL',         country: 'europe',  color: '#1e40af' },
+  { code: 'uefa.europa',         label: 'ヨーロッパリーグ',      short: 'EL',         country: 'europe',  color: '#ea580c' },
+  { code: 'uefa.europa.conf',    label: 'カンファレンスリーグ',  short: 'UECL',       country: 'europe',  color: '#0891b2' },
 ];
 
 const COUNTRY_FILTERS = [
@@ -1458,7 +1468,7 @@ function parseEvent(ev, lg) {
     homeScore: (state !== 'pre') ? home.score : null,
     awayScore: (state !== 'pre') ? away.score : null,
     state, clock: comp.status?.displayClock || '',
-    label: lg.label, shortLabel: lg.short || lg.label, country: lg.country,
+    label: lg.label, shortLabel: lg.short || lg.label, country: lg.country, leagueColor: lg.color || '#64748b',
   };
 }
 
@@ -1560,7 +1570,7 @@ function scheduleRow(m) {
   const scoreEl = m.homeScore != null
     ? `<span class="score-num">${esc(m.homeScore)}-${esc(m.awayScore)}</span>`
     : `<span class="score-vs">vs</span>`;
-  const sc = `<td class="td-score"><div class="score-inner">${timeEl}${scoreEl}<span class="score-comp">${esc(cl)}</span></div></td>`;
+  const sc = `<td class="td-score"><div class="score-inner">${timeEl}${scoreEl}<span class="score-comp" style="color:${attr(m.leagueColor)};font-weight:700">${esc(cl)}</span></div></td>`;
   return `<tr${m.state==='in'?' class="live-row"':''}><td class="td-home"><span class="team-inner">${hb}<span class="tn">${esc(hn)}</span></span></td>${sc}<td class="td-away"><span class="team-inner">${ab}<span class="tn">${esc(an)}</span></span></td></tr>`;
 }
 
@@ -1830,7 +1840,7 @@ function buildStandingsHtml(entries, lname, subtitle) {
     <table class="tbl stnd">
       <thead><tr>
         <th style="width:4px;padding:0"></th>
-        <th class="c" style="width:32px">順</th><th class="l">クラブ</th>
+        <th class="c" style="width:32px"></th><th class="l">クラブ</th>
         <th class="c hide-sm">試</th><th class="c">勝</th><th class="c">分</th><th class="c">負</th>
         <th class="c hide-sm">得</th><th class="c hide-sm">失</th>
         <th class="c">差</th><th class="c">勝点</th>
@@ -2213,6 +2223,8 @@ function renderScorers(data, code) {
   wrap.innerHTML = `
     <div class="sec-head">
       <button id="scorersTriggerBtn" class="sec-title">${esc(lname)} ▼</button>
+    </div>
+    <div class="scorer-sub-row">
       <button class="scorer-sub${activeScorersTab==='goals'?' active':''}" data-sub="goals">⚽ 得点</button>
       <button class="scorer-sub${activeScorersTab==='assists'?' active':''}" data-sub="assists">🎯 アシスト</button>
     </div>
@@ -2250,7 +2262,7 @@ function scorerTable(players, colLabel) {
   }).join('');
   return `<table class="tbl stnd">
     <thead><tr>
-      <th class="c" style="width:28px">順</th>
+      <th class="c" style="width:28px"></th>
       <th class="l">選手</th>
       <th class="c hide-sm" style="width:36px">所属</th>
       <th class="c hide-sm" style="width:36px">試</th>
