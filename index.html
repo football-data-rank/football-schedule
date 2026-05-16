@@ -9,7 +9,7 @@
   <meta name="keywords" content="サッカー,試合日程,順位表,得点ランキング,プレミアリーグ,ラ・リーガ,セリエA,ブンデスリーガ,チャンピオンズリーグ">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+1p:wght@400;700;800&family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+1p:wght@400;700;800&family=BIZ+UDPGothic:wght@400;700&family=BIZ+UDPMincho:wght@400;700&display=swap" rel="stylesheet">
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-EK4ZTELMME"></script>
   <script>
@@ -40,7 +40,8 @@
 
     body {
       font-family: 'M PLUS 1p', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: var(--bg);
+      background: linear-gradient(160deg, #c8e6f7 0%, #dff0f8 35%, #cceef5 70%, #d4eef9 100%);
+      background-attachment: fixed;
       color: var(--text);
       font-size: 14px;
       min-height: 100vh;
@@ -114,8 +115,10 @@
 
     /* ─── Secondary filter bar ─── */
     .filter-bar {
-      background: var(--white);
-      border-bottom: 1px solid var(--border);
+      background: rgba(200,234,252,0.82);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(186,230,253,0.6);
       display: flex;
       gap: 4px;
       padding: 0 16px;
@@ -183,9 +186,14 @@
     .tbl thead th.r { text-align: right; }
     .tbl tbody tr { border-top: 1px solid var(--border); }
     .tbl tbody tr:nth-child(even) { background: var(--row-alt); }
-    .tbl.sched td { border-bottom: 1px solid var(--border); }
-    .tbl.sched th { border: none; }
-    .tbl.sched tbody tr:nth-child(even) { background: #fff; }
+    .tbl.sched { font-family: 'BIZ UDPMincho', serif; background: rgba(180,225,248,0.35); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(186,230,253,0.55); box-shadow: 0 4px 28px rgba(8,145,178,0.13), inset 0 1px 0 rgba(255,255,255,0.5); border-collapse: separate; border-spacing: 0 3px; }
+    .tbl.sched tbody tr:not(.drow) td { background: rgba(255,255,255,0.62); }
+    .tbl.sched td { border-top: 1.5px solid rgba(10,40,80,0.42); border-bottom: 1.5px solid rgba(10,40,80,0.42); }
+    .tbl.sched td:first-child { border-left: 1.5px solid rgba(10,40,80,0.42); border-radius: 6px 0 0 6px; }
+    .tbl.sched td:last-child  { border-right: 1.5px solid rgba(10,40,80,0.42); border-radius: 0 6px 6px 0; }
+    .tbl.sched th { border: none; background: rgba(147,210,240,0.45); }
+    .tbl.sched tbody tr:nth-child(even):not(.drow) td { background: rgba(225,242,252,0.65); }
+    .tbl.sched tr.drow td { background: rgba(8,145,178,0.28) !important; color: #083d5e !important; border: none !important; letter-spacing: 0.4px !important; font-weight: 800 !important; }
 
     /* ─── Schedule ─── */
     .tbl.sched tbody tr:hover { background: var(--row-hl); }
@@ -196,8 +204,8 @@
     .th-score { width: 66px; }
     .th-comp { max-width: 140px; }
     .td-time { width: 72px; text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap; }
-    .t-pre  { font-size: 15px; font-weight: 800; color: var(--indigo); }
-    .t-pre.late { color: #7c3aed; }
+    .t-pre  { display: inline-block; font-size: 14px; font-weight: 700; color: #fff; font-family: 'BIZ UDPMincho', serif; background: rgba(10,40,80,0.55); border-radius: 6px; padding: 2px 7px; text-shadow: none; }
+    .t-pre.late { color: #fff; background: rgba(4,120,87,0.75); }
     .t-fin  { font-size: 12px; font-weight: 500; color: var(--fin); }
     .t-live { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 800; color: var(--live); }
     .live-dot { width: 12px; height: 12px; background: var(--live); border-radius: 50%; animation: blink 1s ease-in-out infinite; flex-shrink: 0; }
@@ -214,16 +222,28 @@
     .score-vs  { font-size: 12px; font-weight: 600; color: var(--muted); }
     .td-comp { max-width: 140px; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-    #scorersPage { font-family: 'BIZ UDPGothic', sans-serif; }
+    #scorersPage { font-family: 'BIZ UDPMincho', serif; }
 
     /* ─── Standings ─── */
-    .tbl.stnd td { padding: 7px 10px; vertical-align: middle; }
+    .tbl.stnd td { padding: 6px 8px; vertical-align: middle; }
     .zone-bar { width: 4px !important; padding: 0 !important; }
-    .stnd-rank { width: 32px; text-align: center; font-size: 13px; font-weight: 700; color: var(--muted); }
-    .stnd-team { font-size: 13px; font-weight: 500; }
-    .stnd-team-inner { display: flex; align-items: center; gap: 8px; }
-    .stnd-badge { width: 22px; height: 22px; object-fit: contain; flex-shrink: 0; }
-    .stnd-num { width: 36px; text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; }
+    .stnd-rank { width: 28px; text-align: center; font-size: 13px; font-weight: 700; color: var(--muted); }
+    .stnd-team { font-size: 13px; font-weight: 500; white-space: nowrap; }
+    .stnd-team-inner { display: flex; align-items: center; gap: 6px; }
+    .stnd-badge { width: 20px; height: 20px; object-fit: contain; flex-shrink: 0; }
+    .stnd-num { width: 30px; text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; }
+    /* sticky left columns */
+    .tbl.stnd .zone-bar  { position: sticky; left: 0;    z-index: 2; }
+    .tbl.stnd .stnd-rank { position: sticky; left: 4px;  z-index: 2; }
+    .tbl.stnd .stnd-team { position: sticky; left: 48px; z-index: 2; box-shadow: 2px 0 4px rgba(0,0,0,.06); }
+    .tbl.stnd thead .zone-bar,
+    .tbl.stnd thead .stnd-rank,
+    .tbl.stnd thead .stnd-team { background: var(--row-alt); z-index: 3; }
+    .tbl.stnd tbody .zone-bar,
+    .tbl.stnd tbody .stnd-rank,
+    .tbl.stnd tbody .stnd-team { background: var(--white); }
+    .tbl.stnd tbody tr:nth-child(even) .stnd-rank,
+    .tbl.stnd tbody tr:nth-child(even) .stnd-team { background: var(--row-alt); }
     .scorer-sub-row { display: flex; gap: 8px; margin-bottom: 10px; }
     .scorer-sub { padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; border: 1px solid var(--border); background: none; cursor: pointer; color: var(--muted); }
     .scorer-sub.active { background: var(--indigo); color: #fff; border-color: var(--indigo); }
@@ -232,6 +252,15 @@
     .stnd-l   { color: #ef4444; font-weight: 700; }
     .stnd-pts { width: 42px; text-align: center; font-size: 14px; font-weight: 800; color: var(--indigo); font-variant-numeric: tabular-nums; }
     .stnd-gd  { width: 42px; text-align: center; font-size: 12px; font-variant-numeric: tabular-nums; }
+    /* ─── Bubbles ─── */
+    @keyframes riseUp {
+      0%   { transform: translateY(0) scale(1); opacity: 0.7; }
+      80%  { opacity: 0.4; }
+      100% { transform: translateY(-105vh) scale(1.15); opacity: 0; }
+    }
+    #bubbles { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+    .bubble { position: absolute; bottom: -60px; border-radius: 50%; background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.45); animation: riseUp linear infinite; }
+    #schedulePage, #standingsPage, #scorersPage, #editPage { position: relative; z-index: 1; }
     .stnd-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 8px 0 12px; font-size: 11px; color: var(--muted); }
     .legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
 
@@ -459,7 +488,7 @@
       .th-comp  { width: 40px; }
       .td-score { width: 44px; padding: 4px 0; vertical-align: middle; text-align: center; }
       .score-inner { display: flex; flex-direction: column; align-items: center; gap: 1px; }
-      .score-inner .t-pre  { position: static; font-size: 13px; font-weight: 700; color: #ec4899; line-height: 1.15; -webkit-text-stroke: 0.3px #000; }
+      .score-inner .t-pre  { position: static; display: inline-block; font-size: 12px; font-weight: 700; color: #fff; font-family: 'BIZ UDPMincho', serif; line-height: 1.3; background: rgba(10,40,80,0.55); border-radius: 5px; padding: 1px 5px; text-shadow: none; }
       .score-inner .t-fin  { position: static; font-size: 13px; font-weight: 500; line-height: 1.15; }
       .score-inner .t-live { position: static; font-size: 13px; font-weight: 700; line-height: 1.15; }
       .td-comp  { width: 40px; max-width: 40px; font-size: 10px; padding: 4px 0; color: var(--text); font-weight: 600; border-left: 2px solid #94a3b8 !important; }
@@ -473,13 +502,17 @@
       .badge { width: 16px; height: 16px; flex-shrink: 0; }
       #lastUpdated { display: none; }
       /* 順位表: overflow は buildStandingsHtml の div wrapper で対応済み */
-      .tbl.stnd td { font-size: 12px; padding: 6px 6px; }
-      .stnd-rank { width: 24px; }
-      .stnd-num  { width: 28px; }
+      .tbl.stnd td { font-size: 12px; padding: 5px 4px; }
+      .stnd-rank { width: 20px; }
+      .stnd-num  { width: 24px; }
+      .stnd-pts  { width: 30px; }
+      .stnd-gd   { width: 30px; }
+      .tbl.stnd .stnd-team { left: 32px; } /* zone-bar 4px + rank 20+4+4=28px */
     }
   </style>
 </head>
 <body>
+<div id="bubbles"></div>
 
 <!-- ── PINダイアログ ── -->
 <div id="pinDialog">
@@ -1457,7 +1490,7 @@ function parseEvent(ev, lg) {
   const home = comp.competitors?.find(c => c.homeAway === 'home');
   const away = comp.competitors?.find(c => c.homeAway === 'away');
   if (!home || !away) return null;
-  const state  = ev.status?.type?.state ?? 'pre';
+  const state  = comp.status?.type?.state ?? ev.status?.type?.state ?? 'pre';
   const timing = getMatchTiming(ev.date);
   return {
     id: ev.id, utcDate: ev.date,
@@ -1824,14 +1857,15 @@ function buildStandingsHtml(entries, lname, subtitle) {
   const legend  = zones.length ? `<div class="stnd-legend">${zones.map(z=>`<span><span class="legend-dot" style="background:${attr(z.color)}"></span>${esc(z.desc)}</span>`).join('')}</div>` : '';
   const cntHtml = subtitle ? `<span class="sec-cnt">${esc(subtitle)}</span>` : `<span class="sec-cnt">${entries.length}クラブ</span>`;
   const rows    = entries.map(e => {
-    const zbar     = `<td class="zone-bar" style="background:${e.noteColor ? attr(e.noteColor) : 'transparent'}"></td>`;
+    const zbar     = `<td class="zone-bar"${e.noteColor ? ` style="background:${attr(e.noteColor)}"` : ''}></td>`;
     const logo     = e.logo ? `<img class="stnd-badge" src="${attr(e.logo)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '';
     const gdNum    = e.gd > 0 ? `+${e.gd}` : String(e.gd);
     const gdColor  = e.gd > 0 ? '#16a34a' : e.gd < 0 ? '#ef4444' : '#94a3b8';
+    const displayName = fitTeamName(e.team);
     const teamName = (adminMode && e.teamEn)
-      ? `<span class="admin-name" data-en="${attr(e.teamEn)}" data-type="team" title="クリックで編集">${esc(e.team)}</span>`
-      : esc(e.team);
-    return `<tr>${zbar}<td class="stnd-rank">${e.rank}</td><td class="stnd-team"><span class="stnd-team-inner">${logo}${teamName}</span></td><td class="stnd-num hide-sm">${e.gp}</td><td class="stnd-num stnd-w">${e.w}</td><td class="stnd-num stnd-d">${e.d}</td><td class="stnd-num stnd-l">${e.l}</td><td class="stnd-num hide-sm">${e.gf}</td><td class="stnd-num hide-sm">${e.ga}</td><td class="stnd-gd" style="color:${gdColor}">${gdNum}</td><td class="stnd-pts">${e.pts}</td></tr>`;
+      ? `<span class="admin-name" data-en="${attr(e.teamEn)}" data-type="team" title="クリックで編集">${esc(displayName)}</span>`
+      : esc(displayName);
+    return `<tr>${zbar}<td class="stnd-rank">${e.rank}</td><td class="stnd-team"><span class="stnd-team-inner">${logo}${teamName}</span></td><td class="stnd-num">${e.gp}</td><td class="stnd-num stnd-w">${e.w}</td><td class="stnd-num stnd-d">${e.d}</td><td class="stnd-num stnd-l">${e.l}</td><td class="stnd-num">${e.gf}</td><td class="stnd-num">${e.ga}</td><td class="stnd-pts">${e.pts}</td></tr>`;
   }).join('');
   return `
     <div class="sec-head"><button id="leagueTriggerBtn" class="sec-title">${esc(lname)} ▼</button>${cntHtml}</div>
@@ -1841,9 +1875,9 @@ function buildStandingsHtml(entries, lname, subtitle) {
       <thead><tr>
         <th style="width:4px;padding:0"></th>
         <th class="c" style="width:32px"></th><th class="l">クラブ</th>
-        <th class="c hide-sm">試</th><th class="c">勝</th><th class="c">分</th><th class="c">負</th>
-        <th class="c hide-sm">得</th><th class="c hide-sm">失</th>
-        <th class="c">差</th><th class="c">勝点</th>
+        <th class="c">試</th><th class="c">勝</th><th class="c">分</th><th class="c">負</th>
+        <th class="c">得</th><th class="c">失</th>
+        <th class="c">勝点</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>
@@ -2776,6 +2810,28 @@ setInterval(tick, 30_000);
       ticking = false;
     });
   }, { passive: true });
+})();
+
+/* ── 泡アニメーション生成 ── */
+(function() {
+  const wrap = document.getElementById('bubbles');
+  const bubbles = [
+    {size:10, left: 7, dur:10, delay: 0},
+    {size:18, left:17, dur:14, delay: 3},
+    {size: 8, left:28, dur: 9, delay: 7},
+    {size:22, left:40, dur:13, delay: 1},
+    {size:12, left:53, dur:11, delay: 5},
+    {size:16, left:65, dur:15, delay: 2},
+    {size: 9, left:76, dur: 8, delay: 8},
+    {size:20, left:86, dur:12, delay: 4},
+    {size:13, left:94, dur:10, delay: 6},
+  ];
+  bubbles.forEach(b => {
+    const el = document.createElement('div');
+    el.className = 'bubble';
+    el.style.cssText = `width:${b.size}px;height:${b.size}px;left:${b.left}%;animation-duration:${b.dur}s;animation-delay:-${b.delay}s`;
+    wrap.appendChild(el);
+  });
 })();
 </script>
 </body>
