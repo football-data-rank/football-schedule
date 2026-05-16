@@ -214,6 +214,7 @@
     .tbl.sched tr.live-row .score-num { color: var(--live); }
     .td-home { text-align: right; padding-right: 4px; font-size: 13px; font-weight: 500; }
     .td-away { text-align: left;  padding-left:  4px; font-size: 13px; font-weight: 500; }
+    .tn { color: #0369a1; font-weight: 700; }
     .team-inner { display: inline-flex; align-items: center; gap: 6px; }
     .td-home .team-inner { flex-direction: row-reverse; }
     .badge { width: 20px; height: 20px; object-fit: contain; flex-shrink: 0; }
@@ -494,7 +495,7 @@
       .td-comp  { width: 40px; max-width: 40px; font-size: 10px; padding: 4px 0; color: var(--text); font-weight: 600; border-left: 2px solid #94a3b8 !important; }
       .td-home, .td-away { font-size: 14px; padding: 4px 0; overflow: hidden; }
       .team-inner { display: flex; width: 100%; overflow: hidden; }
-      .tn { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; color: #475569; }
+      .tn { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .t-pre { font-size: 14px; }
       .score-num { font-size: 13px; line-height: 1.15; }
       .score-vs  { color: #94a3b8; font-weight: 600; font-size: 11px; line-height: 1.15; }
@@ -580,7 +581,7 @@
         <span style="color:#fff">Football</span>
         <em style="background:#fff;color:#111;padding:1px 5px;border-radius:3px;margin-left:3px;font-size:15px">Today</em>
       </span>
-      <span style="display:block;font-size:9px;font-weight:400;opacity:.65;letter-spacing:.8px;margin-top:1px">サッカー日程表</span>
+      <span id="siteSubtitle" style="display:block;font-size:9px;font-weight:400;opacity:.65;letter-spacing:.8px;margin-top:1px">サッカー日程表</span>
     </span>
   </div>
   <div class="hright">
@@ -617,7 +618,7 @@
 <!-- ══ 試合日程ページ ══ -->
 <div id="schedulePage">
   <div class="wrap" id="scheduleWrap">
-    <div class="state"><span class="ico">⚽</span>読み込み中…</div>
+    <div class="state"><span class="ico">⚽</span>Loading…</div>
   </div>
 </div>
 
@@ -635,7 +636,7 @@
 <!-- ══ 得点ランキングページ ══ -->
 <div id="scorersPage" style="display:none">
   <div class="wrap" id="scorersWrap">
-    <div class="state"><span class="ico">⚽</span>読み込み中…</div>
+    <div class="state"><span class="ico">⚽</span>Loading…</div>
   </div>
 </div>
 
@@ -674,50 +675,87 @@
 
 <script>
 /* ════════════════════════════════════════
+   言語設定
+════════════════════════════════════════ */
+const LANG = navigator.language.startsWith('ja') ? 'ja' : 'en';
+const T = {
+  schedule:    LANG==='ja' ? '試合日程'             : 'Schedule',
+  standings:   LANG==='ja' ? '各リーグ順位'         : 'Standings',
+  scorers:     LANG==='ja' ? '得点ランキング'       : 'Top Scorers',
+  loading:     LANG==='ja' ? '読み込み中…'            : 'Loading…',
+  failed:      LANG==='ja' ? '取得失敗'             : 'Failed to load',
+  noMatches:   LANG==='ja' ? 'この期間の試合はありません' : 'No matches in this period',
+  selectLeague:LANG==='ja' ? 'リーグを選択してください' : 'Select a league',
+  matchUnit:   LANG==='ja' ? '試合'                 : 'matches',
+  clubUnit:    LANG==='ja' ? 'クラブ'               : 'clubs',
+  clubHdr:     LANG==='ja' ? 'クラブ'               : 'Club',
+  home:        LANG==='ja' ? 'ホーム'               : 'Home',
+  away:        LANG==='ja' ? 'アウェー'             : 'Away',
+  pts:         LANG==='ja' ? '勝点'                 : 'Pts',
+  pCol:        LANG==='ja' ? '試'                   : 'P',
+  wCol:        LANG==='ja' ? '勝'                   : 'W',
+  dCol:        LANG==='ja' ? '分'                   : 'D',
+  lCol:        LANG==='ja' ? '負'                   : 'L',
+  gfCol:       LANG==='ja' ? '得'                   : 'GF',
+  gaCol:       LANG==='ja' ? '失'                   : 'GA',
+  goals:       LANG==='ja' ? '得点'                 : 'Goals',
+  assists:     LANG==='ja' ? 'アシスト'             : 'Assists',
+  player:      LANG==='ja' ? '選手'                 : 'Player',
+  team:        LANG==='ja' ? '所属'                 : 'Club',
+  updated:     LANG==='ja' ? '更新 '                : 'Updated ',
+  saved:       LANG==='ja' ? '✓ 保存しました（カスタマイズ ' : '✓ Saved (',
+  savedSuffix: LANG==='ja' ? '件）'                 : ' items)',
+  leaguePhase: LANG==='ja' ? 'リーグフェーズ'       : 'League Phase',
+  knockout:    LANG==='ja' ? 'ノックアウトステージ' : 'Knockout Stage',
+  subtitle:    LANG==='ja' ? 'サッカー日程表'       : 'Soccer Schedule',
+  all:         LANG==='ja' ? 'すべて'               : 'All',
+};
+
+/* ════════════════════════════════════════
    データ定義
 ════════════════════════════════════════ */
 const SCHEDULE_LEAGUES = [
-  { code: 'eng.1',               label: 'プレミアリーグ',      short: 'プレミア',   country: 'england', color: '#6d28d9' },
-  // { code: 'eng.fa_cup',          label: 'FAカップ',            short: 'FAカップ', country: 'england', color: '#6d28d9' },
-  { code: 'esp.1',               label: 'ラ・リーガ',           short: 'ラリーガ',   country: 'spain',   color: '#dc2626' },
-  { code: 'esp.copa_del_rey',    label: 'コパ・デル・レイ',     short: 'コパ',       country: 'spain',   color: '#dc2626' },
-  { code: 'ger.1',               label: 'ブンデスリーガ',        short: 'ブンデス',   country: 'germany', color: '#d97706' },
-  { code: 'ger.dfb_pokal',       label: 'DFBポカール',          short: 'ポカール',   country: 'germany', color: '#d97706' },
-  { code: 'ita.1',               label: 'セリエA',              short: 'セリエA',    country: 'italy',   color: '#2563eb' },
-  { code: 'ita.coppa_italia',    label: 'コッパ・イタリア',      short: 'コッパ',     country: 'italy',   color: '#2563eb' },
-  { code: 'fra.1',               label: 'リーグ・アン',          short: 'リーグアン', country: 'france',  color: '#059669' },
-  { code: 'fra.coupe_de_france', label: 'クープ・ド・フランス',  short: 'クープ',     country: 'france',  color: '#059669' },
-  { code: 'uefa.champions',      label: 'チャンピオンズリーグ',  short: 'CL',         country: 'europe',  color: '#1e40af' },
-  { code: 'uefa.europa',         label: 'ヨーロッパリーグ',      short: 'EL',         country: 'europe',  color: '#ea580c' },
-  { code: 'uefa.europa.conf',    label: 'カンファレンスリーグ',  short: 'UECL',       country: 'europe',  color: '#0891b2' },
+  { code: 'eng.1',               label: LANG==='ja'?'プレミアリーグ':'Premier League',     short: LANG==='ja'?'プレミア':'Premier',    country: 'england', color: '#6d28d9' },
+  // { code: 'eng.fa_cup',       label: LANG==='ja'?'FAカップ':'FA Cup',                   short: 'FA Cup',                            country: 'england', color: '#6d28d9' },
+  { code: 'esp.1',               label: LANG==='ja'?'ラ・リーガ':'La Liga',                short: 'La Liga',                           country: 'spain',   color: '#dc2626' },
+  { code: 'esp.copa_del_rey',    label: LANG==='ja'?'コパ・デル・レイ':'Copa del Rey',     short: LANG==='ja'?'コパ':'Copa',           country: 'spain',   color: '#dc2626' },
+  { code: 'ger.1',               label: LANG==='ja'?'ブンデスリーガ':'Bundesliga',         short: 'Bundesliga',                        country: 'germany', color: '#d97706' },
+  { code: 'ger.dfb_pokal',       label: LANG==='ja'?'DFBポカール':'DFB Pokal',            short: 'Pokal',                             country: 'germany', color: '#d97706' },
+  { code: 'ita.1',               label: LANG==='ja'?'セリエA':'Serie A',                  short: 'Serie A',                           country: 'italy',   color: '#2563eb' },
+  { code: 'ita.coppa_italia',    label: LANG==='ja'?'コッパ・イタリア':'Coppa Italia',     short: LANG==='ja'?'コッパ':'Coppa',        country: 'italy',   color: '#2563eb' },
+  { code: 'fra.1',               label: LANG==='ja'?'リーグ・アン':'Ligue 1',              short: 'Ligue 1',                           country: 'france',  color: '#059669' },
+  { code: 'fra.coupe_de_france', label: LANG==='ja'?'クープ・ド・フランス':'Coupe de France', short: LANG==='ja'?'クープ':'Coupe',     country: 'france',  color: '#059669' },
+  { code: 'uefa.champions',      label: LANG==='ja'?'チャンピオンズリーグ':'Champions League', short: 'CL',                           country: 'europe',  color: '#1e40af' },
+  { code: 'uefa.europa',         label: LANG==='ja'?'ヨーロッパリーグ':'Europa League',    short: 'EL',                               country: 'europe',  color: '#ea580c' },
+  { code: 'uefa.europa.conf',    label: LANG==='ja'?'カンファレンスリーグ':'Conference League', short: 'UECL',                        country: 'europe',  color: '#0891b2' },
 ];
 
 const COUNTRY_FILTERS = [
-  { id: 'all',     label: 'すべて'       },
-  { id: 'england', label: 'イングランド' },
-  { id: 'spain',   label: 'スペイン'     },
-  { id: 'germany', label: 'ドイツ'       },
-  { id: 'italy',   label: 'イタリア'     },
-  { id: 'france',  label: 'フランス'     },
-  { id: 'europe',  label: '欧州カップ'   },
+  { id: 'all',     label: LANG==='ja'?'すべて':'All'           },
+  { id: 'england', label: LANG==='ja'?'イングランド':'England' },
+  { id: 'spain',   label: LANG==='ja'?'スペイン':'Spain'       },
+  { id: 'germany', label: LANG==='ja'?'ドイツ':'Germany'       },
+  { id: 'italy',   label: LANG==='ja'?'イタリア':'Italy'       },
+  { id: 'france',  label: LANG==='ja'?'フランス':'France'      },
+  { id: 'europe',  label: LANG==='ja'?'欧州カップ':'Euro Cups' },
 ];
 
 const STANDINGS_LEAGUES = [
-  { code: 'eng.1',          label: 'プレミアリーグ' },
-  { code: 'esp.1',          label: 'ラ・リーガ'     },
-  { code: 'ger.1',          label: 'ブンデスリーガ'  },
-  { code: 'ita.1',          label: 'セリエA'        },
-  { code: 'fra.1',          label: 'リーグ・アン'    },
-  { code: 'uefa.champions', label: 'CL'             },
-  { code: 'uefa.europa',    label: 'EL'             },
+  { code: 'eng.1',          label: LANG==='ja'?'プレミアリーグ':'Premier League' },
+  { code: 'esp.1',          label: LANG==='ja'?'ラ・リーガ':'La Liga'            },
+  { code: 'ger.1',          label: LANG==='ja'?'ブンデスリーガ':'Bundesliga'      },
+  { code: 'ita.1',          label: LANG==='ja'?'セリエA':'Serie A'               },
+  { code: 'fra.1',          label: LANG==='ja'?'リーグ・アン':'Ligue 1'          },
+  { code: 'uefa.champions', label: 'CL'                                          },
+  { code: 'uefa.europa',    label: 'EL'                                          },
 ];
 
 const SCORERS_LEAGUES = [
-  { code: 'eng.1', label: 'プレミアリーグ' },
-  { code: 'esp.1', label: 'ラ・リーガ'     },
-  { code: 'ger.1', label: 'ブンデスリーガ'  },
-  { code: 'ita.1', label: 'セリエA'        },
-  { code: 'fra.1', label: 'リーグ・アン'    },
+  { code: 'eng.1', label: LANG==='ja'?'プレミアリーグ':'Premier League' },
+  { code: 'esp.1', label: LANG==='ja'?'ラ・リーガ':'La Liga'            },
+  { code: 'ger.1', label: LANG==='ja'?'ブンデスリーガ':'Bundesliga'      },
+  { code: 'ita.1', label: LANG==='ja'?'セリエA':'Serie A'               },
+  { code: 'fra.1', label: LANG==='ja'?'リーグ・アン':'Ligue 1'          },
 ];
 
 /* ────────────────────────────────────────
@@ -1433,6 +1471,7 @@ function nameToKatakana(name) {
 
 function teamNameJa(name) {
   if (!name) return name;
+  if (LANG !== 'ja') return nameOverrides.teams[name] || name;
   return nameOverrides.teams[name]
       || TEAM_NAMES_JA[name]
       || TEAM_NAMES_JA[name.replace(/\s+FC$/i,'').trim()]
@@ -1442,6 +1481,7 @@ function teamNameJa(name) {
 
 function playerNameJa(name) {
   if (!name) return name;
+  if (LANG !== 'ja') return nameOverrides.players[name] || name;
   return nameOverrides.players[name] || PLAYER_NAMES_JA[name] || nameToKatakana(name);
 }
 
@@ -1478,7 +1518,7 @@ function getMatchTiming(utcStr) {
 
 function dayLabel(dateStr) {
   return new Date(dateStr + 'T00:00:00+09:00')
-    .toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short' });
+    .toLocaleDateString(LANG==='ja'?'ja-JP':'en-US', { month: LANG==='ja'?'numeric':'short', day: 'numeric', weekday: 'short' });
 }
 
 /* ════════════════════════════════════════
@@ -1532,11 +1572,11 @@ function renderSchedule() {
   const base = activeCountry === 'all' ? allMatches : allMatches.filter(m => m.country === activeCountry);
   // 終了試合は前日(JST)以降のみ表示
   const list = base.filter(m => m.state !== 'post' || m.logicalDate >= yesterdayJST);
-  if (!list.length) { wrap.innerHTML = '<div class="state"><span class="ico">📋</span>この期間の試合はありません</div>'; return; }
+  if (!list.length) { wrap.innerHTML = `<div class="state"><span class="ico">📋</span>${T.noMatches}</div>`; return; }
 
   const sorted  = list.slice().sort((a,b) => new Date(a.utcDate) - new Date(b.utcDate));
   const dates   = [...new Set(sorted.map(m => m.logicalDate))];
-  const fmt     = s => new Date(s+'T00:00:00+09:00').toLocaleDateString('ja-JP',{month:'numeric',day:'numeric'});
+  const fmt     = s => new Date(s+'T00:00:00+09:00').toLocaleDateString(LANG==='ja'?'ja-JP':'en-US',{month:LANG==='ja'?'numeric':'short',day:'numeric'});
   const range   = `${fmt(dates[0])} 〜 ${fmt(dates[dates.length-1])}`;
   let lastDate  = null;
   const rows    = [];
@@ -1548,14 +1588,14 @@ function renderSchedule() {
   wrap.innerHTML = `
     <div class="sec-head">
       <button id="countryTriggerBtn" class="sec-title">${esc(label)} ▼</button>
-      <span class="sec-cnt">${list.length}試合</span>
+      <span class="sec-cnt">${list.length} ${T.matchUnit}</span>
       <span class="sec-range">${range}</span>
     </div>
     <div class="sched-scroll">
     <table class="tbl sched">
       <thead><tr>
-        <th class="r">ホーム</th><th class="c th-score">スコア</th>
-        <th class="l">アウェー</th>
+        <th class="r">${T.home}</th><th class="c th-score">Score</th>
+        <th class="l">${T.away}</th>
       </tr></thead>
       <tbody>${rows.join('')}</tbody>
     </table>
@@ -1586,6 +1626,7 @@ function toHalfKana(str) {
   return [...str].map(c => HALF_KANA_MAP[c] ?? c).join('');
 }
 function fitTeamName(name) {
+  if (LANG !== 'ja') return name;
   const fw = [...name].filter(c => c.charCodeAt(0) >= 0x30A0 && c.charCodeAt(0) <= 0x30FF).length;
   return fw >= 8 ? toHalfKana(name) : name;
 }
@@ -1855,7 +1896,7 @@ function buildStandingsHtml(entries, lname, subtitle) {
   const zones = []; const zSeen = new Set();
   entries.forEach(e => { if (e.noteColor && e.noteDesc && !zSeen.has(e.noteDesc)) { zSeen.add(e.noteDesc); zones.push({color:e.noteColor,desc:e.noteDesc}); } });
   const legend  = zones.length ? `<div class="stnd-legend">${zones.map(z=>`<span><span class="legend-dot" style="background:${attr(z.color)}"></span>${esc(z.desc)}</span>`).join('')}</div>` : '';
-  const cntHtml = subtitle ? `<span class="sec-cnt">${esc(subtitle)}</span>` : `<span class="sec-cnt">${entries.length}クラブ</span>`;
+  const cntHtml = subtitle ? `<span class="sec-cnt">${esc(subtitle)}</span>` : `<span class="sec-cnt">${entries.length} ${T.clubUnit}</span>`;
   const rows    = entries.map(e => {
     const zbar     = `<td class="zone-bar"${e.noteColor ? ` style="background:${attr(e.noteColor)}"` : ''}></td>`;
     const logo     = e.logo ? `<img class="stnd-badge" src="${attr(e.logo)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '';
@@ -1874,10 +1915,10 @@ function buildStandingsHtml(entries, lname, subtitle) {
     <table class="tbl stnd">
       <thead><tr>
         <th style="width:4px;padding:0"></th>
-        <th class="c" style="width:32px"></th><th class="l">クラブ</th>
-        <th class="c">試</th><th class="c">勝</th><th class="c">分</th><th class="c">負</th>
-        <th class="c">得</th><th class="c">失</th>
-        <th class="c">勝点</th>
+        <th class="stnd-rank c"></th><th class="l">${T.clubHdr}</th>
+        <th class="c">${T.pCol}</th><th class="c">${T.wCol}</th><th class="c">${T.dCol}</th><th class="c">${T.lCol}</th>
+        <th class="c">${T.gfCol}</th><th class="c">${T.gaCol}</th>
+        <th class="c">${T.pts}</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>
@@ -1896,7 +1937,7 @@ function buildBracketHtml(rounds) {
   const fin = get('final');
 
   if (!r16.length && !qf.length && !sf.length && !fin.length)
-    return '<div class="state"><span class="ico">🏆</span>トーナメントデータがありません</div>';
+    return `<div class="state"><span class="ico">🏆</span>${LANG==='ja'?'トーナメントデータがありません':'No tournament data'}</div>`;
 
   // Which columns to show (cascading: showing a later round implies all prior rounds too)
   const showR16 = r16.length > 0;
@@ -2089,10 +2130,10 @@ function renderCupPage(entries, koRounds, lname) {
   const wrap = document.getElementById('standingsWrap');
   if (activeCupSub === 'league') {
     const html = buildStandingsHtml(entries, lname, 'リーグフェーズ');
-    wrap.innerHTML = html || '<div class="state"><span class="ico">📋</span>リーグフェーズのデータがありません</div>';
+    wrap.innerHTML = html || `<div class="state"><span class="ico">📋</span>${LANG==='ja'?'リーグフェーズのデータがありません':'No league phase data'}</div>`;
   } else {
     const html = buildKnockoutHtml(koRounds);
-    wrap.innerHTML = html || '<div class="state"><span class="ico">🏆</span>ノックアウトステージのデータがありません</div>';
+    wrap.innerHTML = html || `<div class="state"><span class="ico">🏆</span>${LANG==='ja'?'ノックアウトステージのデータがありません':'No knockout data'}</div>`;
   }
 }
 
@@ -2104,7 +2145,7 @@ async function loadCupPage(code, showLoader = true) {
     renderCupPage(standingsCache[code] || [], koCache[code], lname);
     return;
   }
-  if (showLoader) wrap.innerHTML = '<div class="state"><span class="ico">🏆</span>読み込み中…</div>';
+  if (showLoader) wrap.innerHTML = `<div class="state"><span class="ico">🏆</span>${T.loading}</div>`;
   const [stRes, koRes] = await Promise.allSettled([
     fetchStandings(code),
     fetchKnockoutEvents(code),
@@ -2121,20 +2162,20 @@ async function loadStandings(code, showLoader = true) {
   document.getElementById('cupSubFilter').style.display = 'none';
   const wrap = document.getElementById('standingsWrap');
   if (standingsCache[code]) { renderStandings(standingsCache[code], code); return; }
-  if (showLoader) wrap.innerHTML = '<div class="state"><span class="ico">📊</span>読み込み中…</div>';
+  if (showLoader) wrap.innerHTML = `<div class="state"><span class="ico">📊</span>${T.loading}</div>`;
   try {
     const data = await fetchStandings(code);
     standingsCache[code] = parseStandings(data);
     renderStandings(standingsCache[code], code);
   } catch(e) {
-    wrap.innerHTML = `<div class="state"><span class="ico">⚠️</span>取得失敗: ${esc(e.message)}</div>`;
+    wrap.innerHTML = `<div class="state"><span class="ico">⚠️</span>${T.failed}: ${esc(e.message)}</div>`;
   }
 }
 
 function renderStandings(entries, code) {
   const wrap  = document.getElementById('standingsWrap');
   const lname = STANDINGS_LEAGUES.find(l => l.code === code)?.label ?? '';
-  if (!entries.length) { wrap.innerHTML = '<div class="state"><span class="ico">📋</span>データがありません</div>'; return; }
+  if (!entries.length) { wrap.innerHTML = `<div class="state"><span class="ico">📋</span>${LANG==='ja'?'データがありません':'No data available'}</div>`; return; }
   wrap.innerHTML = buildStandingsHtml(entries, lname);
 }
 
@@ -2201,7 +2242,7 @@ async function fetchScorers(code) {
 async function loadScorers(code, showLoader = true) {
   const wrap = document.getElementById('scorersWrap');
   if (scorersCache[code]) { renderScorers(scorersCache[code], code); return; }
-  if (showLoader) wrap.innerHTML = '<div class="state"><span class="ico">⚽</span>読み込み中…</div>';
+  if (showLoader) wrap.innerHTML = `<div class="state"><span class="ico">⚽</span>${T.loading}</div>`;
   try {
     const data = await fetchScorers(code);
     scorersCache[code] = data;
@@ -2216,7 +2257,7 @@ async function loadScorers(code, showLoader = true) {
     });
     if (unregistered.length) autoLookupPlayers(unregistered, code);
   } catch(e) {
-    wrap.innerHTML = `<div class="state"><span class="ico">⚠️</span>取得失敗: ${esc(e.message)}</div>`;
+    wrap.innerHTML = `<div class="state"><span class="ico">⚠️</span>${T.failed}: ${esc(e.message)}</div>`;
   }
 }
 
@@ -2253,14 +2294,14 @@ function renderScorers(data, code) {
   const wrap  = document.getElementById('scorersWrap');
   const lname = SCORERS_LEAGUES.find(l => l.code === code)?.label ?? '';
   const players = activeScorersTab === 'goals' ? data.goals : data.assists;
-  const colLabel = activeScorersTab === 'goals' ? '得点' : 'アシスト';
+  const colLabel = activeScorersTab === 'goals' ? T.goals : T.assists;
   wrap.innerHTML = `
     <div class="sec-head">
       <button id="scorersTriggerBtn" class="sec-title">${esc(lname)} ▼</button>
     </div>
     <div class="scorer-sub-row">
-      <button class="scorer-sub${activeScorersTab==='goals'?' active':''}" data-sub="goals">⚽ 得点</button>
-      <button class="scorer-sub${activeScorersTab==='assists'?' active':''}" data-sub="assists">🎯 アシスト</button>
+      <button class="scorer-sub${activeScorersTab==='goals'?' active':''}" data-sub="goals">⚽ ${T.goals}</button>
+      <button class="scorer-sub${activeScorersTab==='assists'?' active':''}" data-sub="assists">🎯 ${T.assists}</button>
     </div>
     ${scorerTable(players, colLabel)}`;
 }
@@ -2297,9 +2338,9 @@ function scorerTable(players, colLabel) {
   return `<table class="tbl stnd">
     <thead><tr>
       <th class="c" style="width:28px"></th>
-      <th class="l">選手</th>
-      <th class="c hide-sm" style="width:36px">所属</th>
-      <th class="c hide-sm" style="width:36px">試</th>
+      <th class="l">${T.player}</th>
+      <th class="c hide-sm" style="width:36px">${T.team}</th>
+      <th class="c hide-sm" style="width:36px">${T.pCol}</th>
       <th class="c" style="width:52px">${esc(colLabel)}</th>
     </tr></thead>
     <tbody>${rows}</tbody>
@@ -2712,7 +2753,7 @@ function initEditPage() {
     try { localStorage.setItem('nameOverrides', JSON.stringify(nameOverrides)); } catch {}
     const total = Object.keys(teams).length + Object.keys(players).length;
     const msg = document.getElementById('editSaved');
-    msg.textContent = '✓ 保存しました（カスタマイズ ' + total + '件）';
+    msg.textContent = T.saved + total + T.savedSuffix;
     setTimeout(() => { msg.textContent = ''; }, 3000);
   });
 }
@@ -2742,7 +2783,7 @@ function tick() {
 
 function markUpdated() {
   const el = document.getElementById('lastUpdated');
-  el.textContent = '更新 ' + new Date().toLocaleTimeString('ja-JP',
+  el.textContent = T.updated + new Date().toLocaleTimeString(LANG==='ja'?'ja-JP':'en-US',
     { timeZone:'Asia/Tokyo', hour:'2-digit', minute:'2-digit', hour12:false });
   el.classList.add('fresh');
   setTimeout(() => el.classList.remove('fresh'), 3000);
@@ -2754,14 +2795,14 @@ function markUpdated() {
 async function load(showLoader = false) {
   const btn = document.getElementById('reloadBtn');
   btn.classList.add('spin');
-  if (showLoader) document.getElementById('scheduleWrap').innerHTML = '<div class="state"><span class="ico">⚽</span>読み込み中…</div>';
+  if (showLoader) document.getElementById('scheduleWrap').innerHTML = `<div class="state"><span class="ico">⚽</span>${T.loading}</div>`;
   try {
     allMatches = await fetchSchedule();
     buildCountryFilter();
     renderSchedule();
     markUpdated();
   } catch(e) {
-    document.getElementById('scheduleWrap').innerHTML = `<div class="state"><span class="ico">⚠️</span>取得失敗: ${esc(e.message)}</div>`;
+    document.getElementById('scheduleWrap').innerHTML = `<div class="state"><span class="ico">⚠️</span>${T.failed}: ${esc(e.message)}</div>`;
   } finally { btn.classList.remove('spin'); }
   scheduleNextRefresh();
 }
@@ -2784,6 +2825,19 @@ function startAutoRefresh() {
    起動
 ════════════════════════════════════════ */
 document.getElementById('reloadBtn').onclick = () => { load(true).then(() => scheduleNextRefresh()); };
+
+/* 非日本語環境のUI文字列初期化 */
+if (LANG !== 'ja') {
+  document.title = 'Football Today | Soccer Schedule';
+  document.getElementById('siteSubtitle').textContent = T.subtitle;
+  document.querySelector('.pnav[data-page="schedule"]').textContent  = T.schedule;
+  document.querySelector('.pnav[data-page="standings"]').textContent = T.standings;
+  document.querySelector('.pnav[data-page="scorers"]').textContent   = T.scorers;
+  document.getElementById('editNavBtn').textContent = 'Edit Names';
+  document.querySelector('.ftab[data-sub="league"]').textContent    = T.leaguePhase;
+  document.querySelector('.ftab[data-sub="knockout"]').textContent  = T.knockout;
+  document.getElementById('standingsWrap').innerHTML = `<div class="state"><span class="ico">📊</span>${T.selectLeague}</div>`;
+}
 
 buildCountryFilter();
 buildLeagueFilter();
