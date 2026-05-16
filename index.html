@@ -229,9 +229,10 @@
     .tbl.stnd td { padding: 6px 8px; vertical-align: middle; }
     .zone-bar { width: 4px !important; padding: 0 !important; }
     .stnd-rank { width: 28px; text-align: center; font-size: 13px; font-weight: 700; color: var(--muted); }
-    .stnd-team { font-size: 13px; font-weight: 500; white-space: nowrap; max-width: 160px; overflow: hidden; }
-    .stnd-team-inner { display: flex; align-items: center; gap: 6px; max-width: 100%; overflow: hidden; }
-    .stnd-team-inner span:last-child { overflow: hidden; text-overflow: ellipsis; }
+    .stnd-team { font-size: 13px; font-weight: 500; }
+    .stnd-team-wrap { display: block; max-width: 140px; overflow: hidden; white-space: nowrap; }
+    .stnd-team-inner { display: flex; align-items: center; gap: 6px; }
+    .stnd-team-inner span:last-child { overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
     .stnd-badge { width: 20px; height: 20px; object-fit: contain; flex-shrink: 0; }
     .stnd-num { width: 30px; text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; }
     /* sticky left columns */
@@ -509,7 +510,8 @@
       .stnd-num  { width: 24px; }
       .stnd-pts  { width: 30px; }
       .stnd-gd   { width: 30px; }
-      .tbl.stnd .stnd-team { left: 32px; max-width: 110px; } /* zone-bar 4px + rank 20+4+4=28px */
+      .tbl.stnd .stnd-team { left: 32px; } /* zone-bar 4px + rank 20+4+4=28px */
+      .stnd-team-wrap { max-width: 95px; }
     }
   </style>
 </head>
@@ -1639,7 +1641,7 @@ function scheduleRow(m) {
   const hn = fitTeamName(m.homeTeam);
   const an = fitTeamName(m.awayTeam);
   let timeEl;
-  if (m.state === 'post') timeEl = `<span class="t-fin">終了</span>`;
+  if (m.state === 'post') timeEl = `<span class="t-fin">${LANG==='ja'?'終了':'FT'}</span>`;
   else if (m.state === 'in') timeEl = `<span class="t-live"><span class="live-dot"></span>${esc(m.clock.replace(':00',"'"))}</span>`;
   else timeEl = `<span class="t-pre${m.isLate?' late':''}">${m.displayTime}</span>`;
   const scoreEl = m.homeScore != null
@@ -1907,7 +1909,7 @@ function buildStandingsHtml(entries, lname, subtitle) {
     const teamName = (adminMode && e.teamEn)
       ? `<span class="admin-name" data-en="${attr(e.teamEn)}" data-type="team" title="クリックで編集">${esc(displayName)}</span>`
       : esc(displayName);
-    return `<tr>${zbar}<td class="stnd-rank">${e.rank}</td><td class="stnd-team"><span class="stnd-team-inner">${logo}${teamName}</span></td><td class="stnd-num">${e.gp}</td><td class="stnd-num stnd-w">${e.w}</td><td class="stnd-num stnd-d">${e.d}</td><td class="stnd-num stnd-l">${e.l}</td><td class="stnd-num">${e.gf}</td><td class="stnd-num">${e.ga}</td><td class="stnd-pts">${e.pts}</td></tr>`;
+    return `<tr>${zbar}<td class="stnd-rank">${e.rank}</td><td class="stnd-team"><div class="stnd-team-wrap"><span class="stnd-team-inner">${logo}${teamName}</span></div></td><td class="stnd-num">${e.gp}</td><td class="stnd-num stnd-w">${e.w}</td><td class="stnd-num stnd-d">${e.d}</td><td class="stnd-num stnd-l">${e.l}</td><td class="stnd-num">${e.gf}</td><td class="stnd-num">${e.ga}</td><td class="stnd-pts">${e.pts}</td></tr>`;
   }).join('');
   return `
     <div class="sec-head"><button id="leagueTriggerBtn" class="sec-title">${esc(lname)} ▼</button>${cntHtml}</div>
@@ -2264,6 +2266,7 @@ async function loadScorers(code, showLoader = true) {
 
 // 未登録選手を1人ずつWikipedia検索してキャッシュに保存・再描画
 async function autoLookupPlayers(players, code) {
+  if (LANG !== 'ja') return;
   let updated = false;
   for (const p of players) {
     if (nameOverrides.players[p.nameEn] || PLAYER_NAMES_JA[p.nameEn]) continue;
