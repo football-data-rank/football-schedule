@@ -229,8 +229,9 @@
     .tbl.stnd td { padding: 6px 8px; vertical-align: middle; }
     .zone-bar { width: 4px !important; padding: 0 !important; }
     .stnd-rank { width: 28px; text-align: center; font-size: 13px; font-weight: 700; color: var(--muted); }
-    .stnd-team { font-size: 13px; font-weight: 500; white-space: nowrap; }
-    .stnd-team-inner { display: flex; align-items: center; gap: 6px; }
+    .stnd-team { font-size: 13px; font-weight: 500; white-space: nowrap; max-width: 160px; overflow: hidden; }
+    .stnd-team-inner { display: flex; align-items: center; gap: 6px; max-width: 100%; overflow: hidden; }
+    .stnd-team-inner span:last-child { overflow: hidden; text-overflow: ellipsis; }
     .stnd-badge { width: 20px; height: 20px; object-fit: contain; flex-shrink: 0; }
     .stnd-num { width: 30px; text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; }
     /* sticky left columns */
@@ -508,7 +509,7 @@
       .stnd-num  { width: 24px; }
       .stnd-pts  { width: 30px; }
       .stnd-gd   { width: 30px; }
-      .tbl.stnd .stnd-team { left: 32px; } /* zone-bar 4px + rank 20+4+4=28px */
+      .tbl.stnd .stnd-team { left: 32px; max-width: 110px; } /* zone-bar 4px + rank 20+4+4=28px */
     }
   </style>
 </head>
@@ -1471,7 +1472,7 @@ function nameToKatakana(name) {
 
 function teamNameJa(name) {
   if (!name) return name;
-  if (LANG !== 'ja') return nameOverrides.teams[name] || name;
+  if (LANG !== 'ja') return name;
   return nameOverrides.teams[name]
       || TEAM_NAMES_JA[name]
       || TEAM_NAMES_JA[name.replace(/\s+FC$/i,'').trim()]
@@ -1481,7 +1482,7 @@ function teamNameJa(name) {
 
 function playerNameJa(name) {
   if (!name) return name;
-  if (LANG !== 'ja') return nameOverrides.players[name] || name;
+  if (LANG !== 'ja') return name;
   return nameOverrides.players[name] || PLAYER_NAMES_JA[name] || nameToKatakana(name);
 }
 
