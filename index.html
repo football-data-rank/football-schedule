@@ -226,28 +226,13 @@
     #scorersPage { font-family: 'BIZ UDPMincho', serif; }
 
     /* ─── Standings ─── */
-    .tbl.stnd { table-layout: fixed; }
     .tbl.stnd td { padding: 6px 8px; vertical-align: middle; }
     .zone-bar { width: 4px !important; padding: 0 !important; }
     .stnd-rank { width: 28px; text-align: center; font-size: 13px; font-weight: 700; color: var(--muted); }
-    .stnd-team-hdr { width: 140px; }
-    .stnd-team { font-size: 13px; font-weight: 500; overflow: hidden; white-space: nowrap; }
-    .stnd-team-inner { display: flex; align-items: center; gap: 6px; overflow: hidden; }
-    .stnd-team-inner span:last-child { overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
+    .stnd-team { font-size: 13px; font-weight: 500; white-space: nowrap; }
+    .stnd-team-inner { display: flex; align-items: center; gap: 6px; }
     .stnd-badge { width: 20px; height: 20px; object-fit: contain; flex-shrink: 0; }
     .stnd-num { width: 30px; text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; }
-    /* sticky left columns */
-    .tbl.stnd .zone-bar  { position: sticky; left: 0;    z-index: 2; }
-    .tbl.stnd .stnd-rank { position: sticky; left: 4px;  z-index: 2; }
-    .tbl.stnd .stnd-team { position: sticky; left: 48px; z-index: 2; box-shadow: 2px 0 4px rgba(0,0,0,.06); }
-    .tbl.stnd thead .zone-bar,
-    .tbl.stnd thead .stnd-rank,
-    .tbl.stnd thead .stnd-team { background: var(--row-alt); z-index: 3; }
-    .tbl.stnd tbody .zone-bar,
-    .tbl.stnd tbody .stnd-rank,
-    .tbl.stnd tbody .stnd-team { background: var(--white); }
-    .tbl.stnd tbody tr:nth-child(even) .stnd-rank,
-    .tbl.stnd tbody tr:nth-child(even) .stnd-team { background: var(--row-alt); }
     .scorer-sub-row { display: flex; gap: 8px; margin-bottom: 10px; }
     .scorer-sub { padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; border: 1px solid var(--border); background: none; cursor: pointer; color: var(--muted); }
     .scorer-sub.active { background: var(--indigo); color: #fff; border-color: var(--indigo); }
@@ -511,8 +496,6 @@
       .stnd-num  { width: 24px; }
       .stnd-pts  { width: 30px; }
       .stnd-gd   { width: 30px; }
-      .tbl.stnd .stnd-team { left: 32px; } /* zone-bar 4px + rank 20+4+4=28px */
-      .stnd-team-hdr { width: 95px; }
     }
   </style>
 </head>
@@ -1513,11 +1496,6 @@ function getMatchTiming(utcStr) {
   const m = get('minute');
   if (h === 24) h = 0;
   const localDate = `${get('year')}-${get('month')}-${get('day')}`;
-  if (LANG === 'ja' && h < BOUNDARY_H) {
-    const prev = new Date(localDate + 'T12:00:00+09:00');
-    prev.setDate(prev.getDate() - 1);
-    return { logicalDate: prev.toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' }), displayTime: `${h + 24}:${m}`, isLate: true };
-  }
   return { logicalDate: localDate, displayTime: `${String(h).padStart(2,'0')}:${m}`, isLate: false };
 }
 
@@ -1922,7 +1900,7 @@ function buildStandingsHtml(entries, lname, subtitle) {
     <table class="tbl stnd">
       <thead><tr>
         <th style="width:4px;padding:0"></th>
-        <th class="stnd-rank c"></th><th class="l stnd-team-hdr">${T.clubHdr}</th>
+        <th class="stnd-rank c"></th><th class="l">${T.clubHdr}</th>
         <th class="c">${T.pCol}</th><th class="c">${T.wCol}</th><th class="c">${T.dCol}</th><th class="c">${T.lCol}</th>
         <th class="c">${T.gfCol}</th><th class="c">${T.gaCol}</th>
         <th class="c">${T.pts}</th>
