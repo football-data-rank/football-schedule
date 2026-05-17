@@ -226,12 +226,13 @@
     #scorersPage { font-family: 'BIZ UDPMincho', serif; }
 
     /* ─── Standings ─── */
+    .tbl.stnd { table-layout: fixed; }
     .tbl.stnd td { padding: 6px 8px; vertical-align: middle; }
     .zone-bar { width: 4px !important; padding: 0 !important; }
     .stnd-rank { width: 28px; text-align: center; font-size: 13px; font-weight: 700; color: var(--muted); }
-    .stnd-team { font-size: 13px; font-weight: 500; }
-    .stnd-team-wrap { display: block; max-width: 140px; overflow: hidden; white-space: nowrap; }
-    .stnd-team-inner { display: flex; align-items: center; gap: 6px; }
+    .stnd-team-hdr { width: 140px; }
+    .stnd-team { font-size: 13px; font-weight: 500; overflow: hidden; white-space: nowrap; }
+    .stnd-team-inner { display: flex; align-items: center; gap: 6px; overflow: hidden; }
     .stnd-team-inner span:last-child { overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
     .stnd-badge { width: 20px; height: 20px; object-fit: contain; flex-shrink: 0; }
     .stnd-num { width: 30px; text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; }
@@ -511,7 +512,7 @@
       .stnd-pts  { width: 30px; }
       .stnd-gd   { width: 30px; }
       .tbl.stnd .stnd-team { left: 32px; } /* zone-bar 4px + rank 20+4+4=28px */
-      .stnd-team-wrap { max-width: 95px; }
+      .stnd-team-hdr { width: 95px; }
     }
   </style>
 </head>
@@ -1501,8 +1502,9 @@ function getLogo(team) {
 ════════════════════════════════════════ */
 function getMatchTiming(utcStr) {
   const d = new Date(utcStr);
+  const tz = LANG === 'ja' ? 'Asia/Tokyo' : Intl.DateTimeFormat().resolvedOptions().timeZone;
   const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Asia/Tokyo',
+    timeZone: tz,
     year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit', hour12: false,
   }).formatToParts(d);
@@ -1510,18 +1512,19 @@ function getMatchTiming(utcStr) {
   let h = parseInt(get('hour'));
   const m = get('minute');
   if (h === 24) h = 0;
-  const jstDate = `${get('year')}-${get('month')}-${get('day')}`;
-  if (h < BOUNDARY_H) {
-    const prev = new Date(jstDate + 'T12:00:00+09:00');
+  const localDate = `${get('year')}-${get('month')}-${get('day')}`;
+  if (LANG === 'ja' && h < BOUNDARY_H) {
+    const prev = new Date(localDate + 'T12:00:00+09:00');
     prev.setDate(prev.getDate() - 1);
     return { logicalDate: prev.toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' }), displayTime: `${h + 24}:${m}`, isLate: true };
   }
-  return { logicalDate: jstDate, displayTime: `${String(h).padStart(2,'0')}:${m}`, isLate: false };
+  return { logicalDate: localDate, displayTime: `${String(h).padStart(2,'0')}:${m}`, isLate: false };
 }
 
 function dayLabel(dateStr) {
-  return new Date(dateStr + 'T00:00:00+09:00')
-    .toLocaleDateString(LANG==='ja'?'ja-JP':'en-US', { month: LANG==='ja'?'numeric':'short', day: 'numeric', weekday: 'short' });
+  const tz = LANG === 'ja' ? 'Asia/Tokyo' : Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return new Date(dateStr + 'T12:00:00')
+    .toLocaleDateString(LANG==='ja'?'ja-JP':'en-US', { timeZone: tz, month: LANG==='ja'?'numeric':'short', day: 'numeric', weekday: 'short' });
 }
 
 /* ════════════════════════════════════════
@@ -1570,11 +1573,12 @@ async function fetchSchedule() {
 
 function renderSchedule() {
   const wrap = document.getElementById('scheduleWrap');
-  const todayJST = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' });
-  const yesterdayJST = new Date(Date.now() - 86400000).toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' });
+  const tz = LANG === 'ja' ? 'Asia/Tokyo' : Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const todayLocal = new Date().toLocaleDateString('sv-SE', { timeZone: tz });
+  const yesterdayLocal = new Date(Date.now() - 86400000).toLocaleDateString('sv-SE', { timeZone: tz });
   const base = activeCountry === 'all' ? allMatches : allMatches.filter(m => m.country === activeCountry);
-  // 終了試合は前日(JST)以降のみ表示
-  const list = base.filter(m => m.state !== 'post' || m.logicalDate >= yesterdayJST);
+  // 終了試合は前日以降のみ表示
+  const list = base.filter(m => m.state !== 'post' || m.logicalDate >= yesterdayLocal);
   if (!list.length) { wrap.innerHTML = `<div class="state"><span class="ico">📋</span>${T.noMatches}</div>`; return; }
 
   const sorted  = list.slice().sort((a,b) => new Date(a.utcDate) - new Date(b.utcDate));
@@ -1909,7 +1913,7 @@ function buildStandingsHtml(entries, lname, subtitle) {
     const teamName = (adminMode && e.teamEn)
       ? `<span class="admin-name" data-en="${attr(e.teamEn)}" data-type="team" title="クリックで編集">${esc(displayName)}</span>`
       : esc(displayName);
-    return `<tr>${zbar}<td class="stnd-rank">${e.rank}</td><td class="stnd-team"><div class="stnd-team-wrap"><span class="stnd-team-inner">${logo}${teamName}</span></div></td><td class="stnd-num">${e.gp}</td><td class="stnd-num stnd-w">${e.w}</td><td class="stnd-num stnd-d">${e.d}</td><td class="stnd-num stnd-l">${e.l}</td><td class="stnd-num">${e.gf}</td><td class="stnd-num">${e.ga}</td><td class="stnd-pts">${e.pts}</td></tr>`;
+    return `<tr>${zbar}<td class="stnd-rank">${e.rank}</td><td class="stnd-team"><span class="stnd-team-inner">${logo}${teamName}</span></td><td class="stnd-num">${e.gp}</td><td class="stnd-num stnd-w">${e.w}</td><td class="stnd-num stnd-d">${e.d}</td><td class="stnd-num stnd-l">${e.l}</td><td class="stnd-num">${e.gf}</td><td class="stnd-num">${e.ga}</td><td class="stnd-pts">${e.pts}</td></tr>`;
   }).join('');
   return `
     <div class="sec-head"><button id="leagueTriggerBtn" class="sec-title">${esc(lname)} ▼</button>${cntHtml}</div>
@@ -1918,7 +1922,7 @@ function buildStandingsHtml(entries, lname, subtitle) {
     <table class="tbl stnd">
       <thead><tr>
         <th style="width:4px;padding:0"></th>
-        <th class="stnd-rank c"></th><th class="l">${T.clubHdr}</th>
+        <th class="stnd-rank c"></th><th class="l stnd-team-hdr">${T.clubHdr}</th>
         <th class="c">${T.pCol}</th><th class="c">${T.wCol}</th><th class="c">${T.dCol}</th><th class="c">${T.lCol}</th>
         <th class="c">${T.gfCol}</th><th class="c">${T.gaCol}</th>
         <th class="c">${T.pts}</th>
