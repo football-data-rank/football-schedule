@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Football Today | サッカー日程表</title>
+  <title>Football Today | 欧州サッカー日程表</title>
   <meta name="google-site-verification" content="36E2heKne3wfqWYS__XDLWlvbopcAhlE-k4p4K3UlxM" />
-  <meta name="description" content="欧州サッカーの試合日程・結果・順位表・得点ランキングをまとめたサイト。プレミアリーグ、ラ・リーガ、セリエA、ブンデスリーガ、リーグアン、CLなど。">
-  <meta name="keywords" content="サッカー,試合日程,順位表,得点ランキング,プレミアリーグ,ラ・リーガ,セリエA,ブンデスリーガ,チャンピオンズリーグ">
+  <meta name="description" content="プレミアリーグ・ラ・リーガ・セリエA・ブンデスリーガ・チャンピオンズリーグの試合日程・結果・順位表・得点ランキングをシンプルに確認。日本語・英語対応、毎日自動更新。Soccer schedule, standings and top scorers for Premier League, La Liga, Serie A, Bundesliga, Champions League.">
+  <meta name="keywords" content="欧州サッカー,試合日程,順位表,得点ランキング,プレミアリーグ,ラ・リーガ,セリエA,ブンデスリーガ,チャンピオンズリーグ,soccer schedule,Premier League,La Liga,Serie A,Bundesliga,Champions League,football schedule">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+1p:wght@400;700;800&family=BIZ+UDPGothic:wght@400;700&family=BIZ+UDPMincho:wght@400;700&display=swap" rel="stylesheet">
@@ -219,6 +219,7 @@
     .td-home .team-inner { flex-direction: row-reverse; }
     .badge { width: 20px; height: 20px; object-fit: contain; flex-shrink: 0; }
     .td-score { width: 66px; text-align: center; font-variant-numeric: tabular-nums; }
+    .score-inner { display: flex; flex-direction: column; align-items: center; gap: 1px; }
     .score-num { font-size: 16px; font-weight: 800; }
     .score-vs  { font-size: 12px; font-weight: 600; color: var(--muted); }
     .td-comp { max-width: 140px; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -568,7 +569,7 @@
         <span style="color:#fff">Football</span>
         <em style="background:#fff;color:#111;padding:1px 5px;border-radius:3px;margin-left:3px;font-size:15px">Today</em>
       </span>
-      <span id="siteSubtitle" style="display:block;font-size:9px;font-weight:400;opacity:.65;letter-spacing:.8px;margin-top:1px">サッカー日程表</span>
+      <span id="siteSubtitle" style="display:block;font-size:9px;font-weight:400;opacity:.65;letter-spacing:.8px;margin-top:1px">欧州サッカー日程表</span>
     </span>
   </div>
   <div class="hright">
@@ -1612,6 +1613,7 @@ function toHalfKana(str) {
 }
 function fitTeamName(name) {
   if (LANG !== 'ja') return name;
+  if (window.innerWidth >= 600) return name;
   const fw = [...name].filter(c => c.charCodeAt(0) >= 0x30A0 && c.charCodeAt(0) <= 0x30FF).length;
   return fw >= 8 ? toHalfKana(name) : name;
 }
