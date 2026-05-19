@@ -1349,7 +1349,8 @@ const PLAYER_NAMES_JA = {
 const ESPN_SCHED  = 'https://site.api.espn.com/apis/site/v2/sports/soccer';
 const ESPN_STND   = 'https://site.api.espn.com/apis/v2/sports/soccer';
 const ESPN_CORE   = 'https://sports.core.api.espn.com/v2/sports/soccer/leagues';
-const REFRESH_LIVE = 60 * 1000;  // ライブ試合中: 60秒
+const REFRESH_LIVE = 60 * 1000;   // ライブ試合中: 60秒
+const REFRESH_IDLE = 3 * 60 * 1000; // 待機中: 3分
 const BOUNDARY_H  = 5;
 const TOP_N       = 200;  // 全件取得（最後尾まで表示）
 
@@ -1515,7 +1516,12 @@ function parseEvent(ev, lg) {
   const home = comp.competitors?.find(c => c.homeAway === 'home');
   const away = comp.competitors?.find(c => c.homeAway === 'away');
   if (!home || !away) return null;
-  const state  = comp.status?.type?.state ?? ev.status?.type?.state ?? 'pre';
+  let state  = comp.status?.type?.state ?? ev.status?.type?.state ?? 'pre';
+  // ESPN APIが誤った'in'状態を返すことがあるため、試合開始の30分前より前ならpreに補正
+  if (state === 'in' && ev.date) {
+    const minsFromStart = (Date.now() - new Date(ev.date).getTime()) / 60000;
+    if (minsFromStart < -30) state = 'pre';
+  }
   const timing = getMatchTiming(ev.date);
   return {
     id: ev.id, utcDate: ev.date,
@@ -2798,11 +2804,11 @@ async function load(showLoader = false) {
 function scheduleNextRefresh() {
   clearTimeout(timer);
   const hasLive = allMatches.some(m => m.state === 'in');
-  if (!hasLive) return; // ライブ試合がなければ自動更新しない
+  const interval = hasLive ? REFRESH_LIVE : REFRESH_IDLE;
   timer = setTimeout(async () => {
     await load(false);
     scheduleNextRefresh();
-  }, REFRESH_LIVE);
+  }, interval);
 }
 
 function startAutoRefresh() {
