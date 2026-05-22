@@ -612,7 +612,7 @@
 
 <!-- ══ 各リーグ順位ページ ══ -->
 <div id="standingsPage" style="display:none">
-  <div class="filter-bar" id="cupSubFilter" style="display:none">
+  <div class="filter-bar" id="cupSubFilter" style="visibility:hidden">
     <button class="ftab active" data-sub="league">リーグフェーズ</button>
     <button class="ftab" data-sub="knockout">ノックアウトステージ</button>
   </div>
@@ -666,6 +666,9 @@
    言語設定
 ════════════════════════════════════════ */
 const LANG = navigator.language.startsWith('ja') ? 'ja' : 'en';
+const WC_START = new Date('2026-06-11T00:00:00Z');
+const WC_END   = new Date('2026-07-20T00:00:00Z');
+const isWorldCup = new Date() >= WC_START && new Date() <= WC_END;
 const T = {
   schedule:    LANG==='ja' ? '試合日程'             : 'Schedule',
   standings:   LANG==='ja' ? '各リーグ順位'         : 'Standings',
@@ -703,6 +706,7 @@ const T = {
    データ定義
 ════════════════════════════════════════ */
 const SCHEDULE_LEAGUES = [
+  ...(isWorldCup ? [{ code: 'fifa.world', label: LANG==='ja'?'ワールドカップ':'World Cup', short: 'WC', country: 'world', color: '#dc2626' }] : []),
   { code: 'eng.1',               label: LANG==='ja'?'プレミアリーグ':'Premier League',        short: 'Premier',   country: 'england', color: '#6d28d9' },
   // { code: 'eng.fa_cup',       label: LANG==='ja'?'FAカップ':'FA Cup',                      short: 'FA Cup',    country: 'england', color: '#6d28d9' },
   { code: 'esp.1',               label: LANG==='ja'?'ラ・リーガ':'La Liga',                   short: 'La Liga',   country: 'spain',   color: '#dc2626' },
@@ -719,6 +723,7 @@ const SCHEDULE_LEAGUES = [
 ];
 
 const COUNTRY_FILTERS = [
+  ...(isWorldCup ? [{ id: 'world', label: LANG==='ja'?'🌍 W杯':'🌍 World Cup' }] : []),
   { id: 'all',     label: LANG==='ja'?'すべて':'All'           },
   { id: 'england', label: LANG==='ja'?'イングランド':'England' },
   { id: 'spain',   label: LANG==='ja'?'スペイン':'Spain'       },
@@ -729,6 +734,7 @@ const COUNTRY_FILTERS = [
 ];
 
 const STANDINGS_LEAGUES = [
+  ...(isWorldCup ? [{ code: 'fifa.world', label: LANG==='ja'?'🌍 ワールドカップ':'🌍 World Cup' }] : []),
   { code: 'eng.1',          label: LANG==='ja'?'プレミアリーグ':'Premier League' },
   { code: 'esp.1',          label: LANG==='ja'?'ラ・リーガ':'La Liga'            },
   { code: 'ger.1',          label: LANG==='ja'?'ブンデスリーガ':'Bundesliga'      },
@@ -739,6 +745,7 @@ const STANDINGS_LEAGUES = [
 ];
 
 const SCORERS_LEAGUES = [
+  ...(isWorldCup ? [{ code: 'fifa.world', label: LANG==='ja'?'🌍 ワールドカップ':'🌍 World Cup' }] : []),
   { code: 'eng.1', label: LANG==='ja'?'プレミアリーグ':'Premier League' },
   { code: 'esp.1', label: LANG==='ja'?'ラ・リーガ':'La Liga'            },
   { code: 'ger.1', label: LANG==='ja'?'ブンデスリーガ':'Bundesliga'      },
@@ -1672,7 +1679,7 @@ function parseStandings(data) {
 /* ════════════════════════════════════════
    CL / EL ノックアウトステージ
 ════════════════════════════════════════ */
-const CUP_KO_CODES = new Set(['uefa.champions','uefa.europa','uefa.europa.conf']);
+const CUP_KO_CODES = new Set(['uefa.champions','uefa.europa','uefa.europa.conf','fifa.world']);
 const koCache = {};
 
 const KO_ROUND_ORDER = ['round-of-32','round-of-16','quarterfinals','semifinals','final'];
@@ -2106,7 +2113,7 @@ let activeCupCode = '';
 function buildCupSubFilter(code) {
   activeCupCode = code;
   const bar = document.getElementById('cupSubFilter');
-  bar.style.display = '';
+  bar.style.visibility = '';
   bar.querySelectorAll('.ftab').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.sub === activeCupSub);
     btn.onclick = () => {
@@ -2152,7 +2159,7 @@ async function loadCupPage(code, showLoader = true) {
 
 async function loadStandings(code, showLoader = true) {
   if (CUP_KO_CODES.has(code)) { await loadCupPage(code, showLoader); return; }
-  document.getElementById('cupSubFilter').style.display = 'none';
+  document.getElementById('cupSubFilter').style.visibility = 'hidden';
   const wrap = document.getElementById('standingsWrap');
   if (standingsCache[code]) { renderStandings(standingsCache[code], code); return; }
   if (showLoader) wrap.innerHTML = `<div class="state"><span class="ico">📊</span>${T.loading}</div>`;
