@@ -1656,7 +1656,7 @@ function renderSchedule() {
   let lastDate  = null;
   const rows    = [];
   for (const m of sorted) {
-    if (m.logicalDate !== lastDate) { rows.push(`<tr class="drow"><td colspan="5">${dayLabel(m.logicalDate)}</td></tr>`); lastDate = m.logicalDate; }
+    if (m.logicalDate !== lastDate) { rows.push(`<tr class="drow"><td colspan="3">${dayLabel(m.logicalDate)}</td></tr>`); lastDate = m.logicalDate; }
     rows.push(scheduleRow(m));
   }
   const label = COUNTRY_FILTERS.find(f => f.id === activeCountry)?.label ?? 'すべて';
