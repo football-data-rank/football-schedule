@@ -38,6 +38,7 @@
       --nav:     42px;
     }
 
+    html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
     body {
       font-family: 'M PLUS 1p', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: linear-gradient(160deg, #c8e6f7 0%, #dff0f8 35%, #cceef5 70%, #d4eef9 100%);
@@ -59,6 +60,7 @@
       position: sticky;
       top: 0;
       z-index: 30;
+      overflow: hidden; /* バッジ等がヘッダー外にはみ出さない */
     }
     .site-title {
       font-size: 17px; font-weight: 800; letter-spacing: -.4px;
@@ -278,7 +280,7 @@
       display: inline-flex; align-items: center; gap: 3px;
       background: linear-gradient(120deg, #facc15, #eab308);
       color: #14532d; font-size: 8px; font-weight: 800; letter-spacing: .4px;
-      border-radius: 8px; padding: 1px 6px; margin-left: 6px; white-space: nowrap;
+      border-radius: 8px; padding: 1px 6px; white-space: nowrap;
       vertical-align: middle;
     }
     .wc-badge .tr { animation: trophyPulse 1.6s ease-in-out infinite; display: inline-block; }
@@ -533,6 +535,8 @@
       .th-time  { width: 38px; }
       .th-score { width: 44px; }
       .th-comp  { width: 40px; }
+      /* Home/Score/Away が中央で密着しないよう、チーム列ラベルは列の中央に */
+      .tbl.sched thead th.r, .tbl.sched thead th.l { text-align: center; }
       .td-score { width: 44px; padding: 4px 0; vertical-align: middle; text-align: center; }
       .score-inner { display: flex; flex-direction: column; align-items: center; gap: 1px; }
       .score-inner .t-pre  { position: static; display: inline-block; font-size: 12px; font-weight: 700; color: #fff; font-family: 'BIZ UDPMincho', serif; line-height: 1.3; background: rgba(10,40,80,0.55); border-radius: 5px; padding: 1px 5px; text-shadow: none; }
@@ -738,10 +742,8 @@ if (isWorldCup) {
   setTimeout(() => {
     const sub = document.getElementById('siteSubtitle');
     if (sub && !sub.querySelector('.wc-badge')) {
-      const badge = document.createElement('span');
-      badge.className = 'wc-badge';
-      badge.innerHTML = '<span class="tr">🏆</span>WORLD CUP 2026';
-      sub.appendChild(badge);
+      // サブタイトルをバッジに置き換える（追記すると幅が足りず折り返してヘッダーからはみ出す）
+      sub.innerHTML = '<span class="wc-badge"><span class="tr">🏆</span>WORLD CUP 2026</span>';
     }
   }, 0);
 }
@@ -1911,8 +1913,10 @@ function parseKnockoutEvents(events) {
         awayLogo:   away.team?.logo || null,
         legs: [], homeWin: false, awayWin: false,
         seriesHomeWin: false, seriesAwayWin: false,
+        minEvtId: Infinity, // ラウンド内の公式試合順（イベントID昇順）の判定に使う
       };
     }
+    rounds[slug][key].minEvtId = Math.min(rounds[slug][key].minEvtId, parseInt(evtId, 10) || Infinity);
     const tie = rounds[slug][key];
     // 2戦合計の勝者はseries情報から（イベント単体のwinnerはレグ勝者なので使わない）
     if (seriesComps.find(s => s.id === tie.homeId)?.winner) tie.seriesHomeWin = true;
@@ -2092,18 +2096,76 @@ function buildBracketHtml(rounds) {
   const nPS    = shown.length ? SLOTS[shown[0]] : 1;     // 片側の最大スロット数
   const totalH = nPS * BH;
 
-  // fill: pad array with nulls to length n
-  const fill = (arr, n) => { const a = [...arr]; while (a.length < n) a.push(null); return a; };
+  /* ── トーナメント木の構築 ──
+     隣接ペアが次戦で当たるとは限らない（例: W杯R16はR32第1試合と第3試合の勝者が対戦）。
+     各タイの2チームについて「前ラウンドのどのタイから来たか」を
+     ①実チームID一致 → ②プレースホルダー名（"Round of 32 3 Winner"等）→ ③未使用タイの順 で解決する */
+  const lists = shown.map(slug =>
+    get(slug).slice().sort((a, b) => (a.minEvtId || 0) - (b.minEvtId || 0))); // イベントID昇順 = 公式試合番号順
+  const used  = lists.map(() => new Set());
+  const PH = {
+    'round-of-32':   /round of 32\s+(\d+)/i,
+    'round-of-16':   /round of 16\s+(\d+)/i,
+    'quarterfinals': /quarterfinal\s+(\d+)/i,
+    'semifinals':    /semifinal\s+(\d+)/i,
+  };
+  function findFeeder(side, li) {           // side: {id, nameEn} / li: 前ラウンドのlists添字
+    const prev = lists[li], uset = used[li];
+    let f = side.id != null
+      ? prev.find(p => !uset.has(p) && (String(p.homeId) === String(side.id) || String(p.awayId) === String(side.id)))
+      : null;
+    if (!f && side.nameEn) {
+      const m = side.nameEn.match(PH[shown[li]]);
+      if (m) { const c = prev[parseInt(m[1], 10) - 1]; if (c && !uset.has(c)) f = c; }
+    }
+    if (f) uset.add(f);
+    return f || null;
+  }
+  function takeUnused(li) {                 // フォールバック: 未使用タイを順番に
+    const f = lists[li].find(p => !used[li].has(p)) || null;
+    if (f) used[li].add(f);
+    return f;
+  }
+  function build(tie, li) {                 // li: このタイのlists添字。子はlists[li-1]から
+    const node = { tie, children: [] };
+    if (li <= 0) return node;
+    const sides = tie
+      ? [{ id: tie.homeId, nameEn: tie.homeNameEn }, { id: tie.awayId, nameEn: tie.awayNameEn }]
+      : [{}, {}];
+    node.children = sides.map(s => build((s.id != null || s.nameEn) ? (findFeeder(s, li - 1) || takeUnused(li - 1)) : takeUnused(li - 1), li - 1));
+    return node;
+  }
 
-  // 各ラウンドの左右データとbid
-  const cols = shown.map(slug => {
-    const ties = get(slug);
-    const n    = SLOTS[slug];
-    const half = Math.ceil(ties.length / 2);
+  let leftRoot = null, rightRoot = null;
+  if (shown.length) {
+    const inner = shown.length - 1;          // 最内ラウンド（決勝の前）
+    const f     = fin[0] || null;
+    const fSides = f
+      ? [{ id: f.homeId, nameEn: f.homeNameEn }, { id: f.awayId, nameEn: f.awayNameEn }]
+      : [{}, {}];
+    leftRoot  = build((fSides[0].id != null || fSides[0].nameEn) ? (findFeeder(fSides[0], inner) || takeUnused(inner)) : takeUnused(inner), inner);
+    rightRoot = build((fSides[1].id != null || fSides[1].nameEn) ? (findFeeder(fSides[1], inner) || takeUnused(inner)) : takeUnused(inner), inner);
+  }
+
+  // 木を列ごとに平坦化（lists添字liの列、親の子は隣接して並ぶ）
+  function flatten(root) {
+    const out = lists.map(() => []);
+    (function rec(node, li) {
+      out[li].push(node);
+      if (li > 0) node.children.forEach(ch => rec(ch, li - 1));
+    })(root, lists.length - 1);
+    return out;
+  }
+  const leftLv  = leftRoot  ? flatten(leftRoot)  : lists.map(() => []);
+  const rightLv = rightRoot ? flatten(rightRoot) : lists.map(() => []);
+
+  // 各ラウンドの左右データとbid（木の並び順をそのまま採用）
+  const cols = shown.map((slug, li) => {
+    const n = SLOTS[slug];
     return {
       slug,
-      left:   fill(ties.slice(0, half), n),
-      right:  fill(ties.slice(half),    n),
+      left:   leftLv[li].map(nd => nd.tie),
+      right:  rightLv[li].map(nd => nd.tie),
       leftB:  Array.from({length: n}, (_, i) => `l-${slug}-${i}`),
       rightB: Array.from({length: n}, (_, i) => `r-${slug}-${i}`),
     };
