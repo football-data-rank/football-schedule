@@ -124,9 +124,6 @@
       padding: 0 16px;
       overflow-x: auto;
       scrollbar-width: none;
-      position: sticky;
-      top: calc(var(--hdr) + var(--nav));
-      z-index: 28;
     }
     .filter-bar::-webkit-scrollbar { display: none; }
 
@@ -250,6 +247,64 @@
     }
     #bubbles { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
     .bubble { position: absolute; bottom: -60px; border-radius: 50%; background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.45); animation: riseUp linear infinite; }
+
+    /* ─── World Cup mode（W杯期間中のみ body.wc-mode で有効） ─── */
+    body.wc-mode {
+      background: linear-gradient(160deg, #cdeeda 0%, #e3f6e8 35%, #d2f0df 70%, #d9f3e3 100%);
+      background-attachment: fixed;
+    }
+    body.wc-mode #topbar {
+      background: linear-gradient(120deg, #14532d 0%, #166534 60%, #3f6212 100%);
+      border-bottom: 2px solid #facc15;
+    }
+    body.wc-mode #pageNav {
+      background: linear-gradient(120deg, #14532d 0%, #15803d 100%);
+      border-top-color: #166534;
+    }
+    body.wc-mode .pnav.active { color: #fde047; border-bottom-color: #facc15; }
+    body.wc-mode .pnav:hover  { color: #fde047; }
+    body.wc-mode .hbtn:hover  { border-color: #fde047; color: #fde047; }
+    body.wc-mode #lastUpdated.fresh { color: #fde047; }
+    body.wc-mode .filter-bar { background: rgba(220,252,231,0.85); border-bottom-color: rgba(187,247,208,0.7); }
+    body.wc-mode .ftab.active { color: #15803d; border-bottom-color: #15803d; }
+    body.wc-mode .ftab:hover  { color: #15803d; }
+    body.wc-mode .tbl.sched th { background: rgba(187,247,208,0.5); }
+    body.wc-mode .tbl.sched tr.drow td { background: rgba(22,163,74,0.22) !important; color: #14532d !important; }
+    @keyframes trophyPulse {
+      0%, 100% { transform: scale(1); }
+      50%      { transform: scale(1.18); }
+    }
+    .wc-badge {
+      display: inline-flex; align-items: center; gap: 3px;
+      background: linear-gradient(120deg, #facc15, #eab308);
+      color: #14532d; font-size: 8px; font-weight: 800; letter-spacing: .4px;
+      border-radius: 8px; padding: 1px 6px; margin-left: 6px; white-space: nowrap;
+      vertical-align: middle;
+    }
+    .wc-badge .tr { animation: trophyPulse 1.6s ease-in-out infinite; display: inline-block; }
+    /* W杯モード: 金色に輝く光の粒（ゆらぎながら舞い上がる） */
+    @keyframes riseSway {
+      0%   { transform: translate(0, 0) scale(1); opacity: 0; }
+      8%   { opacity: .75; }
+      45%  { transform: translate(16px, -46vh) scale(1.06); }
+      75%  { opacity: .5; }
+      100% { transform: translate(-10px, -105vh) scale(1.18); opacity: 0; }
+    }
+    .bubble.wc-gold {
+      background: radial-gradient(circle at 35% 35%,
+        rgba(255,241,150,.95) 0%,
+        rgba(250,204,21,.55) 45%,
+        rgba(234,179,8,0) 72%);
+      border: none;
+      animation-name: riseSway;
+    }
+    /* スタジアム照明風の淡い金色グロー（画面下部） */
+    body.wc-mode::after {
+      content: '';
+      position: fixed; left: 0; right: 0; bottom: 0; height: 38vh;
+      background: linear-gradient(to top, rgba(250,204,21,.10), rgba(250,204,21,0));
+      pointer-events: none; z-index: 0;
+    }
     #schedulePage, #standingsPage, #scorersPage, #editPage { position: relative; z-index: 1; }
     .stnd-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 8px 0 12px; font-size: 11px; color: var(--muted); }
     .legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
@@ -471,6 +526,8 @@
       }
       /* 試合日程 */
       #scheduleWrap { padding-left: 2px; padding-right: 2px; }
+      /* 長いチーム名でテーブルが画面幅を超えない（初期ズームの原因対策） */
+      .tbl.sched { table-layout: fixed; width: 100%; }
       .tbl.sched td { padding: 4px 0; }
       .tbl tr.drow td { padding: 6px 8px; }
       .th-time  { width: 38px; }
@@ -665,10 +722,29 @@
 /* ════════════════════════════════════════
    言語設定
 ════════════════════════════════════════ */
-const LANG = navigator.language.startsWith('ja') ? 'ja' : 'en';
+const LANG = (() => {
+  const q = new URLSearchParams(location.search).get('lang');
+  if (q === 'ja' || q === 'en') return q;
+  return navigator.language.startsWith('ja') ? 'ja' : 'en';
+})();
 const WC_START = new Date('2026-06-11T00:00:00Z');
 const WC_END   = new Date('2026-07-20T00:00:00Z');
 const isWorldCup = new Date() >= WC_START && new Date() <= WC_END;
+
+/* W杯期間中: 特別テーマ＋ヘッダーバッジ */
+if (isWorldCup) {
+  document.body.classList.add('wc-mode');
+  // 英語モード初期化がsubtitleのtextContentを書き換えた後に実行する
+  setTimeout(() => {
+    const sub = document.getElementById('siteSubtitle');
+    if (sub && !sub.querySelector('.wc-badge')) {
+      const badge = document.createElement('span');
+      badge.className = 'wc-badge';
+      badge.innerHTML = '<span class="tr">🏆</span>WORLD CUP 2026';
+      sub.appendChild(badge);
+    }
+  }, 0);
+}
 const T = {
   schedule:    LANG==='ja' ? '試合日程'             : 'Schedule',
   standings:   LANG==='ja' ? '各リーグ順位'         : 'Standings',
@@ -1658,22 +1734,34 @@ async function fetchStandings(code) {
 }
 
 function parseStandings(data) {
-  const entries = data.children?.[0]?.standings?.entries || data.standings?.entries || [];
-  return entries.map(e => {
-    const s = {};
-    (e.stats||[]).forEach(st => { s[st.name] = st.value; });
-    return {
-      rank:   Math.round(s.rank||0),
-      team:   teamNameJa(e.team?.displayName || e.team?.shortDisplayName || '?'),
-      teamEn: e.team?.displayName || e.team?.shortDisplayName || '?',
-      logo:   e.team?.logos?.[0]?.href || null,
-      gp: Math.round(s.gamesPlayed||0), w: Math.round(s.wins||0),
-      d:  Math.round(s.ties||0),        l: Math.round(s.losses||0),
-      gf: Math.round(s.pointsFor||0),   ga: Math.round(s.pointsAgainst||0),
-      gd: Math.round(s.pointDifferential||0), pts: Math.round(s.points||0),
-      noteColor: e.note?.color || null, noteDesc: e.note?.description || null,
-    };
-  }).sort((a,b) => a.rank - b.rank);
+  // 全グループ対応：children が複数（W杯のグループA〜L等）なら全て処理
+  const groups = (data.children?.length)
+    ? data.children.map(ch => ({ name: ch.name || '', entries: ch.standings?.entries || [] }))
+    : [{ name: '', entries: data.standings?.entries || [] }];
+  const multi = groups.length > 1;
+  const out = [];
+  for (const g of groups) {
+    const groupName = multi
+      ? (LANG === 'ja' ? g.name.replace(/^Group\s+/i, 'グループ') : g.name)
+      : null;
+    g.entries.map(e => {
+      const s = {};
+      (e.stats||[]).forEach(st => { s[st.name] = st.value; });
+      return {
+        rank:   Math.round(s.rank||0),
+        team:   teamNameJa(e.team?.displayName || e.team?.shortDisplayName || '?'),
+        teamEn: e.team?.displayName || e.team?.shortDisplayName || '?',
+        logo:   e.team?.logos?.[0]?.href || null,
+        gp: Math.round(s.gamesPlayed||0), w: Math.round(s.wins||0),
+        d:  Math.round(s.ties||0),        l: Math.round(s.losses||0),
+        gf: Math.round(s.pointsFor||0),   ga: Math.round(s.pointsAgainst||0),
+        gd: Math.round(s.pointDifferential||0), pts: Math.round(s.points||0),
+        noteColor: e.note?.color || null, noteDesc: e.note?.description || null,
+        group: groupName,
+      };
+    }).sort((a,b) => a.rank - b.rank).forEach(e => out.push(e));
+  }
+  return out;
 }
 
 /* ════════════════════════════════════════
@@ -1683,12 +1771,18 @@ const CUP_KO_CODES = new Set(['uefa.champions','uefa.europa','uefa.europa.conf',
 const koCache = {};
 
 const KO_ROUND_ORDER = ['round-of-32','round-of-16','quarterfinals','semifinals','final'];
-const KO_ROUND_JA = {
+const KO_ROUND_JA = LANG === 'ja' ? {
   'round-of-32':  'ベスト32',
   'round-of-16':  'ベスト16',
   'quarterfinals':'準々決勝',
   'semifinals':   '準決勝',
   'final':        '決勝',
+} : {
+  'round-of-32':  'Round of 32',
+  'round-of-16':  'Round of 16',
+  'quarterfinals':'Quarterfinals',
+  'semifinals':   'Semifinals',
+  'final':        'Final',
 };
 
 /* ラウンド識別（slugが無い場合はイベント名から推定） */
@@ -1715,9 +1809,21 @@ async function fetchKnockoutEvents(code) {
 
   const isKO = e => e.competitions?.[0]?.competitors?.length >= 2;
 
-  // 試み① seasontype=3（ノックアウト専用）
+  // W杯: ノックアウト全体（R32〜決勝）を日付範囲で一括取得
+  if (code === 'fifa.world') {
+    try {
+      const r = await fetch(`${ESPN_SCHED}/fifa.world/scoreboard?dates=20260628-20260720&limit=300&lang=ja&region=jp`);
+      if (r.ok) {
+        const d = await r.json();
+        return (d.events||[]).filter(e => isKO(e) && slugFromEvent(e));
+      }
+    } catch {}
+    return [];
+  }
+
+  // 試み① seasontype=3（ノックアウト専用）※日付範囲必須：無指定だと直近の試合しか返らない
   try {
-    const r = await fetch(`${ESPN_SCHED}/${code}/scoreboard?seasontype=3&limit=200`);
+    const r = await fetch(`${ESPN_SCHED}/${code}/scoreboard?seasontype=3&dates=${year}0101-${year}0701&limit=200&lang=ja&region=jp`);
     if (r.ok) {
       const d = await r.json();
       const evts = (d.events||[]).filter(isKO);
@@ -1787,8 +1893,6 @@ function parseKnockoutEvents(events) {
     const home = comps.find(c => c.homeAway === 'home') || comps[0];
     const away = comps.find(c => c.homeAway === 'away') || comps[1];
     const seriesComps = comp.series?.competitors || [];
-    const homeWin = seriesComps.find(s => s.id === home.id)?.winner ?? false;
-    const awayWin = seriesComps.find(s => s.id === away.id)?.winner ?? false;
     const key   = [home.id, away.id].sort().join('-');
     const evtId = evt.id || evt.date;   // イベントIDで重複排除（leg番号に頼らない）
     const note  = (comp.notes || []).find(n => n.type === 'event')?.text || '';
@@ -1806,20 +1910,53 @@ function parseKnockoutEvents(events) {
         homeLogo:   home.team?.logo || null,
         awayLogo:   away.team?.logo || null,
         legs: [], homeWin: false, awayWin: false,
+        seriesHomeWin: false, seriesAwayWin: false,
       };
     }
     const tie = rounds[slug][key];
-    tie.homeWin = tie.homeWin || homeWin;
-    tie.awayWin = tie.awayWin || awayWin;
+    // 2戦合計の勝者はseries情報から（イベント単体のwinnerはレグ勝者なので使わない）
+    if (seriesComps.find(s => s.id === tie.homeId)?.winner) tie.seriesHomeWin = true;
+    if (seriesComps.find(s => s.id === tie.awayId)?.winner) tie.seriesAwayWin = true;
     // イベントIDで重複チェック（leg番号が全て1でも複数戦を正しく保存）
     if (!tie.legs.find(l => l.evtId === evtId)) {
+      // 第2戦はホーム/アウェイが逆転するため、タイの向きにスコアを揃える
+      const aligned = String(home.id) === String(tie.homeId);
+      const hs = fin ? (parseInt(home.score) || 0) : null;
+      const as = fin ? (parseInt(away.score) || 0) : null;
       tie.legs.push({
         evtId,
-        homeScore: fin ? (parseInt(home.score) || 0) : null,
-        awayScore: fin ? (parseInt(away.score) || 0) : null,
+        homeScore: aligned ? hs : as,
+        awayScore: aligned ? as : hs,
+        evtHomeWin: (aligned ? home.winner : away.winner) === true,
+        evtAwayWin: (aligned ? away.winner : home.winner) === true,
         fin, note,
         date: evt.date,
       });
+    }
+  }
+
+  // タイ勝者を確定：series情報 → 一発勝負はイベント勝者 → 2戦は合計スコア
+  for (const slug of Object.keys(rounds)) {
+    for (const tie of Object.values(rounds[slug])) {
+      if (tie.seriesHomeWin || tie.seriesAwayWin) {
+        tie.homeWin = tie.seriesHomeWin;
+        tie.awayWin = tie.seriesAwayWin;
+        continue;
+      }
+      const legs = tie.legs.slice().sort((a,b) => new Date(a.date) - new Date(b.date));
+      if (legs.length === 1) {
+        tie.homeWin = legs[0].evtHomeWin;
+        tie.awayWin = legs[0].evtAwayWin;
+      } else if (legs.length >= 2 && legs.every(l => l.fin)) {
+        const ah = legs.reduce((s,l) => s + (l.homeScore||0), 0);
+        const aa = legs.reduce((s,l) => s + (l.awayScore||0), 0);
+        if      (ah > aa) tie.homeWin = true;
+        else if (aa > ah) tie.awayWin = true;
+        else { // 合計同点（PK等）→ 最終戦のイベント勝者
+          tie.homeWin = legs[legs.length-1].evtHomeWin;
+          tie.awayWin = legs[legs.length-1].evtAwayWin;
+        }
+      }
     }
   }
 
@@ -1849,8 +1986,8 @@ function buildKnockoutHtml(rounds) {
   }
 
   let html = `<div class="sec-head" style="margin-top:24px">
-    <span class="sec-title">ノックアウトステージ</span>
-    <span class="sec-cnt">ベスト16〜</span>
+    <span class="sec-title">${LANG==='ja'?'ノックアウトステージ':'Knockout Stage'}</span>
+    <span class="sec-cnt">${LANG==='ja'?'対戦結果':'Results'}</span>
   </div>`;
   for (const round of rounds) {
     html += `<div class="ko-round"><div class="ko-round-head">${esc(round.label)}</div>`;
@@ -1862,7 +1999,9 @@ function buildKnockoutHtml(rounds) {
       const aSpan   = teamSpan(tie.awayName, tie.awayNameEn);
       html += `<div class="ko-tie">`;
       for (const leg of legs) {
-        const label  = isFinal ? '決勝' : `第${leg.leg}戦`;
+        const label  = isFinal ? (LANG==='ja'?'決勝':'Final')
+                     : legs.length <= 1 ? (LANG==='ja'?'一発勝負':'Match')
+                     : (LANG==='ja'?`第${leg.leg}戦`:`Leg ${leg.leg}`);
         const hScore = leg.fin && leg.homeScore !== null ? leg.homeScore : '–';
         const aScore = leg.fin && leg.awayScore !== null ? leg.awayScore : '–';
         const hCls   = tie.homeWin ? ' winner' : '';
@@ -1880,7 +2019,7 @@ function buildKnockoutHtml(rounds) {
         const note    = legs[legs.length-1].note;
         html += `<div class="ko-agg">
           <span class="ko-note">${note ? esc(note) : ''}</span>
-          <span class="${winner ? 'ko-agg-winner' : ''}">${winner ? esc(winner) + ' が突破' : `${homeAgg} – ${awayAgg}（合計）`}</span>
+          <span class="${winner ? 'ko-agg-winner' : ''}">${winner ? esc(winner) + (LANG==='ja'?' が突破':' advances') : LANG==='ja' ? `${homeAgg} – ${awayAgg}（合計）` : `${homeAgg} – ${awayAgg} (agg.)`}</span>
         </div>`;
       }
       html += `</div>`;
@@ -1897,6 +2036,7 @@ function buildStandingsHtml(entries, lname, subtitle) {
   entries.forEach(e => { if (e.noteColor && e.noteDesc && !zSeen.has(e.noteDesc)) { zSeen.add(e.noteDesc); zones.push({color:e.noteColor,desc:e.noteDesc}); } });
   const legend  = zones.length ? `<div class="stnd-legend">${zones.map(z=>`<span><span class="legend-dot" style="background:${attr(z.color)}"></span>${esc(z.desc)}</span>`).join('')}</div>` : '';
   const cntHtml = subtitle ? `<span class="sec-cnt">${esc(subtitle)}</span>` : `<span class="sec-cnt">${entries.length} ${T.clubUnit}</span>`;
+  let lastGroup = null;
   const rows    = entries.map(e => {
     const zbar     = `<td class="zone-bar"${e.noteColor ? ` style="background:${attr(e.noteColor)}"` : ''}></td>`;
     const logo     = e.logo ? `<img class="stnd-badge" src="${attr(e.logo)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '';
@@ -1906,7 +2046,12 @@ function buildStandingsHtml(entries, lname, subtitle) {
     const teamName = (adminMode && e.teamEn)
       ? `<span class="admin-name" data-en="${attr(e.teamEn)}" data-type="team" title="クリックで編集">${esc(displayName)}</span>`
       : esc(displayName);
-    return `<tr>${zbar}<td class="stnd-rank">${e.rank}</td><td class="stnd-team"><span class="stnd-team-inner">${logo}${teamName}</span></td><td class="stnd-num">${e.gp}</td><td class="stnd-num stnd-w">${e.w}</td><td class="stnd-num stnd-d">${e.d}</td><td class="stnd-num stnd-l">${e.l}</td><td class="stnd-num">${e.gf}</td><td class="stnd-num">${e.ga}</td><td class="stnd-pts">${e.pts}</td></tr>`;
+    let groupRow = '';
+    if (e.group && e.group !== lastGroup) {
+      groupRow = `<tr class="drow"><td colspan="10">${esc(e.group)}</td></tr>`;
+      lastGroup = e.group;
+    }
+    return `${groupRow}<tr>${zbar}<td class="stnd-rank">${e.rank}</td><td class="stnd-team"><span class="stnd-team-inner">${logo}${teamName}</span></td><td class="stnd-num">${e.gp}</td><td class="stnd-num stnd-w">${e.w}</td><td class="stnd-num stnd-d">${e.d}</td><td class="stnd-num stnd-l">${e.l}</td><td class="stnd-num">${e.gf}</td><td class="stnd-num">${e.ga}</td><td class="stnd-pts">${e.pts}</td></tr>`;
   }).join('');
   return `
     <div class="sec-head"><button id="leagueTriggerBtn" class="sec-title">${esc(lname)} ▼</button>${cntHtml}</div>
@@ -1931,37 +2076,38 @@ function buildStandingsHtml(entries, lname, subtitle) {
 function buildBracketHtml(rounds) {
   _bracketConns = [];
   const get = slug => rounds.find(r => r.slug === slug)?.ties || [];
-  const r16 = get('round-of-16');
-  const qf  = get('quarterfinals');
-  const sf  = get('semifinals');
   const fin = get('final');
 
-  if (!r16.length && !qf.length && !sf.length && !fin.length)
+  // 表示するラウンド列（外側→内側）。データのある最も外側のラウンドから連鎖表示
+  const PRE   = ['round-of-32', 'round-of-16', 'quarterfinals', 'semifinals'];
+  const SLOTS = { 'round-of-32': 8, 'round-of-16': 4, 'quarterfinals': 2, 'semifinals': 1 }; // 片側スロット数
+  const firstIdx = PRE.findIndex(s => get(s).length > 0);
+
+  if (firstIdx === -1 && !fin.length)
     return `<div class="state"><span class="ico">🏆</span>${LANG==='ja'?'トーナメントデータがありません':'No tournament data'}</div>`;
 
-  // Which columns to show (cascading: showing a later round implies all prior rounds too)
-  const showR16 = r16.length > 0;
-  const showQF  = showR16 || qf.length > 0;
-  const showSF  = showQF  || sf.length > 0;
+  const shown = firstIdx === -1 ? [] : PRE.slice(firstIdx);
 
-  // nPS = match slots per side in the first (outermost) column
-  const nPS = showR16 ? Math.max(4, Math.ceil(r16.length / 2))
-            : showQF  ? Math.max(2, Math.ceil(qf.length / 2))
-            : 1;
+  const BH     = 56;                                     // match box height (2 rows × 28px)
+  const nPS    = shown.length ? SLOTS[shown[0]] : 1;     // 片側の最大スロット数
+  const totalH = nPS * BH;
 
   // fill: pad array with nulls to length n
   const fill = (arr, n) => { const a = [...arr]; while (a.length < n) a.push(null); return a; };
 
-  // Build each half's column data (nulls for undecided/future matches)
-  const lR16 = showR16 ? fill(r16.slice(0, Math.ceil(r16.length / 2)), nPS)            : [];
-  const rR16 = showR16 ? fill(r16.slice(Math.ceil(r16.length / 2)),    nPS)            : [];
-  const lQF  = showQF  ? fill(qf.slice(0, Math.ceil(qf.length / 2)),   Math.ceil(nPS / 2)) : [];
-  const rQF  = showQF  ? fill(qf.slice(Math.ceil(qf.length / 2)),      Math.ceil(nPS / 2)) : [];
-  const lSF  = showSF  ? fill(sf.slice(0, 1), 1) : [];
-  const rSF  = showSF  ? fill(sf.slice(1, 2), 1) : [];
-
-  const BH     = 56;          // match box height (2 rows × 28px)
-  const totalH = nPS * BH;   // total bracket height
+  // 各ラウンドの左右データとbid
+  const cols = shown.map(slug => {
+    const ties = get(slug);
+    const n    = SLOTS[slug];
+    const half = Math.ceil(ties.length / 2);
+    return {
+      slug,
+      left:   fill(ties.slice(0, half), n),
+      right:  fill(ties.slice(half),    n),
+      leftB:  Array.from({length: n}, (_, i) => `l-${slug}-${i}`),
+      rightB: Array.from({length: n}, (_, i) => `r-${slug}-${i}`),
+    };
+  });
 
   function agg(t) {
     if (!t?.legs.length) return null;
@@ -1970,12 +2116,15 @@ function buildBracketHtml(rounds) {
     return ok ? {h, a} : null;
   }
 
-  function mHtml(t, bid) {
+  function mHtml(t, bid, isFinal) {
     if (!t) return `<div class="bc-match" data-bid="${bid}"><div class="bc-team"></div><div class="bc-team"></div></div>`;
-    const sc = agg(t);
+    const sc  = agg(t);
     const hSc = sc != null ? `<span class="bc-sc">${sc.h}</span>` : '';
     const aSc = sc != null ? `<span class="bc-sc">${sc.a}</span>` : '';
-    return `<div class="bc-match" data-bid="${bid}"><div class="bc-team"><span class="bc-name">${esc(t.homeName)}</span>${hSc}</div><div class="bc-team"><span class="bc-name">${esc(t.awayName)}</span>${aSc}</div></div>`;
+    const wCls = isFinal ? ' bc-ch' : ' bc-w';
+    const hCls = t.homeWin ? wCls : '';
+    const aCls = t.awayWin ? wCls : '';
+    return `<div class="bc-match" data-bid="${bid}"><div class="bc-team${hCls}"><span class="bc-name">${esc(t.homeName)}</span>${hSc}</div><div class="bc-team${aCls}"><span class="bc-name">${esc(t.awayName)}</span>${aSc}</div></div>`;
   }
 
   function colHtml(matches, bids) {
@@ -1986,66 +2135,44 @@ function buildBracketHtml(rounds) {
     let html = `<div class="bc-col">`;
     for (let i = 0; i < cnt; i++) {
       html += `<div class="bc-spacer" style="height:${Math.max(0, i === 0 ? hs : gap)}px"></div>`;
-      html += mHtml(matches[i], bids[i]);
+      html += mHtml(matches[i], bids[i], false);
     }
     html += `<div class="bc-spacer" style="height:${Math.max(0, hs)}px"></div></div>`;
     return html;
   }
 
-  // Bid (data-bid) arrays — nulls in matches still get a unique bid
-  const lR16B = lR16.map((_, i) => `l-r16-${i}`);
-  const rR16B = rR16.map((_, i) => `r-r16-${i}`);
-  const lQFB  = lQF.map((_,  i) => `l-qf-${i}`);
-  const rQFB  = rQF.map((_,  i) => `r-qf-${i}`);
-  const lSFB  = lSF.map((_,  i) => `l-sf-${i}`);
-  const rSFB  = rSF.map((_,  i) => `r-sf-${i}`);
+  // 接続線を登録（ラウンドi → i+1、最終ラウンド → 決勝）
+  for (let c = 0; c < cols.length - 1; c++) {
+    const cur = cols[c], nxt = cols[c+1];
+    for (let i = 0; i < nxt.left.length; i++)
+      _bracketConns.push({src1: cur.leftB[i*2],  src2: cur.leftB[i*2+1],  tgt: nxt.leftB[i],  side: 'left'});
+    for (let i = 0; i < nxt.right.length; i++)
+      _bracketConns.push({src1: cur.rightB[i*2], src2: cur.rightB[i*2+1], tgt: nxt.rightB[i], side: 'right'});
+  }
+  if (cols.length) {
+    const last = cols[cols.length - 1];
+    _bracketConns.push({src1: last.leftB[0],  src2: null, tgt: 'final', side: 'left'});
+    _bracketConns.push({src1: last.rightB[0], src2: null, tgt: 'final', side: 'right'});
+  }
 
-  // Register bracket connections (SVG lines drawn after DOM insert)
-  // Left: R16 → QF → SF → Final
-  for (let i = 0; i < lQF.length; i++)
-    _bracketConns.push({src1: lR16B[i*2], src2: lR16B[i*2+1], tgt: lQFB[i], side: 'left'});
-  for (let i = 0; i < lSF.length; i++)
-    _bracketConns.push({src1: lQFB[i*2],  src2: lQFB[i*2+1],  tgt: lSFB[i], side: 'left'});
-  if      (lSF.length)  _bracketConns.push({src1: lSFB[0],  src2: null, tgt: 'final', side: 'left'});
-  else if (lQF.length)  _bracketConns.push({src1: lQFB[0],  src2: null, tgt: 'final', side: 'left'});
-  else if (lR16.length) _bracketConns.push({src1: lR16B[0], src2: null, tgt: 'final', side: 'left'});
-  // Right: R16 → QF → SF → Final
-  for (let i = 0; i < rQF.length; i++)
-    _bracketConns.push({src1: rR16B[i*2], src2: rR16B[i*2+1], tgt: rQFB[i], side: 'right'});
-  for (let i = 0; i < rSF.length; i++)
-    _bracketConns.push({src1: rQFB[i*2],  src2: rQFB[i*2+1],  tgt: rSFB[i], side: 'right'});
-  if      (rSF.length)  _bracketConns.push({src1: rSFB[0],  src2: null, tgt: 'final', side: 'right'});
-  else if (rQF.length)  _bracketConns.push({src1: rQFB[0],  src2: null, tgt: 'final', side: 'right'});
-  else if (rR16.length) _bracketConns.push({src1: rR16B[0], src2: null, tgt: 'final', side: 'right'});
-
-  // Final column (center)
-  const f   = fin[0] || null;
-  const sc  = f ? agg(f) : null;
-  const hN  = f ? f.homeName : '';
-  const aN  = f ? f.awayName : '';
-  const hSc = sc != null ? `<span class="bc-sc">${sc.h}</span>` : '';
-  const aSc = sc != null ? `<span class="bc-sc">${sc.a}</span>` : '';
-  const fhs = Math.max(0, totalH / 2 - BH / 2);
+  // 決勝列（中央）優勝チーム名も表示
+  const f     = fin[0] || null;
+  const champ = f ? (f.homeWin ? f.homeName : f.awayWin ? f.awayName : null) : null;
+  const fhs   = Math.max(0, totalH / 2 - BH / 2);
   const finalHtml = `<div class="bc-final-col">
     <div class="bc-spacer" style="height:${fhs}px"></div>
-    <div class="bc-match" data-bid="final">
-      <div class="bc-team"><span class="bc-name">${esc(hN)}</span>${hSc}</div>
-      <div class="bc-team"><span class="bc-name">${esc(aN)}</span>${aSc}</div>
-    </div>
+    ${mHtml(f, 'final', true)}
     <div class="bc-trophy">🏆</div>
+    ${champ ? `<div class="bc-champ-name">${esc(champ)}</div>` : ''}
   </div>`;
 
   let html = '<div class="bracket-outer"><div class="bracket-wrap" id="bcWrap">';
   html += '<div class="bc-half left">';
-  if (lR16.length) html += colHtml(lR16, lR16B);
-  if (lQF.length)  html += colHtml(lQF,  lQFB);
-  if (lSF.length)  html += colHtml(lSF,  lSFB);
+  for (const c of cols) html += colHtml(c.left, c.leftB);
   html += '</div>';
   html += finalHtml;
   html += '<div class="bc-half right">';
-  if (rSF.length)  html += colHtml(rSF,  rSFB);
-  if (rQF.length)  html += colHtml(rQF,  rQFB);
-  if (rR16.length) html += colHtml(rR16, rR16B);
+  for (let i = cols.length - 1; i >= 0; i--) html += colHtml(cols[i].right, cols[i].rightB);
   html += '</div>';
   html += '<svg class="bc-svg" id="bcSvg"></svg>';
   html += '</div></div>';
@@ -2114,6 +2241,11 @@ function buildCupSubFilter(code) {
   activeCupCode = code;
   const bar = document.getElementById('cupSubFilter');
   bar.style.visibility = '';
+  // W杯はタブ名を「グループステージ」に切り替え
+  const leagueTab = bar.querySelector('.ftab[data-sub="league"]');
+  if (leagueTab) leagueTab.textContent = code === 'fifa.world'
+    ? (LANG==='ja' ? 'グループステージ' : 'Group Stage')
+    : T.leaguePhase;
   bar.querySelectorAll('.ftab').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.sub === activeCupSub);
     btn.onclick = () => {
@@ -2128,12 +2260,21 @@ function buildCupSubFilter(code) {
 /* ── CL/EL 描画：サブタブに応じて切り替え ── */
 function renderCupPage(entries, koRounds, lname) {
   const wrap = document.getElementById('standingsWrap');
+  const isWC = activeCupCode === 'fifa.world';
   if (activeCupSub === 'league') {
-    const html = buildStandingsHtml(entries, lname, 'リーグフェーズ');
+    const sub  = isWC ? (LANG==='ja'?'グループステージ':'Group Stage') : (LANG==='ja'?'リーグフェーズ':'League Phase');
+    const html = buildStandingsHtml(entries, lname, sub);
     wrap.innerHTML = html || `<div class="state"><span class="ico">📋</span>${LANG==='ja'?'リーグフェーズのデータがありません':'No league phase data'}</div>`;
   } else {
-    const html = buildKnockoutHtml(koRounds);
-    wrap.innerHTML = html || `<div class="state"><span class="ico">🏆</span>${LANG==='ja'?'ノックアウトステージのデータがありません':'No knockout data'}</div>`;
+    // トーナメントブラケット図 + 詳細リスト
+    const bracket = buildBracketHtml(koRounds);
+    const list    = buildKnockoutHtml(koRounds);
+    if (!koRounds.length) {
+      wrap.innerHTML = `<div class="state"><span class="ico">🏆</span>${LANG==='ja'?'ノックアウトステージのデータがありません':'No knockout data'}</div>`;
+      return;
+    }
+    wrap.innerHTML = bracket + list;
+    requestAnimationFrame(drawBracketLines);
   }
 }
 
@@ -2182,7 +2323,44 @@ function renderStandings(entries, code) {
 /* ════════════════════════════════════════
    ③ 得点ランキング — 取得・描画
 ════════════════════════════════════════ */
+/* W杯: leaders APIが存在しないため全試合のゴール詳細から集計 */
+async function fetchWorldCupScorers() {
+  const res = await fetch(`${ESPN_SCHED}/fifa.world/scoreboard?dates=20260611-20260720&limit=300&lang=ja&region=jp`);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const data  = await res.json();
+  const tally = {};
+  for (const ev of data.events || []) {
+    const comp = ev.competitions?.[0];
+    if (!comp) continue;
+    for (const det of comp.details || []) {
+      if (!det.scoringPlay || det.ownGoal) continue;
+      const ath = det.athletesInvolved?.[0];
+      if (!ath) continue;
+      const nameEn = ath.displayName || ath.shortName || '?';
+      if (!tally[nameEn]) tally[nameEn] = { goals: 0, teamId: det.team?.id || null };
+      tally[nameEn].goals++;
+      if (!tally[nameEn].teamId && det.team?.id) tally[nameEn].teamId = det.team.id;
+    }
+  }
+  const list = Object.entries(tally)
+    .map(([nameEn, t]) => ({
+      rank:     0,
+      name:     playerNameJa(nameEn),
+      nameEn,
+      teamLogo: t.teamId ? `https://a.espncdn.com/i/teamlogos/soccer/500/${t.teamId}.png` : null,
+      value:    t.goals,
+      matches:  '–',
+    }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, TOP_N);
+  for (let i = 0; i < list.length; i++) {
+    list[i].rank = (i > 0 && list[i].value === list[i-1].value) ? list[i-1].rank : i + 1;
+  }
+  return { goals: list, assists: [] };
+}
+
 async function fetchScorers(code) {
+  if (code === 'fifa.world') return fetchWorldCupScorers();
   const season = currentSeason();
   const res    = await fetch(`${ESPN_CORE}/${code}/seasons/${season}/types/1/leaders`);
   if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -2322,7 +2500,7 @@ function nameStyle(rank) {
 }
 
 function scorerTable(players, colLabel) {
-  if (!players.length) return '<p style="color:var(--muted);font-size:13px;padding:8px 0">データなし</p>';
+  if (!players.length) return `<p style="color:var(--muted);font-size:13px;padding:8px 0">${LANG==='ja'?'データなし（試合開始後に表示されます）':'No data yet (appears after matches are played)'}</p>`;
   const rows = players.map(p => {
     const tl = p.teamLogo ? `<img class="badge" src="${attr(p.teamLogo)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '';
     const nameCell = adminMode && p.nameEn
@@ -2881,12 +3059,30 @@ setInterval(tick, 30_000);
     {size:20, left:86, dur:12, delay: 4},
     {size:13, left:94, dur:10, delay: 6},
   ];
-  bubbles.forEach(b => {
-    const el = document.createElement('div');
-    el.className = 'bubble';
-    el.style.cssText = `width:${b.size}px;height:${b.size}px;left:${b.left}%;animation-duration:${b.dur}s;animation-delay:-${b.delay}s`;
-    wrap.appendChild(el);
-  });
+  // W杯期間中は金色の光の粒が舞い上がる（粒は小さめ・数は多め）
+  if (isWorldCup) {
+    const golds = [
+      {size: 7, left:  5, dur:11, delay: 0}, {size:12, left: 13, dur:15, delay: 4},
+      {size: 5, left: 22, dur: 9, delay: 7}, {size:14, left: 31, dur:16, delay: 2},
+      {size: 8, left: 40, dur:12, delay: 9}, {size: 6, left: 49, dur:10, delay: 5},
+      {size:11, left: 58, dur:14, delay: 1}, {size: 5, left: 67, dur: 9, delay: 8},
+      {size:13, left: 75, dur:15, delay: 3}, {size: 7, left: 83, dur:11, delay: 6},
+      {size: 9, left: 90, dur:13, delay:10}, {size: 6, left: 96, dur:10, delay: 2},
+    ];
+    golds.forEach(b => {
+      const el = document.createElement('div');
+      el.className = 'bubble wc-gold';
+      el.style.cssText = `width:${b.size}px;height:${b.size}px;left:${b.left}%;animation-duration:${b.dur}s;animation-delay:-${b.delay}s`;
+      wrap.appendChild(el);
+    });
+  } else {
+    bubbles.forEach(b => {
+      const el = document.createElement('div');
+      el.className = 'bubble';
+      el.style.cssText = `width:${b.size}px;height:${b.size}px;left:${b.left}%;animation-duration:${b.dur}s;animation-delay:-${b.delay}s`;
+      wrap.appendChild(el);
+    });
+  }
 })();
 </script>
 </body>
