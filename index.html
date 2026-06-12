@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" id="themeColor" content="#0f172a">
   <title>Football Today | 欧州サッカー日程表</title>
   <meta name="google-site-verification" content="36E2heKne3wfqWYS__XDLWlvbopcAhlE-k4p4K3UlxM" />
   <meta name="description" content="プレミアリーグ・ラ・リーガ・セリエA・ブンデスリーガ・チャンピオンズリーグの試合日程・結果・順位表・得点ランキングをシンプルに確認。日本語・英語対応、毎日自動更新。Soccer schedule, standings and top scorers for Premier League, La Liga, Serie A, Bundesliga, Champions League.">
@@ -39,8 +38,8 @@
       --nav:     42px;
     }
 
-    /* キャンバス背景＝Safariのバー（磨りガラス）の下地。ヘッダーと同色にして一体化させる */
-    html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; background: #0f172a; }
+    /* キャンバス背景＝Safariのバー（磨りガラス）の下地。ページ背景と同系色にして馴染ませる */
+    html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; background: #c8e6f7; }
     body {
       font-family: 'M PLUS 1p', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: linear-gradient(160deg, #c8e6f7 0%, #dff0f8 35%, #cceef5 70%, #d4eef9 100%);
@@ -737,9 +736,8 @@ const isWorldCup = new Date() >= WC_START && new Date() <= WC_END;
 /* W杯期間中: 特別テーマ＋ヘッダーバッジ */
 if (isWorldCup) {
   document.body.classList.add('wc-mode');
-  // Safariのアドレスバー周りをW杯ヘッダーと同じ緑に（未指定だと白く分離して見える）
-  document.getElementById('themeColor')?.setAttribute('content', '#14532d');
-  document.documentElement.style.background = '#14532d';
+  // Safariのバーの下地をW杯ページ背景と同じ淡い緑に
+  document.documentElement.style.background = '#cdeeda';
   // 英語モード初期化がsubtitleのtextContentを書き換えた後に実行する
   setTimeout(() => {
     const sub = document.getElementById('siteSubtitle');
