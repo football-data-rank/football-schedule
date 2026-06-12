@@ -276,14 +276,17 @@
       0%, 100% { transform: scale(1); }
       50%      { transform: scale(1.18); }
     }
+    /* 高さは固定（絵文字のフォントメトリクスで行が膨らみヘッダーからはみ出すのを防ぐ） */
+    #siteSubtitle { height: 13px; line-height: 13px; overflow: hidden; }
     .wc-badge {
       display: inline-flex; align-items: center; gap: 3px;
+      height: 13px; line-height: 1;
       background: linear-gradient(120deg, #facc15, #eab308);
       color: #14532d; font-size: 8px; font-weight: 800; letter-spacing: .4px;
-      border-radius: 8px; padding: 1px 6px; white-space: nowrap;
-      vertical-align: middle;
+      border-radius: 8px; padding: 0 6px; white-space: nowrap;
+      vertical-align: top;
     }
-    .wc-badge .tr { animation: trophyPulse 1.6s ease-in-out infinite; display: inline-block; }
+    .wc-badge .tr { animation: trophyPulse 1.6s ease-in-out infinite; display: inline-block; font-size: 9px; line-height: 1; }
     /* W杯モード: 金色に輝く光の粒（ゆらぎながら舞い上がる） */
     @keyframes riseSway {
       0%   { transform: translate(0, 0) scale(1); opacity: 0; }
