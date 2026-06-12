@@ -245,7 +245,8 @@
       80%  { opacity: 0.4; }
       100% { transform: translateY(-105vh) scale(1.15); opacity: 0; }
     }
-    #bubbles { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+    /* 上端には触れさせない（画面全面の固定要素があるとSafariがバーを不透明にするため top をあける） */
+    #bubbles { position: fixed; left: 0; right: 0; bottom: 0; top: 120px; pointer-events: none; z-index: 0; overflow: hidden; }
     .bubble { position: absolute; bottom: -60px; border-radius: 50%; background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.45); animation: riseUp linear infinite; }
 
     /* ─── World Cup mode（W杯期間中のみ body.wc-mode で有効） ─── */
