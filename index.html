@@ -59,8 +59,6 @@
       justify-content: space-between;
       padding: 0 20px;
       height: var(--hdr);
-      position: sticky;
-      top: 0;
       z-index: 30;
       overflow: hidden; /* バッジ等がヘッダー外にはみ出さない */
     }
@@ -95,8 +93,6 @@
       display: flex;
       padding: 0 20px;
       border-top: 1px solid #1e293b;
-      position: sticky;
-      top: var(--hdr);
       z-index: 29;
       height: var(--nav);
     }
@@ -497,7 +493,7 @@
       text-align: left; padding: 7px 10px;
       background: var(--row-alt); border-bottom: 2px solid var(--border);
       font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: .4px;
-      position: sticky; top: calc(var(--hdr) + var(--nav));
+      position: sticky; top: 0;
     }
     .edit-tbl td { padding: 4px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
     .edit-tbl td:first-child { color: var(--muted); font-size: 12px; width: 50%; }
@@ -524,14 +520,7 @@
     /* ─── Responsive ─── */
     @media (max-width: 640px) {
       .hide-sm { display: none; }
-      /* ヘッダーを画面幅に固定（テーブルが広くても崩れない） */
-      #topbar  { position: fixed; top: 0; left: 0; right: 0; transition: transform .3s ease; }
-      #pageNav { position: fixed; top: var(--hdr); left: 0; right: 0; transition: transform .3s ease; }
-      body.header-hidden #topbar  { transform: translateY(calc(-1 * var(--hdr))); }
-      body.header-hidden #pageNav { transform: translateY(calc(-1 * (var(--hdr) + var(--nav)))); }
-      #schedulePage, #standingsPage, #scorersPage, #editPage {
-        padding-top: calc(var(--hdr) + var(--nav));
-      }
+      /* ヘッダーはページ先頭に通常配置（スクロールで一緒に流れる） */
       /* 試合日程 */
       #scheduleWrap { padding-left: 2px; padding-right: 2px; }
       /* 長いチーム名でテーブルが画面幅を超えない（初期ズームの原因対策） */
@@ -3101,24 +3090,7 @@ startAutoRefresh();
 tick();
 setInterval(tick, 30_000);
 
-/* スクロールで上バナーを隠す（モバイルのみ） */
-(function() {
-  let lastY = 0, ticking = false;
-  window.addEventListener('scroll', () => {
-    if (ticking) return;
-    ticking = true;
-    requestAnimationFrame(() => {
-      const y = window.scrollY;
-      if (y > lastY && y > 60) {
-        document.body.classList.add('header-hidden');
-      } else if (y <= 10) {
-        document.body.classList.remove('header-hidden');
-      }
-      lastY = y;
-      ticking = false;
-    });
-  }, { passive: true });
-})();
+/* ヘッダーは常に固定表示（スクロールで隠す動きは廃止） */
 
 /* ── 泡アニメーション生成 ── */
 (function() {
