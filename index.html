@@ -2452,40 +2452,73 @@ function renderStandings(entries, code) {
 /* ════════════════════════════════════════
    ③ 得点ランキング — 取得・描画
 ════════════════════════════════════════ */
-/* W杯: leaders APIが存在しないため全試合のゴール詳細から集計 */
+/* W杯: leaders APIが存在しないため全試合から得点・アシストを集計
+   得点はscoreboardのdetailsから（軽量）、アシストは各試合のsummary.keyEventsから取得 */
 async function fetchWorldCupScorers() {
   const res = await fetch(`${ESPN_SCHED}/fifa.world/scoreboard?dates=20260611-20260720&limit=300&lang=ja&region=jp`);
   if (!res.ok) throw new Error('HTTP ' + res.status);
-  const data  = await res.json();
-  const tally = {};
+  const data    = await res.json();
+  const goalT   = {};   // nameEn → {goals, teamId}
+  const assistT = {};   // nameEn → {assists, teamId}
+  const doneIds = [];   // 完了試合のID（アシスト集計用）
+
   for (const ev of data.events || []) {
     const comp = ev.competitions?.[0];
     if (!comp) continue;
+    if (comp.status?.type?.completed) doneIds.push(ev.id);
     for (const det of comp.details || []) {
       if (!det.scoringPlay || det.ownGoal) continue;
       const ath = det.athletesInvolved?.[0];
       if (!ath) continue;
       const nameEn = ath.displayName || ath.shortName || '?';
-      if (!tally[nameEn]) tally[nameEn] = { goals: 0, teamId: det.team?.id || null };
-      tally[nameEn].goals++;
-      if (!tally[nameEn].teamId && det.team?.id) tally[nameEn].teamId = det.team.id;
+      if (!goalT[nameEn]) goalT[nameEn] = { goals: 0, teamId: det.team?.id || null };
+      goalT[nameEn].goals++;
+      if (!goalT[nameEn].teamId && det.team?.id) goalT[nameEn].teamId = det.team.id;
     }
   }
-  const list = Object.entries(tally)
-    .map(([nameEn, t]) => ({
-      rank:     0,
-      name:     playerNameJa(nameEn),
-      nameEn,
-      teamLogo: t.teamId ? `https://a.espncdn.com/i/teamlogos/soccer/500/${t.teamId}.png` : null,
-      value:    t.goals,
-      matches:  '–',
-    }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, TOP_N);
-  for (let i = 0; i < list.length; i++) {
-    list[i].rank = (i > 0 && list[i].value === list[i-1].value) ? list[i-1].rank : i + 1;
+
+  // アシスト：完了試合のsummaryをまとめて取得（同時実行数を絞る）
+  async function fetchSummaryAssists(id) {
+    try {
+      const r = await fetch(`${ESPN_SCHED}/fifa.world/summary?event=${id}&lang=ja&region=jp`);
+      if (!r.ok) return;
+      const s = await r.json();
+      for (const ke of s.keyEvents || []) {
+        const isGoal = ke.scoringPlay || /goal/i.test(ke.type?.text || '');
+        if (!isGoal || ke.ownGoal) continue;
+        const assister = ke.participants?.[1]?.athlete;   // [0]=得点者, [1]=アシスト者
+        if (!assister) continue;
+        const nameEn = assister.displayName || assister.shortName || '?';
+        if (!assistT[nameEn]) assistT[nameEn] = { assists: 0, teamId: ke.team?.id || null };
+        assistT[nameEn].assists++;
+        if (!assistT[nameEn].teamId && ke.team?.id) assistT[nameEn].teamId = ke.team.id;
+      }
+    } catch {}
   }
-  return { goals: list, assists: [] };
+  const CONCUR = 6;
+  for (let i = 0; i < doneIds.length; i += CONCUR) {
+    await Promise.all(doneIds.slice(i, i + CONCUR).map(fetchSummaryAssists));
+  }
+
+  const toList = (tally, key) => {
+    const list = Object.entries(tally)
+      .map(([nameEn, t]) => ({
+        rank:     0,
+        name:     playerNameJa(nameEn),
+        nameEn,
+        teamLogo: t.teamId ? `https://a.espncdn.com/i/teamlogos/soccer/500/${t.teamId}.png` : null,
+        value:    t[key],
+        matches:  '–',
+      }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, TOP_N);
+    for (let i = 0; i < list.length; i++) {
+      list[i].rank = (i > 0 && list[i].value === list[i-1].value) ? list[i-1].rank : i + 1;
+    }
+    return list;
+  };
+
+  return { goals: toList(goalT, 'goals'), assists: toList(assistT, 'assists') };
 }
 
 async function fetchScorers(code) {
