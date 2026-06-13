@@ -1022,6 +1022,56 @@ const TEAM_NAMES_JA = {
   'Maccabi Haifa':'マッカビ・ハイファ','Maccabi Tel Aviv':'マッカビ・テルアビブ',
   'Zenit':'ゼニト','Zenit Saint Petersburg':'ゼニト',
   'Spartak Moscow':'スパルタク・モスクワ','Lokomotiv Moscow':'ロコモティフ・モスクワ','CSKA Moscow':'CSKAモスクワ',
+
+  // ── 代表（ワールドカップ出場国 / ウィキペディア準拠のカタカナ）──
+  'Algeria':'アルジェリア',
+  'Argentina':'アルゼンチン',
+  'Australia':'オーストラリア',
+  'Austria':'オーストリア',
+  'Belgium':'ベルギー',
+  'Bosnia-Herzegovina':'ボスニア・ヘルツェゴビナ','Bosnia and Herzegovina':'ボスニア・ヘルツェゴビナ','Bosnia & Herzegovina':'ボスニア・ヘルツェゴビナ',
+  'Brazil':'ブラジル',
+  'Canada':'カナダ',
+  'Cape Verde':'カーボベルデ','Cabo Verde':'カーボベルデ',
+  'Colombia':'コロンビア',
+  'Congo DR':'コンゴ民主共和国','DR Congo':'コンゴ民主共和国','Democratic Republic of the Congo':'コンゴ民主共和国','Congo DR ':'コンゴ民主共和国',
+  'Croatia':'クロアチア',
+  'Curaçao':'キュラソー','Curacao':'キュラソー',
+  'Czechia':'チェコ','Czech Republic':'チェコ',
+  'Ecuador':'エクアドル',
+  'Egypt':'エジプト',
+  'England':'イングランド',
+  'France':'フランス',
+  'Germany':'ドイツ',
+  'Ghana':'ガーナ',
+  'Haiti':'ハイチ',
+  'Iran':'イラン','IR Iran':'イラン',
+  'Iraq':'イラク',
+  'Ivory Coast':'コートジボワール',"Côte d'Ivoire":'コートジボワール','Cote d\'Ivoire':'コートジボワール',
+  'Japan':'日本',
+  'Jordan':'ヨルダン',
+  'Mexico':'メキシコ',
+  'Morocco':'モロッコ',
+  'Netherlands':'オランダ',
+  'New Zealand':'ニュージーランド',
+  'Norway':'ノルウェー',
+  'Panama':'パナマ',
+  'Paraguay':'パラグアイ',
+  'Portugal':'ポルトガル',
+  'Qatar':'カタール',
+  'Saudi Arabia':'サウジアラビア',
+  'Scotland':'スコットランド',
+  'Senegal':'セネガル',
+  'South Africa':'南アフリカ',
+  'South Korea':'韓国','Korea Republic':'韓国','Republic of Korea':'韓国',
+  'Spain':'スペイン',
+  'Sweden':'スウェーデン',
+  'Switzerland':'スイス',
+  'Tunisia':'チュニジア',
+  'Türkiye':'トルコ','Turkiye':'トルコ','Turkey':'トルコ',
+  'United States':'アメリカ','USA':'アメリカ','United States of America':'アメリカ',
+  'Uruguay':'ウルグアイ',
+  'Uzbekistan':'ウズベキスタン',
 };
 
 /* ────────────────────────────────────────
@@ -1716,10 +1766,8 @@ function toHalfKana(str) {
   return [...str].map(c => HALF_KANA_MAP[c] ?? c).join('');
 }
 function fitTeamName(name) {
-  if (LANG !== 'ja') return name;
-  if (window.innerWidth >= 600) return name;
-  const fw = [...name].filter(c => c.charCodeAt(0) >= 0x30A0 && c.charCodeAt(0) <= 0x30FF).length;
-  return fw >= 8 ? toHalfKana(name) : name;
+  // 正式なカタカナ表記を崩さない。長い名前は列のellipsis（…）で省略表示する
+  return name;
 }
 
 function scheduleRow(m) {
