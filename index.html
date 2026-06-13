@@ -1610,8 +1610,28 @@ function parseEvent(ev, lg) {
     homeScore: (state !== 'pre') ? home.score : null,
     awayScore: (state !== 'pre') ? away.score : null,
     state, clock: comp.status?.displayClock || '',
+    homeId: home.team?.id, awayId: away.team?.id,
     label: lg.label, shortLabel: lg.short || lg.label, country: lg.country, leagueColor: lg.color || '#64748b',
   };
+}
+
+/* W杯グループステージ用：チームID→グループ名（"A".."L"）の対応表。順位表から一度だけ構築 */
+let wcGroupMap = null;
+async function fetchWcGroupMap() {
+  if (wcGroupMap) return wcGroupMap;
+  wcGroupMap = {};
+  try {
+    const res = await fetch(`${ESPN_STND}/fifa.world/standings?lang=ja&region=jp`);
+    if (!res.ok) return wcGroupMap;
+    const data = await res.json();
+    for (const ch of data.children || []) {
+      const g = (ch.abbreviation || ch.name || '').replace(/^Group\s+/i, '').trim();
+      for (const e of ch.standings?.entries || []) {
+        if (e.team?.id) wcGroupMap[e.team.id] = g;
+      }
+    }
+  } catch {}
+  return wcGroupMap;
 }
 
 async function fetchSchedule() {
@@ -1703,7 +1723,13 @@ function fitTeamName(name) {
 }
 
 function scheduleRow(m) {
-  const cl = toHalfKana(m.shortLabel);
+  // W杯グループステージは「WC」の代わりにグループ名（グループA / Group A）を表示
+  let compLabel = m.shortLabel;
+  if (isWorldCup && m.country === 'world' && wcGroupMap) {
+    const g = wcGroupMap[m.homeId] || wcGroupMap[m.awayId];
+    if (g) compLabel = `Group ${g}`;
+  }
+  const cl = toHalfKana(compLabel);
   const hb = m.homeLogo ? `<img class="badge" src="${attr(m.homeLogo)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '';
   const ab = m.awayLogo ? `<img class="badge" src="${attr(m.awayLogo)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '';
   const hn = fitTeamName(m.homeTeam);
@@ -3031,7 +3057,11 @@ async function load(showLoader = false) {
   btn.classList.add('spin');
   if (showLoader) document.getElementById('scheduleWrap').innerHTML = `<div class="state"><span class="ico">⚽</span>${T.loading}</div>`;
   try {
-    allMatches = await fetchSchedule();
+    const [matches] = await Promise.all([
+      fetchSchedule(),
+      isWorldCup ? fetchWcGroupMap() : Promise.resolve(),
+    ]);
+    allMatches = matches;
     buildCountryFilter();
     renderSchedule();
     markUpdated();
