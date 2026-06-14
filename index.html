@@ -182,7 +182,9 @@
     .tbl thead th.r { text-align: right; }
     .tbl tbody tr { border-top: 1px solid var(--border); }
     .tbl tbody tr:nth-child(even) { background: var(--row-alt); }
-    .tbl.sched { font-family: 'BIZ UDPMincho', serif; background: rgba(180,225,248,0.35); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(186,230,253,0.55); box-shadow: 0 4px 28px rgba(8,145,178,0.13), inset 0 1px 0 rgba(255,255,255,0.5); border-collapse: separate; border-spacing: 0 3px; }
+    .tbl.sched { font-family: 'BIZ UDPMincho', serif; background: rgba(180,225,248,0.35); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(186,230,253,0.55); box-shadow: 0 4px 28px rgba(8,145,178,0.13), inset 0 1px 0 rgba(255,255,255,0.5); border-collapse: separate; border-spacing: 0 3px; table-layout: fixed; width: 100%; }
+    /* ホーム列とアウェー列を左右均等にしてスコアを常に中央へ（auto時は名前の長さで中央がずれる） */
+    .tbl.sched .td-home, .tbl.sched .td-away, .tbl.sched th.r, .tbl.sched th.l { width: auto; }
     .tbl.sched tbody tr:not(.drow) td { background: rgba(255,255,255,0.62); }
     .tbl.sched td { border-top: 1.5px solid rgba(10,40,80,0.42); border-bottom: 1.5px solid rgba(10,40,80,0.42); }
     .tbl.sched td:first-child { border-left: 1.5px solid rgba(10,40,80,0.42); border-radius: 6px 0 0 6px; }
@@ -1720,7 +1722,17 @@ function renderSchedule() {
   const base = activeCountry === 'all' ? allMatches : allMatches.filter(m => m.country === activeCountry);
   // 終了試合は前日以降のみ表示
   const list = base.filter(m => m.state !== 'post' || m.logicalDate >= yesterdayLocal);
-  if (!list.length) { wrap.innerHTML = `<div class="state"><span class="ico">📋</span>${T.noMatches}</div>`; return; }
+  const label = COUNTRY_FILTERS.find(f => f.id === activeCountry)?.label ?? 'すべて';
+
+  // 試合が無くてもフィルター（リーグ選択）は必ず残す＝別リーグへ戻れるように
+  if (!list.length) {
+    wrap.innerHTML = `
+      <div class="sec-head">
+        <button id="countryTriggerBtn" class="sec-title">${esc(label)} ▼</button>
+      </div>
+      <p style="color:var(--muted);font-size:13px;padding:14px 2px">${T.noMatches}</p>`;
+    return;
+  }
 
   const sorted  = list.slice().sort((a,b) => new Date(a.utcDate) - new Date(b.utcDate));
   const dates   = [...new Set(sorted.map(m => m.logicalDate))];
@@ -1732,7 +1744,6 @@ function renderSchedule() {
     if (m.logicalDate !== lastDate) { rows.push(`<tr class="drow"><td colspan="3">${dayLabel(m.logicalDate)}</td></tr>`); lastDate = m.logicalDate; }
     rows.push(scheduleRow(m));
   }
-  const label = COUNTRY_FILTERS.find(f => f.id === activeCountry)?.label ?? 'すべて';
   wrap.innerHTML = `
     <div class="sec-head">
       <button id="countryTriggerBtn" class="sec-title">${esc(label)} ▼</button>
@@ -2085,14 +2096,14 @@ function buildKnockoutHtml(rounds) {
       html += `<div class="ko-tie">`;
       for (const leg of legs) {
         const label  = isFinal ? (LANG==='ja'?'決勝':'Final')
-                     : legs.length <= 1 ? (LANG==='ja'?'一発勝負':'Match')
+                     : legs.length <= 1 ? ''
                      : (LANG==='ja'?`第${leg.leg}戦`:`Leg ${leg.leg}`);
         const hScore = leg.fin && leg.homeScore !== null ? leg.homeScore : '–';
         const aScore = leg.fin && leg.awayScore !== null ? leg.awayScore : '–';
         const hCls   = tie.homeWin ? ' winner' : '';
         const aCls   = tie.awayWin ? ' winner' : '';
         html += `<div class="ko-leg">
-          <span class="ko-leg-num">${esc(label)}</span>
+          ${label ? `<span class="ko-leg-num">${esc(label)}</span>` : ''}
           <span class="ko-team${hCls}">${hSpan}</span>
           <span class="ko-score-box">${hScore}<span class="ko-score-sep">-</span>${aScore}</span>
           <span class="ko-team right${aCls}">${aSpan}</span>
