@@ -315,6 +315,9 @@
     }
     .player-inner { display: inline-flex; align-items: center; gap: 8px; }
     .player-hs { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: #e2e8f0; }
+    /* 得点ランキング：選手名の左にチームロゴ／国旗 */
+    .scorer-name-inner { display: inline-flex; align-items: center; gap: 7px; }
+    .scorer-badge { width: 18px; height: 18px; object-fit: contain; flex-shrink: 0; }
     .stat-val { width: 42px; text-align: center; font-size: 15px; font-weight: 800; color: var(--indigo); font-variant-numeric: tabular-nums; }
 
     /* ─── Knockout list (フォールバック) ─── */
@@ -1596,10 +1599,15 @@ function teamNameJa(name) {
       || nameToKatakana(name);
 }
 
+// Wikipedia由来の名前に付く曖昧さ回避注記「(1974年生のサッカー選手)」等の末尾括弧を除去
+function cleanJaName(s) {
+  if (!s) return s;
+  return String(s).replace(/\s*[（(][^（()）]*[)）]\s*$/, '').trim();
+}
 function playerNameJa(name) {
   if (!name) return name;
   if (LANG !== 'ja') return name;
-  return nameOverrides.players[name] || PLAYER_NAMES_JA[name] || nameToKatakana(name);
+  return cleanJaName(nameOverrides.players[name] || PLAYER_NAMES_JA[name] || nameToKatakana(name));
 }
 
 function getLogo(team) {
@@ -2050,10 +2058,16 @@ function parseKnockoutEvents(events) {
 function buildKnockoutHtml(rounds) {
   if (!rounds.length) return '';
 
+  // W杯のノックアウトは出場枠が未確定で「Round of 32 1 Winner」等のプレースホルダー名のため、
+  // カタカナ化すると崩れる。W杯は英語名のまま表示する（CL/ELは実クラブ名なので日本語）
+  const useEn = activeCupCode === 'fifa.world';
+  const disp  = (nameJa, nameEn) => useEn ? (nameEn || nameJa) : nameJa;
+
   function teamSpan(nameJa, nameEn) {
-    if (adminMode && nameEn)
-      return `<span class="admin-name" data-en="${attr(nameEn)}" data-type="team" title="クリックで編集">${esc(nameJa)}</span>`;
-    return esc(nameJa);
+    const shown = disp(nameJa, nameEn);
+    if (adminMode && nameEn && !useEn)
+      return `<span class="admin-name" data-en="${attr(nameEn)}" data-type="team" title="クリックで編集">${esc(shown)}</span>`;
+    return esc(shown);
   }
 
   let html = `<div class="sec-head" style="margin-top:24px">
@@ -2065,7 +2079,7 @@ function buildKnockoutHtml(rounds) {
     for (const tie of round.ties) {
       const legs    = tie.legs;
       const isFinal = round.slug === 'final';
-      const winner  = tie.homeWin ? tie.homeName : tie.awayWin ? tie.awayName : null;
+      const winner  = tie.homeWin ? disp(tie.homeName, tie.homeNameEn) : tie.awayWin ? disp(tie.awayName, tie.awayNameEn) : null;
       const hSpan   = teamSpan(tie.homeName, tie.homeNameEn);
       const aSpan   = teamSpan(tie.awayName, tie.awayNameEn);
       html += `<div class="ko-tie">`;
@@ -2245,6 +2259,10 @@ function buildBracketHtml(rounds) {
     return ok ? {h, a} : null;
   }
 
+  // W杯はプレースホルダー名のため英語表示（CL/ELは日本語クラブ名）
+  const useEn = activeCupCode === 'fifa.world';
+  const nm = (ja, en) => useEn ? (en || ja) : ja;
+
   function mHtml(t, bid, isFinal) {
     if (!t) return `<div class="bc-match" data-bid="${bid}"><div class="bc-team"></div><div class="bc-team"></div></div>`;
     const sc  = agg(t);
@@ -2253,7 +2271,7 @@ function buildBracketHtml(rounds) {
     const wCls = isFinal ? ' bc-ch' : ' bc-w';
     const hCls = t.homeWin ? wCls : '';
     const aCls = t.awayWin ? wCls : '';
-    return `<div class="bc-match" data-bid="${bid}"><div class="bc-team${hCls}"><span class="bc-name">${esc(t.homeName)}</span>${hSc}</div><div class="bc-team${aCls}"><span class="bc-name">${esc(t.awayName)}</span>${aSc}</div></div>`;
+    return `<div class="bc-match" data-bid="${bid}"><div class="bc-team${hCls}"><span class="bc-name">${esc(nm(t.homeName, t.homeNameEn))}</span>${hSc}</div><div class="bc-team${aCls}"><span class="bc-name">${esc(nm(t.awayName, t.awayNameEn))}</span>${aSc}</div></div>`;
   }
 
   function colHtml(matches, bids) {
@@ -2286,7 +2304,7 @@ function buildBracketHtml(rounds) {
 
   // 決勝列（中央）優勝チーム名も表示
   const f     = fin[0] || null;
-  const champ = f ? (f.homeWin ? f.homeName : f.awayWin ? f.awayName : null) : null;
+  const champ = f ? (f.homeWin ? nm(f.homeName, f.homeNameEn) : f.awayWin ? nm(f.awayName, f.awayNameEn) : null) : null;
   const fhs   = Math.max(0, totalH / 2 - BH / 2);
   const finalHtml = `<div class="bc-final-col">
     <div class="bc-spacer" style="height:${fhs}px"></div>
@@ -2608,7 +2626,7 @@ async function autoLookupPlayers(players, code) {
   for (const p of players) {
     if (nameOverrides.players[p.nameEn] || PLAYER_NAMES_JA[p.nameEn]) continue;
     try {
-      const ja = await lookupWikipediaJa(p.nameEn);
+      const ja = cleanJaName(await lookupWikipediaJa(p.nameEn));
       if (ja) {
         nameOverrides.players[p.nameEn] = ja;
         updated = true;
@@ -2664,14 +2682,14 @@ function nameStyle(rank) {
 function scorerTable(players, colLabel) {
   if (!players.length) return `<p style="color:var(--muted);font-size:13px;padding:8px 0">${LANG==='ja'?'データなし（試合開始後に表示されます）':'No data yet (appears after matches are played)'}</p>`;
   const rows = players.map(p => {
-    const tl = p.teamLogo ? `<img class="badge" src="${attr(p.teamLogo)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '';
-    const nameCell = adminMode && p.nameEn
+    // 所属チームのロゴ（リーグ＝クラブのエンブレム、W杯＝出場国の国旗）を選手名の左に表示
+    const tl = p.teamLogo ? `<img class="badge scorer-badge" src="${attr(p.teamLogo)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '';
+    const nameTxt = adminMode && p.nameEn
       ? `<span class="admin-name" data-en="${attr(p.nameEn)}" title="クリックで編集">${esc(p.name)}</span>`
       : esc(p.name);
     return `<tr>
       <td class="stnd-rank" style="${rankStyle(p.rank)}">${p.rank}</td>
-      <td style="${nameStyle(p.rank)};padding:8px 10px">${nameCell}</td>
-      <td class="stnd-num hide-sm">${tl}</td>
+      <td style="${nameStyle(p.rank)};padding:8px 10px"><span class="scorer-name-inner">${tl}${nameTxt}</span></td>
       <td class="stnd-num hide-sm">${p.matches}</td>
       <td class="stat-val">${p.value}</td>
     </tr>`;
@@ -2680,7 +2698,6 @@ function scorerTable(players, colLabel) {
     <thead><tr>
       <th class="c" style="width:28px"></th>
       <th class="l">${T.player}</th>
-      <th class="c hide-sm" style="width:36px">${T.team}</th>
       <th class="c hide-sm" style="width:36px">${T.pCol}</th>
       <th class="c" style="width:52px">${esc(colLabel)}</th>
     </tr></thead>
