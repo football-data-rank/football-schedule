@@ -1654,11 +1654,15 @@ function parseEvent(ev, lg) {
   const home = comp.competitors?.find(c => c.homeAway === 'home');
   const away = comp.competitors?.find(c => c.homeAway === 'away');
   if (!home || !away) return null;
-  let state  = comp.status?.type?.state ?? ev.status?.type?.state ?? 'pre';
-  // ESPN APIが誤った'in'状態を返すことがあるため、試合開始の30分前より前ならpreに補正
+  const stType = comp.status?.type ?? ev.status?.type ?? {};
+  let state  = stType.state ?? 'pre';
+  // 完了フラグが最も信頼できる「終了」シグナル。state が古くても終了済みなら post に
+  if (stType.completed === true) state = 'post';
+  // ESPN APIが誤った'in'状態を返すことがあるため時刻で補正
   if (state === 'in' && ev.date) {
     const minsFromStart = (Date.now() - new Date(ev.date).getTime()) / 60000;
-    if (minsFromStart < -30) state = 'pre';
+    if (minsFromStart < -30)       state = 'pre';   // 開始30分以上前 → 未開始
+    else if (minsFromStart > 180)  state = 'post';  // 開始3時間超（延長・PK含めても終了済み）→ 終了
   }
   const timing = getMatchTiming(ev.date);
   return {
@@ -3192,6 +3196,17 @@ function scheduleNextRefresh() {
 
 function startAutoRefresh() {
   scheduleNextRefresh();
+  // スマホはタブを閉じている間タイマーが止まるため、復帰時は即座に最新へ更新
+  // （「ライブなのに反映されない／終了済みなのに試合中」の主因はこの停止）
+  let lastWake = Date.now();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    // 30秒以上離れていたら鮮度が落ちているので即リロード
+    if (Date.now() - lastWake > 30_000) {
+      load(false).then(scheduleNextRefresh);
+    }
+    lastWake = Date.now();
+  });
 }
 
 /* ════════════════════════════════════════
