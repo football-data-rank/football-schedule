@@ -1487,6 +1487,44 @@ const REFRESH_IDLE = 3 * 60 * 1000; // 待機中: 3分
 const BOUNDARY_H  = 5;
 const TOP_N       = 200;  // 全件取得（最後尾まで表示）
 
+/* ════════════════════════════════════════
+   通信ユーティリティ（取りこぼし対策）
+   - fetchJson: 失敗時に短いリトライ（ESPN非公式APIのレート制限／瞬断対策）
+   - mapPool   : 同時実行数を絞って一気に撃たない（バーストでの失敗を防ぐ）
+════════════════════════════════════════ */
+const FETCH_CONCURRENCY = 6;   // 同時に投げる最大リクエスト数
+const FETCH_RETRIES     = 2;   // 失敗時の追加リトライ回数
+async function fetchJson(url, { retries = FETCH_RETRIES } = {}) {
+  let lastErr;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return await res.json();
+    } catch (e) {
+      lastErr = e;
+      if (attempt < retries) {
+        // 指数バックオフ + ジッタ（350ms, 700ms ...）でレート制限を避ける
+        await new Promise(r => setTimeout(r, 350 * (attempt + 1) + Math.random() * 200));
+      }
+    }
+  }
+  throw lastErr;
+}
+// items を fn で処理。同時実行は limit 本まで。順序は保持して結果配列を返す
+async function mapPool(items, limit, fn) {
+  const results = new Array(items.length);
+  let i = 0;
+  async function worker() {
+    while (i < items.length) {
+      const idx = i++;
+      results[idx] = await fn(items[idx], idx);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+}
+
 let activePage          = 'schedule';
 let activeCountry       = 'all';
 let activeStandCode     = STANDINGS_LEAGUES[0].code;
@@ -1704,15 +1742,18 @@ async function fetchSchedule() {
     const d = new Date(); d.setUTCDate(d.getUTCDate() + i);
     dates.push(d.toISOString().slice(0,10).replace(/-/g,''));
   }
-  const tasks = SCHEDULE_LEAGUES.flatMap(lg =>
-    dates.map(date =>
-      fetch(`${ESPN_SCHED}/${lg.code}/scoreboard?dates=${date}&limit=100&lang=ja&region=jp`)
-        .then(r => r.ok ? r.json() : {events:[]})
-        .then(d => (d.events||[]).map(ev => parseEvent(ev,lg)).filter(Boolean))
-        .catch(() => [])
-    )
+  // リーグ×日付の全組み合わせ。一度に撃たず同時6本ずつ＋失敗はリトライで救済する
+  const jobs = SCHEDULE_LEAGUES.flatMap(lg =>
+    dates.map(date => ({ lg, date }))
   );
-  const chunks = await Promise.all(tasks);
+  const chunks = await mapPool(jobs, FETCH_CONCURRENCY, async ({ lg, date }) => {
+    try {
+      const d = await fetchJson(`${ESPN_SCHED}/${lg.code}/scoreboard?dates=${date}&limit=100&lang=ja&region=jp`);
+      return (d.events || []).map(ev => parseEvent(ev, lg)).filter(Boolean);
+    } catch {
+      return [];   // リトライしても駄目だった分だけ空（次回更新で回収）
+    }
+  });
   const all = chunks.flat();
   const seen = new Set();
   return all.filter(e => { if (seen.has(e.id)) return false; seen.add(e.id); return true; });
@@ -1820,9 +1861,7 @@ function scheduleRow(m) {
    ② 各リーグ順位 — 取得・描画
 ════════════════════════════════════════ */
 async function fetchStandings(code) {
-  const res = await fetch(`${ESPN_STND}/${code}/standings?lang=ja&region=jp`);
-  if (!res.ok) throw new Error('HTTP ' + res.status);
-  return res.json();
+  return fetchJson(`${ESPN_STND}/${code}/standings?lang=ja&region=jp`);
 }
 
 function parseStandings(data) {
@@ -1904,11 +1943,8 @@ async function fetchKnockoutEvents(code) {
   // W杯: ノックアウト全体（R32〜決勝）を日付範囲で一括取得
   if (code === 'fifa.world') {
     try {
-      const r = await fetch(`${ESPN_SCHED}/fifa.world/scoreboard?dates=20260628-20260720&limit=300&lang=ja&region=jp`);
-      if (r.ok) {
-        const d = await r.json();
-        return (d.events||[]).filter(e => isKO(e) && slugFromEvent(e));
-      }
+      const d = await fetchJson(`${ESPN_SCHED}/fifa.world/scoreboard?dates=20260628-20260720&limit=300&lang=ja&region=jp`);
+      return (d.events||[]).filter(e => isKO(e) && slugFromEvent(e));
     } catch {}
     return [];
   }
@@ -2488,9 +2524,7 @@ function renderStandings(entries, code) {
 /* W杯: leaders APIが存在しないため全試合から得点・アシストを集計
    得点はscoreboardのdetailsから（軽量）、アシストは各試合のsummary.keyEventsから取得 */
 async function fetchWorldCupScorers() {
-  const res = await fetch(`${ESPN_SCHED}/fifa.world/scoreboard?dates=20260611-20260720&limit=300&lang=ja&region=jp`);
-  if (!res.ok) throw new Error('HTTP ' + res.status);
-  const data    = await res.json();
+  const data = await fetchJson(`${ESPN_SCHED}/fifa.world/scoreboard?dates=20260611-20260720&limit=300&lang=ja&region=jp`);
   const goalT   = {};   // nameEn → {goals, teamId}
   const assistT = {};   // nameEn → {assists, teamId}
   const doneIds = [];   // 完了試合のID（アシスト集計用）
@@ -2513,9 +2547,7 @@ async function fetchWorldCupScorers() {
   // アシスト：完了試合のsummaryをまとめて取得（同時実行数を絞る）
   async function fetchSummaryAssists(id) {
     try {
-      const r = await fetch(`${ESPN_SCHED}/fifa.world/summary?event=${id}&lang=ja&region=jp`);
-      if (!r.ok) return;
-      const s = await r.json();
+      const s = await fetchJson(`${ESPN_SCHED}/fifa.world/summary?event=${id}&lang=ja&region=jp`);
       for (const ke of s.keyEvents || []) {
         const isGoal = ke.scoringPlay || /goal/i.test(ke.type?.text || '');
         if (!isGoal || ke.ownGoal) continue;
@@ -2528,10 +2560,7 @@ async function fetchWorldCupScorers() {
       }
     } catch {}
   }
-  const CONCUR = 6;
-  for (let i = 0; i < doneIds.length; i += CONCUR) {
-    await Promise.all(doneIds.slice(i, i + CONCUR).map(fetchSummaryAssists));
-  }
+  await mapPool(doneIds, FETCH_CONCURRENCY, fetchSummaryAssists);
 
   const toList = (tally, key) => {
     const list = Object.entries(tally)
@@ -2557,9 +2586,7 @@ async function fetchWorldCupScorers() {
 async function fetchScorers(code) {
   if (code === 'fifa.world') return fetchWorldCupScorers();
   const season = currentSeason();
-  const res    = await fetch(`${ESPN_CORE}/${code}/seasons/${season}/types/1/leaders`);
-  if (!res.ok) throw new Error('HTTP ' + res.status);
-  const data = await res.json();
+  const data = await fetchJson(`${ESPN_CORE}/${code}/seasons/${season}/types/1/leaders`);
 
   const goalsCat   = data.categories?.find(c => c.name === 'goalsLeaders');
   const assistsCat = data.categories?.find(c => c.name === 'assistsLeaders');
@@ -2571,19 +2598,16 @@ async function fetchScorers(code) {
   const aidSet = new Set(allL.map(l => extractId(l.athlete?.['$ref'], 'athletes')).filter(Boolean));
   const athMap = {};
 
-  await Promise.all([...aidSet].map(async id => {
+  await mapPool([...aidSet], FETCH_CONCURRENCY, async id => {
     try {
-      const r = await fetch(`${ESPN_CORE}/${code}/seasons/${season}/athletes/${id}?lang=ja&region=jp`);
-      if (r.ok) {
-        const a = await r.json();
-        athMap[id] = {
-          nameEn: a.displayName || a.shortName || '?',
-          name:   playerNameJa(a.displayName || a.shortName || '?'),
-          teamId: extractId(a.team?.['$ref'], 'teams'),
-        };
-      }
+      const a = await fetchJson(`${ESPN_CORE}/${code}/seasons/${season}/athletes/${id}?lang=ja&region=jp`);
+      athMap[id] = {
+        nameEn: a.displayName || a.shortName || '?',
+        name:   playerNameJa(a.displayName || a.shortName || '?'),
+        teamId: extractId(a.team?.['$ref'], 'teams'),
+      };
     } catch {}
-  }));
+  });
 
   function buildList(leaders) {
     const list = leaders.map((l, i) => {
