@@ -1737,21 +1737,20 @@ async function fetchWcGroupMap() {
 }
 
 async function fetchSchedule() {
-  const dates = [];
-  for (let i = -1; i <= 6; i++) {
-    const d = new Date(); d.setUTCDate(d.getUTCDate() + i);
-    dates.push(d.toISOString().slice(0,10).replace(/-/g,''));
-  }
-  // リーグ×日付の全組み合わせ。一度に撃たず同時6本ずつ＋失敗はリトライで救済する
-  const jobs = SCHEDULE_LEAGUES.flatMap(lg =>
-    dates.map(date => ({ lg, date }))
-  );
-  const chunks = await mapPool(jobs, FETCH_CONCURRENCY, async ({ lg, date }) => {
+  // UTC基準で「前日〜6日先」をひとつの日付範囲にまとめる
+  const dayStr = off => {
+    const d = new Date(); d.setUTCDate(d.getUTCDate() + off);
+    return d.toISOString().slice(0,10).replace(/-/g,'');
+  };
+  const from = dayStr(-1), to = dayStr(6);
+  // ⚠️ 1日ずつの ?dates=YYYYMMDD だと、ライブ中の試合でも state=pre という古い値が返る（ESPNの既知のクセ）。
+  //    範囲指定 ?dates=from-to なら正しく state=in が返る。さらにリクエスト数が 約110本→リーグ数 に激減しロードも速い。
+  const chunks = await mapPool(SCHEDULE_LEAGUES, FETCH_CONCURRENCY, async lg => {
     try {
-      const d = await fetchJson(`${ESPN_SCHED}/${lg.code}/scoreboard?dates=${date}&limit=100&lang=ja&region=jp`);
+      const d = await fetchJson(`${ESPN_SCHED}/${lg.code}/scoreboard?dates=${from}-${to}&limit=300&lang=ja&region=jp`);
       return (d.events || []).map(ev => parseEvent(ev, lg)).filter(Boolean);
     } catch {
-      return [];   // リトライしても駄目だった分だけ空（次回更新で回収）
+      return [];   // リトライしても駄目だったリーグだけ空（次回更新で回収）
     }
   });
   const all = chunks.flat();
