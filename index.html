@@ -1498,7 +1498,7 @@ async function fetchJson(url, { retries = FETCH_RETRIES } = {}) {
   let lastErr;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const res = await fetch(url);
+      const res = await fetch(url, { cache: 'no-store' });   // CDN/ブラウザの古いキャッシュを掴まない
       if (!res.ok) throw new Error('HTTP ' + res.status);
       return await res.json();
     } catch (e) {
@@ -1696,12 +1696,10 @@ function parseEvent(ev, lg) {
   let state  = stType.state ?? 'pre';
   // 完了フラグが最も信頼できる「終了」シグナル。state が古くても終了済みなら post に
   if (stType.completed === true) state = 'post';
-  // ESPN APIが誤った'in'状態を返すことがあるため時刻で補正
-  if (state === 'in' && ev.date) {
-    const minsFromStart = (Date.now() - new Date(ev.date).getTime()) / 60000;
-    if (minsFromStart < -30)       state = 'pre';   // 開始30分以上前 → 未開始
-    else if (minsFromStart > 180)  state = 'post';  // 開始3時間超（延長・PK含めても終了済み）→ 終了
-  }
+  // ※以前はここで端末の時計（Date.now）を使って 'in'→'pre'/'post' を補正していたが、
+  //   閲覧者の端末の時計やタイムゾーンがズレていると「ライブ中の試合が未開始/終了に化ける」
+  //   ＝リアルタイムで反映されない主因になっていた。範囲指定クエリにしたことでESPNの
+  //   state は信頼できるため、端末時計に依存する補正は撤廃し ESPN の状態をそのまま使う。
   const timing = getMatchTiming(ev.date);
   return {
     id: ev.id, utcDate: ev.date,
@@ -3172,9 +3170,16 @@ document.querySelectorAll('.pnav').forEach(btn => { btn.onclick = () => showPage
    時計・更新表示
 ════════════════════════════════════════ */
 function tick() {
-  document.getElementById('clock').textContent =
-    'JST ' + new Date().toLocaleTimeString('ja-JP',
-      { timeZone:'Asia/Tokyo', hour:'2-digit', minute:'2-digit', hour12:false });
+  // サイトが「今」をどう認識しているかを常に表示（端末の時計ズレに気付けるように）。
+  // 日本語環境はJST固定、それ以外は閲覧者の地域時刻でスケジュールと同じ基準を出す。
+  const tz  = LANG === 'ja' ? 'Asia/Tokyo' : Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const now = new Date();
+  const dateStr = now.toLocaleDateString(LANG==='ja'?'ja-JP':'en-US',
+    { timeZone: tz, month:'numeric', day:'numeric' });
+  const timeStr = now.toLocaleTimeString(LANG==='ja'?'ja-JP':'en-US',
+    { timeZone: tz, hour:'2-digit', minute:'2-digit', hour12:false });
+  const zone = LANG === 'ja' ? 'JST' : '';
+  document.getElementById('clock').textContent = `${dateStr} ${timeStr} ${zone}`.trim();
 }
 
 function markUpdated() {
