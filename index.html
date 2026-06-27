@@ -1498,7 +1498,10 @@ async function fetchJson(url, { retries = FETCH_RETRIES } = {}) {
   let lastErr;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const res = await fetch(url, { cache: 'no-store' });   // CDN/ブラウザの古いキャッシュを掴まない
+      // ⚠️ no-store はブラウザ側のキャッシュしか効かない。ESPNのCDNは同じURLに古い結果を返す
+      //    ことがあるので、毎回ユニークな ?_= を付けて確実に最新を取りに行く（即時反映の要）。
+      const bust = (url.includes('?') ? '&' : '?') + '_=' + Date.now() + '-' + attempt;
+      const res = await fetch(url + bust, { cache: 'no-store' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       return await res.json();
     } catch (e) {
@@ -1531,6 +1534,7 @@ let activeStandCode     = STANDINGS_LEAGUES[0].code;
 let activeScorersCode   = SCORERS_LEAGUES[0].code;
 let activeScorersTab    = 'goals';
 let allMatches          = [];
+let lastSchedByLeague   = {};   // リーグ別・直近の取得成功データ（取得失敗時に試合を消さないためのフォールバック）
 const standingsCache    = {};
 const scorersCache      = {};
 let timer               = null;
@@ -1746,9 +1750,13 @@ async function fetchSchedule() {
   const chunks = await mapPool(SCHEDULE_LEAGUES, FETCH_CONCURRENCY, async lg => {
     try {
       const d = await fetchJson(`${ESPN_SCHED}/${lg.code}/scoreboard?dates=${from}-${to}&limit=300&lang=ja&region=jp`);
-      return (d.events || []).map(ev => parseEvent(ev, lg)).filter(Boolean);
+      const evs = (d.events || []).map(ev => parseEvent(ev, lg)).filter(Boolean);
+      lastSchedByLeague[lg.code] = evs;        // 成功 → このリーグの最新データを保存
+      return evs;
     } catch {
-      return [];   // リトライしても駄目だったリーグだけ空（次回更新で回収）
+      // 失敗 → 直近で取得できた同リーグのデータを使う（＝試合が消えない。
+      //         これまでは空配列を返していたので、一部リーグが落ちると「数回更新しないと揃わない」状態になっていた）
+      return lastSchedByLeague[lg.code] || [];
     }
   });
   const all = chunks.flat();
