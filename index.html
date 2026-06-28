@@ -551,9 +551,10 @@
       .stnd-pts  { width: 30px; }
       .stnd-gd   { width: 30px; }
     }
-    /* 超狭幅（Safariページ拡大率125%以上など）: 時計を省略しタイトルの折返しを防ぐ */
+    /* #lastUpdated はモバイルで非表示済みなので、時計は通常スマホ幅では必ず表示する。
+       極端に狭い場合だけ秒…ではなくゾーン表記を省いて省スペース化（時刻自体は残す） */
     @media (max-width: 360px) {
-      #clock { display: none; }
+      #clock { font-size: 11px; }
     }
   </style>
 </head>
@@ -1498,8 +1499,11 @@ async function fetchJson(url, { retries = FETCH_RETRIES } = {}) {
   let lastErr;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      // ⚠️ no-store はブラウザ側のキャッシュしか効かない。ESPNのCDNは同じURLに古い結果を返す
-      //    ことがあるので、毎回ユニークな ?_= を付けて確実に最新を取りに行く（即時反映の要）。
+      // 古いデータが数分間返り続ける（強制リロードでも直らない＝URLキー型の中間/CDNキャッシュが
+      // 古いスナップショットを保持している）症状への対策。毎回ユニークな ?_= を付けて
+      // キャッシュを確実に外し、常に最新を取りに行く。no-store はブラウザ側キャッシュ対策。
+      // ※ これで稀に「より古い応答」が混ざる可能性があるが、描画側の単調マージ(applyMonotonic)で
+      //   pre→in→post やスコアが後戻りしないようガードしている。
       const bust = (url.includes('?') ? '&' : '?') + '_=' + Date.now() + '-' + attempt;
       const res = await fetch(url + bust, { cache: 'no-store' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -1535,6 +1539,7 @@ let activeScorersCode   = SCORERS_LEAGUES[0].code;
 let activeScorersTab    = 'goals';
 let allMatches          = [];
 let lastSchedByLeague   = {};   // リーグ別・直近の取得成功データ（取得失敗時に試合を消さないためのフォールバック）
+let matchBest           = {};   // 試合ID別・これまでに見た「最も進んだ」状態（後戻り防止＝単調マージ用）
 const standingsCache    = {};
 const scorersCache      = {};
 let timer               = null;
@@ -1761,7 +1766,25 @@ async function fetchSchedule() {
   });
   const all = chunks.flat();
   const seen = new Set();
-  return all.filter(e => { if (seen.has(e.id)) return false; seen.add(e.id); return true; });
+  const deduped = all.filter(e => { if (seen.has(e.id)) return false; seen.add(e.id); return true; });
+  return deduped.map(applyMonotonic);
+}
+
+// 単調マージ：同じ試合について「より古い（後退した）応答」を弾く。
+// ESPNはリクエストごとに鮮度がバラつくことがあるため、一度 in/post やスコア進行を見たら戻さない。
+const STATE_RANK = { pre: 0, in: 1, post: 2 };
+function goalSum(e) { return (Number(e.homeScore) || 0) + (Number(e.awayScore) || 0); }
+function applyMonotonic(e) {
+  const prev = matchBest[e.id];
+  if (prev) {
+    const rNew = STATE_RANK[e.state] ?? 0, rOld = STATE_RANK[prev.state] ?? 0;
+    const regressed =
+      rNew < rOld ||                                   // post→in→pre への逆戻り
+      (rNew === rOld && goalSum(e) < goalSum(prev));   // 同状態でスコアが減った
+    if (regressed) return prev;   // 古い応答は捨てて、既知の最新を維持
+  }
+  matchBest[e.id] = e;
+  return e;
 }
 
 function renderSchedule() {
@@ -3223,7 +3246,16 @@ async function load(showLoader = false) {
 function scheduleNextRefresh() {
   clearTimeout(timer);
   const hasLive = allMatches.some(m => m.state === 'in');
-  const interval = hasLive ? REFRESH_LIVE : REFRESH_IDLE;
+  // ESPNの state がまだ pre/post でも、時刻的に「試合時間帯」の試合があれば速い更新にする。
+  // これまでは state==='in' を検出した時しか高速更新せず、初回が古いと最大3分も据え置き＝
+  // 「開いて数分間ずっと変わらない」の主因だった。開始15分前〜開始3時間後を活動時間帯とみなす。
+  const t = Date.now();
+  const nearActive = allMatches.some(m => {
+    if (!m.utcDate) return false;
+    const mins = (t - new Date(m.utcDate).getTime()) / 60000;
+    return mins >= -15 && mins <= 180;
+  });
+  const interval = (hasLive || nearActive) ? REFRESH_LIVE : REFRESH_IDLE;
   timer = setTimeout(async () => {
     await load(false);
     scheduleNextRefresh();
