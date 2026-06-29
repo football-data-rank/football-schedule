@@ -344,9 +344,10 @@
       font-size: 10px; font-weight: 700; color: var(--muted);
       min-width: 36px; flex-shrink: 0;
     }
-    .ko-team { flex: 1; font-size: 13px; font-weight: 500; color: var(--text); }
-    .ko-team.right { text-align: right; }
+    .ko-team { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: var(--text); }
+    .ko-team.right { justify-content: flex-end; text-align: right; }
     .ko-team.winner { font-weight: 800; color: var(--indigo); }
+    .ko-badge { width: 18px; height: 18px; object-fit: contain; flex-shrink: 0; }
     .ko-score-box {
       display: flex; align-items: center; gap: 4px;
       font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums;
@@ -384,7 +385,8 @@
     .bc-team + .bc-team { border-top: none; }
     .bc-team.bc-w  { background: #eef2ff; border-color: #818cf8; font-weight: 700; color: var(--indigo); }
     .bc-team.bc-ch { background: #fef9c3; border-color: #eab308; font-weight: 800; color: #92400e; }
-    .bc-name { overflow: hidden; text-overflow: ellipsis; flex: 1; }
+    .bc-badge { width: 14px; height: 14px; object-fit: contain; flex-shrink: 0; margin-right: 4px; }
+    .bc-name { overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
     .bc-sc { font-size: 10px; color: var(--muted); flex-shrink: 0; padding-left: 4px; font-variant-numeric: tabular-nums; }
     .bc-lbl {
       text-align: center; font-size: 9px; font-weight: 700;
@@ -2063,8 +2065,8 @@ function parseKnockoutEvents(events) {
         awayName:   teamNameJa(away.team?.displayName || away.team?.shortDisplayName || '?'),
         homeNameEn: home.team?.displayName || home.team?.shortDisplayName || '?',
         awayNameEn: away.team?.displayName || away.team?.shortDisplayName || '?',
-        homeLogo:   home.team?.logo || null,
-        awayLogo:   away.team?.logo || null,
+        homeLogo:   getLogo(home.team),
+        awayLogo:   getLogo(away.team),
         legs: [], homeWin: false, awayWin: false,
         seriesHomeWin: false, seriesAwayWin: false,
         minEvtId: Infinity, // ラウンド内の公式試合順（イベントID昇順）の判定に使う
@@ -2133,6 +2135,11 @@ function parseKnockoutEvents(events) {
     }));
 }
 
+// 国旗（W杯）/ クラブエンブレム（CL等）の小アイコン。logoが無ければ空文字
+function koBadgeImg(logo, cls) {
+  return logo ? `<img class="${cls}" src="${attr(logo)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '';
+}
+
 /* ── ノックアウト HTML 生成（文字列を返す） ── */
 function buildKnockoutHtml(rounds) {
   if (!rounds.length) return '';
@@ -2172,9 +2179,9 @@ function buildKnockoutHtml(rounds) {
         const aCls   = tie.awayWin ? ' winner' : '';
         html += `<div class="ko-leg">
           ${label ? `<span class="ko-leg-num">${esc(label)}</span>` : ''}
-          <span class="ko-team${hCls}">${hSpan}</span>
+          <span class="ko-team${hCls}">${koBadgeImg(tie.homeLogo,'ko-badge')}${hSpan}</span>
           <span class="ko-score-box">${hScore}<span class="ko-score-sep">-</span>${aScore}</span>
-          <span class="ko-team right${aCls}">${aSpan}</span>
+          <span class="ko-team right${aCls}">${aSpan}${koBadgeImg(tie.awayLogo,'ko-badge')}</span>
         </div>`;
       }
       if (!isFinal && legs.length >= 2 && legs.every(l => l.fin)) {
@@ -2350,7 +2357,7 @@ function buildBracketHtml(rounds) {
     const wCls = isFinal ? ' bc-ch' : ' bc-w';
     const hCls = t.homeWin ? wCls : '';
     const aCls = t.awayWin ? wCls : '';
-    return `<div class="bc-match" data-bid="${bid}"><div class="bc-team${hCls}"><span class="bc-name">${esc(nm(t.homeName, t.homeNameEn))}</span>${hSc}</div><div class="bc-team${aCls}"><span class="bc-name">${esc(nm(t.awayName, t.awayNameEn))}</span>${aSc}</div></div>`;
+    return `<div class="bc-match" data-bid="${bid}"><div class="bc-team${hCls}">${koBadgeImg(t.homeLogo,'bc-badge')}<span class="bc-name">${esc(nm(t.homeName, t.homeNameEn))}</span>${hSc}</div><div class="bc-team${aCls}">${koBadgeImg(t.awayLogo,'bc-badge')}<span class="bc-name">${esc(nm(t.awayName, t.awayNameEn))}</span>${aSc}</div></div>`;
   }
 
   function colHtml(matches, bids) {
