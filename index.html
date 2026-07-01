@@ -1496,6 +1496,7 @@ const TOP_N       = 200;  // 全件取得（最後尾まで表示）
    - mapPool   : 同時実行数を絞って一気に撃たない（バーストでの失敗を防ぐ）
 ════════════════════════════════════════ */
 const FETCH_CONCURRENCY = 6;   // 同時に投げる最大リクエスト数
+const SCORER_CONCURRENCY = 10; // 得点ランキングの軽量な詳細取得（選手詳細/試合summary）は多めに並列化
 const FETCH_RETRIES     = 2;   // 失敗時の追加リトライ回数
 async function fetchJson(url, { retries = FETCH_RETRIES } = {}) {
   let lastErr;
@@ -1746,45 +1747,66 @@ async function fetchWcGroupMap() {
 }
 
 async function fetchSchedule() {
-  // UTC基準で「前日〜6日先」をひとつの日付範囲にまとめる
   const dayStr = off => {
     const d = new Date(); d.setUTCDate(d.getUTCDate() + off);
     return d.toISOString().slice(0,10).replace(/-/g,'');
   };
   const from = dayStr(-1), to = dayStr(6);
-  // ⚠️ 1日ずつの ?dates=YYYYMMDD だと、ライブ中の試合でも state=pre という古い値が返る（ESPNの既知のクセ）。
-  //    範囲指定 ?dates=from-to なら正しく state=in が返る。さらにリクエスト数が 約110本→リーグ数 に激減しロードも速い。
-  const chunks = await mapPool(SCHEDULE_LEAGUES, FETCH_CONCURRENCY, async lg => {
+  // ⚠️ ESPNのCDNはクエリURLの「形」ごとに鮮度がバラバラで、しかも時々逆転する。
+  //    実測：あるライブ試合が「範囲クエリ」では10時間前のまま(89'で固着)なのに、
+  //    「今日の単日クエリ」では正しく進行中(32')が返る…という事が起きる（逆の日もある）。
+  //    1種類のクエリに頼るとライブ/結果が固まる主因。→ 範囲(表示の広さ)＋直近2日の単日(鮮度確保)を
+  //    全部取得し、同じ試合は“最も進んだ状態”を採用して取りこぼしを無くす。
+  const jobs = SCHEDULE_LEAGUES.flatMap(lg => [
+    { lg, url: `${ESPN_SCHED}/${lg.code}/scoreboard?dates=${from}-${to}&limit=300&lang=ja&region=jp` },
+    { lg, url: `${ESPN_SCHED}/${lg.code}/scoreboard?dates=${dayStr(0)}&limit=100&lang=ja&region=jp` },
+    { lg, url: `${ESPN_SCHED}/${lg.code}/scoreboard?dates=${dayStr(-1)}&limit=100&lang=ja&region=jp` },
+  ]);
+
+  const results = await mapPool(jobs, FETCH_CONCURRENCY, async ({ lg, url }) => {
     try {
-      const d = await fetchJson(`${ESPN_SCHED}/${lg.code}/scoreboard?dates=${from}-${to}&limit=300&lang=ja&region=jp`);
-      const evs = (d.events || []).map(ev => parseEvent(ev, lg)).filter(Boolean);
-      lastSchedByLeague[lg.code] = evs;        // 成功 → このリーグの最新データを保存
-      return evs;
+      const d = await fetchJson(url);
+      return { code: lg.code, evs: (d.events || []).map(ev => parseEvent(ev, lg)).filter(Boolean) };
     } catch {
-      // 失敗 → 直近で取得できた同リーグのデータを使う（＝試合が消えない。
-      //         これまでは空配列を返していたので、一部リーグが落ちると「数回更新しないと揃わない」状態になっていた）
-      return lastSchedByLeague[lg.code] || [];
+      return { code: lg.code, evs: null };   // このURLは失敗（＝無視。他のクエリ/前回データで補う）
     }
   });
-  const all = chunks.flat();
-  const seen = new Set();
-  const deduped = all.filter(e => { if (seen.has(e.id)) return false; seen.add(e.id); return true; });
-  return deduped.map(applyMonotonic);
+
+  // リーグごとに集約。1試合も取れなかったリーグだけ直近の成功データでフォールバック（試合を消さない）
+  const perLeague = {};
+  for (const { code, evs } of results) {
+    if (evs === null) continue;
+    (perLeague[code] = perLeague[code] || []).push(...evs);
+  }
+  const all = [];
+  for (const lg of SCHEDULE_LEAGUES) {
+    let evs = perLeague[lg.code];
+    if (evs && evs.length) lastSchedByLeague[lg.code] = evs;
+    else evs = lastSchedByLeague[lg.code] || [];
+    all.push(...evs);
+  }
+
+  // 同一試合IDが複数クエリで重複 → バッチ内は“最も進んだ状態”で重複排除し、
+  // さらにセッション横断の単調マージで、古い応答による後戻りを防ぐ。
+  const byId = {};
+  for (const e of all) byId[e.id] = byId[e.id] ? (moreAdvanced(e, byId[e.id]) ? e : byId[e.id]) : e;
+  return Object.values(byId).map(applyMonotonic);
 }
 
-// 単調マージ：同じ試合について「より古い（後退した）応答」を弾く。
-// ESPNはリクエストごとに鮮度がバラつくことがあるため、一度 in/post やスコア進行を見たら戻さない。
+// 試合の「進み具合」比較キー：状態(pre<in<post) → 経過分(clock)。
+// clockを使うことで、ライブの分進行や、より新しい応答（VARで得点訂正=減点でも新しい方）を正しく採用できる。
 const STATE_RANK = { pre: 0, in: 1, post: 2 };
-function goalSum(e) { return (Number(e.homeScore) || 0) + (Number(e.awayScore) || 0); }
+function clockMins(e) { const m = String(e.clock || '').match(/\d+/); return m ? parseInt(m[0], 10) : 0; }
+function advKey(e) { return [STATE_RANK[e.state] ?? 0, clockMins(e)]; }
+function moreAdvanced(a, b) {         // a が b と同等以上に進んでいるか
+  const ka = advKey(a), kb = advKey(b);
+  for (let i = 0; i < ka.length; i++) if (ka[i] !== kb[i]) return ka[i] > kb[i];
+  return true;
+}
+// 単調マージ：過去に見た最も進んだ状態より後退した応答は捨てる（ESPNの鮮度ゆらぎ対策）
 function applyMonotonic(e) {
   const prev = matchBest[e.id];
-  if (prev) {
-    const rNew = STATE_RANK[e.state] ?? 0, rOld = STATE_RANK[prev.state] ?? 0;
-    const regressed =
-      rNew < rOld ||                                   // post→in→pre への逆戻り
-      (rNew === rOld && goalSum(e) < goalSum(prev));   // 同状態でスコアが減った
-    if (regressed) return prev;   // 古い応答は捨てて、既知の最新を維持
-  }
+  if (prev && !moreAdvanced(e, prev)) return prev;
   matchBest[e.id] = e;
   return e;
 }
@@ -2517,6 +2539,7 @@ async function loadCupPage(code, showLoader = true) {
   buildCupSubFilter(code);
   if (koCache[code] && standingsCache[code] !== undefined) {
     renderCupPage(standingsCache[code] || [], koCache[code], lname);
+    refreshCupBg(code, lname);   // 裏で順位・ノックアウトを取り直し、変化があれば差し替える
     return;
   }
   if (showLoader) wrap.innerHTML = `<div class="state"><span class="ico">🏆</span>${T.loading}</div>`;
@@ -2531,11 +2554,26 @@ async function loadCupPage(code, showLoader = true) {
   renderCupPage(entries, koRounds, lname);
 }
 
+// カップ戦（W杯/CL等）の背景更新：順位＋ノックアウトを取り直し、変化があった時だけ再描画
+async function refreshCupBg(code, lname) {
+  try {
+    const [stRes, koRes] = await Promise.allSettled([fetchStandings(code), fetchKnockoutEvents(code)]);
+    const entries  = stRes.status === 'fulfilled' ? parseStandings(stRes.value)      : standingsCache[code];
+    const koRounds = koRes.status === 'fulfilled' ? parseKnockoutEvents(koRes.value) : koCache[code];
+    const changed = JSON.stringify(entries) !== JSON.stringify(standingsCache[code]) ||
+                    JSON.stringify(koRounds) !== JSON.stringify(koCache[code]);
+    standingsCache[code] = entries;
+    koCache[code]        = koRounds;
+    if (changed && activePage === 'standings' && activeStandCode === code) renderCupPage(entries, koRounds, lname);
+  } catch {}
+}
+
 async function loadStandings(code, showLoader = true) {
   if (CUP_KO_CODES.has(code)) { await loadCupPage(code, showLoader); return; }
   document.getElementById('cupSubFilter').style.visibility = 'hidden';
   const wrap = document.getElementById('standingsWrap');
-  if (standingsCache[code]) { renderStandings(standingsCache[code], code); return; }
+  // キャッシュがあれば即描画しつつ、裏で最新を取り直して変化があれば差し替える（結果を反映しやすく）
+  if (standingsCache[code]) { renderStandings(standingsCache[code], code); refreshStandingsBg(code); return; }
   if (showLoader) wrap.innerHTML = `<div class="state"><span class="ico">📊</span>${T.loading}</div>`;
   try {
     const data = await fetchStandings(code);
@@ -2544,6 +2582,16 @@ async function loadStandings(code, showLoader = true) {
   } catch(e) {
     wrap.innerHTML = `<div class="state"><span class="ico">⚠️</span>${T.failed}: ${esc(e.message)}</div>`;
   }
+}
+
+// 背景更新：順位を取り直し、変化があった時だけ再描画（変化なしならチラつかせない）
+async function refreshStandingsBg(code) {
+  try {
+    const entries = parseStandings(await fetchStandings(code));
+    if (JSON.stringify(entries) === JSON.stringify(standingsCache[code])) return;
+    standingsCache[code] = entries;
+    if (activePage === 'standings' && activeStandCode === code && !CUP_KO_CODES.has(code)) renderStandings(entries, code);
+  } catch {}
 }
 
 function renderStandings(entries, code) {
@@ -2558,7 +2606,7 @@ function renderStandings(entries, code) {
 ════════════════════════════════════════ */
 /* W杯: leaders APIが存在しないため全試合から得点・アシストを集計
    得点はscoreboardのdetailsから（軽量）、アシストは各試合のsummary.keyEventsから取得 */
-async function fetchWorldCupScorers() {
+async function fetchWorldCupScorers(withAssists = true) {
   const data = await fetchJson(`${ESPN_SCHED}/fifa.world/scoreboard?dates=20260611-20260720&limit=300&lang=ja&region=jp`);
   const goalT   = {};   // nameEn → {goals, teamId}
   const assistT = {};   // nameEn → {assists, teamId}
@@ -2595,7 +2643,8 @@ async function fetchWorldCupScorers() {
       }
     } catch {}
   }
-  await mapPool(doneIds, FETCH_CONCURRENCY, fetchSummaryAssists);
+  // アシストは完了試合ごとにsummaryを取得する重い処理。goalsだけ欲しい初回描画では withAssists=false で丸ごとスキップ
+  if (withAssists) await mapPool(doneIds, SCORER_CONCURRENCY, fetchSummaryAssists);
 
   const toList = (tally, key) => {
     const list = Object.entries(tally)
@@ -2633,7 +2682,7 @@ async function fetchScorers(code) {
   const aidSet = new Set(allL.map(l => extractId(l.athlete?.['$ref'], 'athletes')).filter(Boolean));
   const athMap = {};
 
-  await mapPool([...aidSet], FETCH_CONCURRENCY, async id => {
+  await mapPool([...aidSet], SCORER_CONCURRENCY, async id => {
     try {
       const a = await fetchJson(`${ESPN_CORE}/${code}/seasons/${season}/athletes/${id}?lang=ja&region=jp`);
       athMap[id] = {
@@ -2671,23 +2720,41 @@ async function fetchScorers(code) {
   return { goals: buildList(gLeaders), assists: buildList(aLeaders) };
 }
 
+// 未登録選手をバックグラウンドでWikipedia日本語名検索にかける
+function lookupUnregistered(data, code) {
+  const seen = new Set();
+  const unregistered = [...data.goals, ...data.assists].filter(p => {
+    if (!p.nameEn || seen.has(p.nameEn)) return false;
+    seen.add(p.nameEn);
+    return !nameOverrides.players[p.nameEn] && !PLAYER_NAMES_JA[p.nameEn];
+  });
+  if (unregistered.length) autoLookupPlayers(unregistered, code);
+}
+
 async function loadScorers(code, showLoader = true) {
   const wrap = document.getElementById('scorersWrap');
   if (scorersCache[code]) { renderScorers(scorersCache[code], code); return; }
   if (showLoader) wrap.innerHTML = `<div class="state"><span class="ico">⚽</span>${T.loading}</div>`;
   try {
-    const data = await fetchScorers(code);
-    scorersCache[code] = data;
-    renderScorers(data, code);
-    // 未登録選手をバックグラウンドでWikipedia検索
-    const all = [...data.goals, ...data.assists];
-    const seen = new Set();
-    const unregistered = all.filter(p => {
-      if (!p.nameEn || seen.has(p.nameEn)) return false;
-      seen.add(p.nameEn);
-      return !nameOverrides.players[p.nameEn] && !PLAYER_NAMES_JA[p.nameEn];
-    });
-    if (unregistered.length) autoLookupPlayers(unregistered, code);
+    if (code === 'fifa.world') {
+      // W杯は「得点（scoreboard1回で計算・高速）」を即描画し、「アシスト（試合ごとのsummary＝重い）」は
+      // 裏で取得して後から差し込む。これで得点ランキングが待たされずに出る。
+      const partial = await fetchWorldCupScorers(false);
+      partial.assistsLoading = true;   // アシストは裏で集計中（タブ表示のヒント用）
+      scorersCache[code] = partial;
+      renderScorers(partial, code);
+      lookupUnregistered(partial, code);
+      fetchWorldCupScorers(true).then(full => {
+        scorersCache[code] = full;
+        if (activePage === 'scorers' && activeScorersCode === code) renderScorers(full, code);
+        lookupUnregistered(full, code);
+      }).catch(() => {});
+    } else {
+      const data = await fetchScorers(code);
+      scorersCache[code] = data;
+      renderScorers(data, code);
+      lookupUnregistered(data, code);
+    }
   } catch(e) {
     wrap.innerHTML = `<div class="state"><span class="ico">⚠️</span>${T.failed}: ${esc(e.message)}</div>`;
   }
@@ -2728,6 +2795,11 @@ function renderScorers(data, code) {
   const lname = SCORERS_LEAGUES.find(l => l.code === code)?.label ?? '';
   const players = activeScorersTab === 'goals' ? data.goals : data.assists;
   const colLabel = activeScorersTab === 'goals' ? T.goals : T.assists;
+  // W杯のアシストは裏で集計中。空でも「データなし」ではなく「集計中」を出す
+  const assistsPending = activeScorersTab === 'assists' && data.assistsLoading && !players.length;
+  const body = assistsPending
+    ? `<p style="color:var(--muted);font-size:13px;padding:8px 0"><span class="ico">⚽</span>${LANG==='ja'?'アシストを集計中…':'Loading assists…'}</p>`
+    : scorerTable(players, colLabel);
   wrap.innerHTML = `
     <div class="sec-head">
       <button id="scorersTriggerBtn" class="sec-title">${esc(lname)} ▼</button>
@@ -2736,7 +2808,7 @@ function renderScorers(data, code) {
       <button class="scorer-sub${activeScorersTab==='goals'?' active':''}" data-sub="goals">⚽ ${T.goals}</button>
       <button class="scorer-sub${activeScorersTab==='assists'?' active':''}" data-sub="assists">🎯 ${T.assists}</button>
     </div>
-    ${scorerTable(players, colLabel)}`;
+    ${body}`;
 }
 
 function rankStyle(rank) {
