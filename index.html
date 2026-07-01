@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Football Today | 欧州サッカー日程表</title>
+  <title>Football Week | 欧州サッカー 日程・結果・順位・得点ランキング</title>
   <meta name="google-site-verification" content="36E2heKne3wfqWYS__XDLWlvbopcAhlE-k4p4K3UlxM" />
   <meta name="description" content="プレミアリーグ・ラ・リーガ・セリエA・ブンデスリーガ・チャンピオンズリーグの試合日程・結果・順位表・得点ランキングをシンプルに確認。日本語・英語対応、毎日自動更新。Soccer schedule, standings and top scorers for Premier League, La Liga, Serie A, Bundesliga, Champions League.">
   <meta name="keywords" content="欧州サッカー,試合日程,順位表,得点ランキング,プレミアリーグ,ラ・リーガ,セリエA,ブンデスリーガ,チャンピオンズリーグ,soccer schedule,Premier League,La Liga,Serie A,Bundesliga,Champions League,football schedule">
@@ -64,11 +64,13 @@
       font-size: 17px; font-weight: 800; letter-spacing: -.4px;
       display: flex; align-items: center; gap: 9px;
       font-family: 'BIZ UDPGothic', sans-serif;
-      white-space: nowrap; /* 画面が狭くても「Football Today」を折り返さない */
+      white-space: nowrap; /* 画面が狭くても「Football Week」を折り返さない */
     }
     .site-title em { font-style: normal; }
     .site-logo {
       width: 30px; height: 30px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px; line-height: 1;
       filter: drop-shadow(0 1px 2px rgba(0,0,0,.4));
     }
     .hright { display: flex; align-items: center; gap: 10px; }
@@ -596,40 +598,13 @@
 <!-- ── Header ── -->
 <div id="topbar">
   <div class="site-title" id="siteTitle">
-    <svg class="site-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <clipPath id="ballclip"><circle cx="50" cy="50" r="47.5"/></clipPath>
-        <radialGradient id="ballgrad" cx="38%" cy="32%" r="60%">
-          <stop offset="0%" stop-color="#ffffff"/>
-          <stop offset="100%" stop-color="#d8d8d8"/>
-        </radialGradient>
-      </defs>
-      <!-- ボール本体 -->
-      <circle cx="50" cy="50" r="48" fill="url(#ballgrad)" stroke="#aaa" stroke-width="1.5"/>
-      <!-- 黒パッチ（正五角形＋周囲5枚、白縫い目付き） -->
-      <g clip-path="url(#ballclip)" fill="#111" stroke="#fff" stroke-width="2.5" stroke-linejoin="round">
-        <!-- 中央五角形 -->
-        <polygon points="50,28 68.6,42 61.8,64 38.2,64 31.4,42"/>
-        <!-- 上 -->
-        <polygon points="35,2 65,2 72,16 68.6,42 50,28 31.4,42 28,16"/>
-        <!-- 右上 -->
-        <polygon points="72,16 95,26 98,55 80,66 68.6,42"/>
-        <!-- 右下 -->
-        <polygon points="80,66 96,88 76,102 55,102 61.8,64"/>
-        <!-- 左下 -->
-        <polygon points="20,66 4,88 24,102 45,102 38.2,64"/>
-        <!-- 左上 -->
-        <polygon points="28,16 5,26 2,55 20,66 31.4,42"/>
-      </g>
-      <!-- 外枠 -->
-      <circle cx="50" cy="50" r="48" fill="none" stroke="#999" stroke-width="1.5"/>
-    </svg>
+    <span class="site-logo" role="img" aria-label="サッカーボール">⚽</span>
     <span>
       <span style="display:block;line-height:1.1">
         <span style="color:#fff">Football</span>
-        <em style="background:#fff;color:#111;padding:1px 5px;border-radius:3px;margin-left:3px;font-size:15px">Today</em>
+        <em style="background:#fff;color:#111;padding:1px 5px;border-radius:3px;margin-left:3px;font-size:15px">Week</em>
       </span>
-      <span id="siteSubtitle" style="display:block;font-size:9px;font-weight:400;opacity:.65;letter-spacing:.8px;margin-top:1px">欧州サッカー日程表</span>
+      <span id="siteSubtitle" style="display:block;font-size:9px;font-weight:400;opacity:.65;letter-spacing:.8px;margin-top:1px">欧州サッカー日程・順位</span>
     </span>
   </div>
   <div class="hright">
@@ -777,7 +752,7 @@ const T = {
   savedSuffix: LANG==='ja' ? '件）'                 : ' items)',
   leaguePhase: LANG==='ja' ? 'リーグフェーズ'       : 'League Phase',
   knockout:    LANG==='ja' ? 'ノックアウトステージ' : 'Knockout Stage',
-  subtitle:    LANG==='ja' ? 'サッカー日程表'       : 'Soccer Schedule',
+  subtitle:    LANG==='ja' ? '欧州サッカー日程・順位' : 'Scores · Fixtures · Tables',
   all:         LANG==='ja' ? 'すべて'               : 'All',
 };
 
@@ -2076,7 +2051,12 @@ function parseKnockoutEvents(events) {
     const key   = [home.id, away.id].sort().join('-');
     const evtId = evt.id || evt.date;   // イベントIDで重複排除（leg番号に頼らない）
     const note  = (comp.notes || []).find(n => n.type === 'event')?.text || '';
-    const fin   = ['STATUS_FINAL','STATUS_FULL_TIME'].includes(evt.status?.type?.name);
+    // 「終了」は completed フラグで判定するのが最も確実。
+    // 以前は STATUS_FINAL/STATUS_FULL_TIME のみを見ていたため、PK決着(STATUS_FINAL_PEN)や
+    // 延長決着(STATUS_FINAL_AET)の試合が終了扱いにならず、スコアが「–」になっていた（独=パラグアイ等）。
+    const stType = comp.status?.type || evt.status?.type || {};
+    const fin   = stType.completed === true
+               || ['STATUS_FINAL','STATUS_FULL_TIME'].includes(stType.name);
 
     if (!rounds[slug]) rounds[slug] = {};
     if (!rounds[slug][key]) {
@@ -3363,7 +3343,7 @@ document.getElementById('reloadBtn').onclick = () => { load(true).then(() => sch
 
 /* 非日本語環境のUI文字列初期化 */
 if (LANG !== 'ja') {
-  document.title = 'Football Today | Soccer Schedule';
+  document.title = 'Football Week — Live Scores, Fixtures & Standings';
   document.getElementById('siteSubtitle').textContent = T.subtitle;
   document.querySelector('.pnav[data-page="schedule"]').textContent  = T.schedule;
   document.querySelector('.pnav[data-page="standings"]').textContent = T.standings;
