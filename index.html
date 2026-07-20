@@ -706,7 +706,9 @@ const LANG = (() => {
   return navigator.language.startsWith('ja') ? 'ja' : 'en';
 })();
 const WC_START = new Date('2026-06-11T00:00:00Z');
-const WC_END   = new Date('2026-07-20T00:00:00Z');
+// 大会は7/19決勝で終了したが、欧州リーグ開幕（8月中旬）までは結果・順位・得点王・ブラケットを
+// 見られるようW杯仕様を残す。プレミア開幕に合わせて 8/15 で自動終了。
+const WC_END   = new Date('2026-08-15T00:00:00Z');
 const isWorldCup = new Date() >= WC_START && new Date() <= WC_END;
 
 /* W杯期間中: 特別テーマ＋ヘッダーバッジ */
