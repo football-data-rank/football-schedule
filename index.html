@@ -1473,17 +1473,20 @@ const TOP_N       = 200;  // 全件取得（最後尾まで表示）
 const FETCH_CONCURRENCY = 6;   // 同時に投げる最大リクエスト数
 const SCORER_CONCURRENCY = 10; // 得点ランキングの軽量な詳細取得（選手詳細/試合summary）は多めに並列化
 const FETCH_RETRIES     = 2;   // 失敗時の追加リトライ回数
-async function fetchJson(url, { retries = FETCH_RETRIES } = {}) {
+const FETCH_TIMEOUT     = 10_000; // 1リクエストの最大待ち時間(ms)
+async function fetchJson(url, { retries = FETCH_RETRIES, timeout = FETCH_TIMEOUT } = {}) {
   let lastErr;
   for (let attempt = 0; attempt <= retries; attempt++) {
+    // ⚠️ タイムアウト必須：モバイル回線ではfetchがエラーにならず永遠にハングすることがある。
+    //    ハングすると load() が完了せず「次の自動更新の予約」に到達しない＝自動更新が無言で死ぬ。
+    //    （「手動更新なら動くのに自動では固まる」の正体）。AbortControllerで強制打ち切り→リトライ。
+    const ctrl = new AbortController();
+    const tid  = setTimeout(() => ctrl.abort(), timeout);
     try {
-      // 古いデータが数分間返り続ける（強制リロードでも直らない＝URLキー型の中間/CDNキャッシュが
-      // 古いスナップショットを保持している）症状への対策。毎回ユニークな ?_= を付けて
-      // キャッシュを確実に外し、常に最新を取りに行く。no-store はブラウザ側キャッシュ対策。
-      // ※ これで稀に「より古い応答」が混ざる可能性があるが、描画側の単調マージ(applyMonotonic)で
-      //   pre→in→post やスコアが後戻りしないようガードしている。
+      // 毎回ユニークな ?_= でCDNの古いスナップショットを回避。no-store はブラウザ側キャッシュ対策。
+      // 古い応答の混入は描画側の単調マージ(applyMonotonic)でガード済み。
       const bust = (url.includes('?') ? '&' : '?') + '_=' + Date.now() + '-' + attempt;
-      const res = await fetch(url + bust, { cache: 'no-store' });
+      const res = await fetch(url + bust, { cache: 'no-store', signal: ctrl.signal });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       return await res.json();
     } catch (e) {
@@ -1492,6 +1495,8 @@ async function fetchJson(url, { retries = FETCH_RETRIES } = {}) {
         // 指数バックオフ + ジッタ（350ms, 700ms ...）でレート制限を避ける
         await new Promise(r => setTimeout(r, 350 * (attempt + 1) + Math.random() * 200));
       }
+    } finally {
+      clearTimeout(tid);
     }
   }
   throw lastErr;
@@ -3283,7 +3288,12 @@ function markUpdated() {
 /* ════════════════════════════════════════
    ロード・自動更新（全ページ共通 3分）
 ════════════════════════════════════════ */
+let loadInFlight = false;          // load()の多重実行防止
+let lastLoadDone = Date.now();     // 最後にload()が完了した時刻（見張りタイマーの判定用）
+
 async function load(showLoader = false) {
+  if (loadInFlight) return;        // 前回のloadがまだ走っていたら重ねない
+  loadInFlight = true;
   const btn = document.getElementById('reloadBtn');
   btn.classList.add('spin');
   if (showLoader) document.getElementById('scheduleWrap').innerHTML = `<div class="state"><span class="ico">⚽</span>${T.loading}</div>`;
@@ -3298,27 +3308,29 @@ async function load(showLoader = false) {
     markUpdated();
   } catch(e) {
     document.getElementById('scheduleWrap').innerHTML = `<div class="state"><span class="ico">⚠️</span>${T.failed}: ${esc(e.message)}</div>`;
-  } finally { btn.classList.remove('spin'); }
+  } finally {
+    btn.classList.remove('spin');
+    loadInFlight = false;
+    lastLoadDone = Date.now();
+  }
   scheduleNextRefresh();
 }
 
-function scheduleNextRefresh() {
-  clearTimeout(timer);
+// 現在の状況に応じた更新間隔：ライブ中 or 試合時間帯（開始15分前〜3時間後）は速く
+function refreshIntervalMs() {
   const hasLive = allMatches.some(m => m.state === 'in');
-  // ESPNの state がまだ pre/post でも、時刻的に「試合時間帯」の試合があれば速い更新にする。
-  // これまでは state==='in' を検出した時しか高速更新せず、初回が古いと最大3分も据え置き＝
-  // 「開いて数分間ずっと変わらない」の主因だった。開始15分前〜開始3時間後を活動時間帯とみなす。
   const t = Date.now();
   const nearActive = allMatches.some(m => {
     if (!m.utcDate) return false;
     const mins = (t - new Date(m.utcDate).getTime()) / 60000;
     return mins >= -15 && mins <= 180;
   });
-  const interval = (hasLive || nearActive) ? REFRESH_LIVE : REFRESH_IDLE;
-  timer = setTimeout(async () => {
-    await load(false);
-    scheduleNextRefresh();
-  }, interval);
+  return (hasLive || nearActive) ? REFRESH_LIVE : REFRESH_IDLE;
+}
+
+function scheduleNextRefresh() {
+  clearTimeout(timer);
+  timer = setTimeout(() => load(false), refreshIntervalMs());   // 次の予約はload()完了時に必ず行われる
 }
 
 function startAutoRefresh() {
@@ -3328,18 +3340,24 @@ function startAutoRefresh() {
   let lastWake = Date.now();
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible') return;
+    tick();   // 時計も即座に現在時刻へ
     // 30秒以上離れていたら鮮度が落ちているので即リロード
-    if (Date.now() - lastWake > 30_000) {
-      load(false).then(scheduleNextRefresh);
-    }
+    if (Date.now() - lastWake > 30_000) load(false);
     lastWake = Date.now();
   });
+  // 見張りタイマー（自己修復）：何らかの理由で自動更新チェーンが死んでも、
+  // 「予定間隔の2倍以上更新されていない」を検知して自動でload()を再起動する。
+  // （fetchのハング等でチェーンが無言で止まる事故への最終防衛線）
+  setInterval(() => {
+    if (loadInFlight) return;
+    if (Date.now() - lastLoadDone > refreshIntervalMs() * 2 + 15_000) load(false);
+  }, 15_000);
 }
 
 /* ════════════════════════════════════════
    起動
 ════════════════════════════════════════ */
-document.getElementById('reloadBtn').onclick = () => { load(true).then(() => scheduleNextRefresh()); };
+document.getElementById('reloadBtn').onclick = () => load(true);
 
 /* 非日本語環境のUI文字列初期化 */
 if (LANG !== 'ja') {
