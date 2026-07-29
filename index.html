@@ -1474,6 +1474,7 @@ const TOP_N       = 200;  // 全件取得（最後尾まで表示）
 ════════════════════════════════════════ */
 const FETCH_CONCURRENCY = 6;   // 同時に投げる最大リクエスト数
 const SCORER_CONCURRENCY = 10; // 得点ランキングの軽量な詳細取得（選手詳細/試合summary）は多めに並列化
+const LOOKUP_CONCURRENCY = 4;  // Wikipedia日本語名検索の並列数（1人ずつ800msだと選手数が多い時に激遅なため。多すぎるとレート制限で失敗するので4）
 const FETCH_RETRIES     = 2;   // 失敗時の追加リトライ回数
 const FETCH_TIMEOUT     = 10_000; // 1リクエストの最大待ち時間(ms)
 async function fetchJson(url, { retries = FETCH_RETRIES, timeout = FETCH_TIMEOUT } = {}) {
@@ -1531,6 +1532,10 @@ let timer               = null;
 let _bracketConns       = [];
 let nameOverrides = {"teams":{"Liverpool":"リヴァプール","Liverpool FC":"リヴァプール","Aston Villa":"アストン・ヴィラ","Aston Villa FC":"アストン・ヴィラ","Brighton":"ブライトン","Brighton & Hove Albion":"ブライトン","Brighton and Hove Albion":"ブライトン","Wolves":"ウォルヴァーハンプトン","Wolverhampton":"ウォルヴァーハンプトン","Wolverhampton Wanderers":"ウォルヴァーハンプトン","Everton":"エヴァートン","Everton FC":"エヴァートン","Frankfurt":"フランクフルト","Eintracht Frankfurt":"フランクフルト","Ein. Frankfurt":"フランクフルト","Levante":"レバンテ","1. FC Heidenheim 1846":"ハイデンハイム","Hamburg SV":"ハンブルガーSV","FC Cologne":"ケルン","Paris FC":"パリFC"},"players":{"Bryan Mbeumo":"ブライアン・エンベウモ","Kai Havertz":"カイ・ハヴァーツ","Ivan Toney":"アイヴァン・トニー","Kylian Mbappe":"キリアン・エンバペ","Kylian Mbappé":"キリアン・エンバペ","Robert Lewandowski":"ロベルト・レヴァンドフスキ","Vinicius Junior":"ヴィニシウス・ジュニオール","Vinícius Júnior":"ヴィニシウス・ジュニオール","Vinicius Jr.":"ヴィニシウス・ジュニオール","Florian Wirtz":"フロリアン・ヴィルツ","Victor Boniface":"ヴィクター・ボニフェイス","Serhou Guirassy":"セール・ギラシ","Omar Marmoush":"オマル・マーモウシュ","Deniz Undav":"デニズ・ウンダフ","Michael Olise":"マイケル・オリーセ","Alphonso Davies":"アルフォンソ・デイビス","Dusan Vlahovic":"ドゥシャン・ヴラホビッチ","Dušan Vlahović":"ドゥシャン・ヴラホビッチ","Khvicha Kvaratskhelia":"クヴィチャ・クヴァラツヘリア","Tijjani Reijnders":"ティジャニ・ラインデルス","Victor Osimhen":"ヴィクター・オシムヘン","Marc Cucurella":"マルク・ククレジャ","Levi Colwill":"リーヴァイ・コルウィル","Malo Gusto":"マロ・ギュスト","Guglielmo Vicario":"グリエルモ・ヴィカーリオ","Aurelien Tchouameni":"オーレリアン・チュアメニ","Aurélien Tchouaméni":"オーレリアン・チュアメニ","Nahuel Molina":"ナウエル・モリーナ","Sergi Roberto":"セルジ・ロベルト","Xavi Simons":"シャビ・シモンズ","Olivier Giroud":"オリヴィエ・ジルー","Nathan Ake":"ナタン・アケ","Nathan Aké":"ナタン・アケ","Mathys Tel":"マチス・テル","Gabriel Magalhães":"ガブリエル・マガリャンイス","Nwaneri":"ヌワネリ","Ethan Nwaneri":"エタン・ヌワネリ","Alexis Mac Allister":"アレクシス・マクアリスター","Viktor Gyokeres":"ヴィクトル・ギョケレシュ","Viktor Gyökeres":"ヴィクトル・ギョケレシュ","Dominik Livakovic":"ドミニク・リヴァコビッチ","Dominik Livaković":"ドミニク・リヴァコビッチ","João Pedro":"ジョアン・ペドロ","Dominic Calvert-Lewin":"ドミニク・カルヴァート＝ルーウィン","Hugo Ekitike":"ヒューゴ・エキティケ","Harry Wilson":"ハリー・ウィルソン","Morgan Gibbs-White":"モーガン・ギブスホワイト","James Garner":"ジェームズ・ガーナー","Vedat Muriqi":"ベダト・ムリキ","Alexander Sørloth":"アレクサンデル・セルロート","Georges Mikautadze":"ジョージズ・ミカウタゼ","Alberto Moleiro":"アルベルト・モレイロ","Luis Milla":"ルイス・ミジャ","Arda Güler":"アルダ・キュレル","Antony":"アントニー","Edu Expósito":"エドゥ・エスポジト","Giuliano Simeone":"ジュリアーノ・シメオネ","Guela Doué":"ゲラ・ドゥエ","Endrick":"エンドリッキ","Adrien Thomasson":"アドリアン・トマソン","Joaquín Panichelli":"ホアキン・パニチェッリ","Folarin Balogun":"フォラリン・バログン","Florian Thauvin":"フロリアン・トヴァン","Pablo Pagis":"パブロ・パジス","Pierre-Emerick Aubameyang":"ピエールエメリク・オーバメヤン","Donyell Malen":"ドニエル・マレン","Hakan Çalhanoglu":"ハカン・チャルハノール","Nikola Vlasic":"ニコラ・ブラシッチ","Armand Laurienté":"アルマン・ロリアンテ","Jesús Rodriguez":"ヘスス・ロドリゲス","Charles De Ketelaere":"シャルル・デケテラーレ","Antoine Semenyo":"アントワーヌ・セメンヨ","Andrej Kramaric":"アンドレイ・クラマリッチ","Christoph Baumgartner":"クリストフ・バウムガルトナー","Said El Mala":"サイード・エル・マラ","Haris Tabakovic":"ハリス・タバコヴィッチ","Julian Ryerson":"ユリアン・リエルソン","Bazoumana Touré":"バズマナ・トゥーレ","Farès Chaïbi":"ファレス・シャイビ","Vladimír Coufal":"ヴラディミール・ツォウファル","Romano Schmid":"ロマーノ・シュミット","Jamie Leweling":"ジェイミー・レヴェリング","Giovane":"ジオヴァーニ","Matìas Soulè":"マティアス・スーレ","Maxence Caqueret":"マクサンス・カケレ","Anastasios Douvikas":"アナスタシオス・バカセタス","Nikola Krstovic":"ニコラ・クルストヴィッチ","Yan Diomande":"ヤン・ディオマンデ","Andrej Ilic":"アンドレイ・イリッチ","Christian Eriksen":"クリスティアン・エリクセン","Sebastiano Esposito":"セバスティアーノ・エスポジト","Pavel Sulc":"パヴェル・シュルツ","Sergi Darder":"セルジ・ダルデル","Santi Comesaña":"サンティ・コメサーニャ","Lucas Boyé":"ルーカス・ボジェ","Jorge de Frutos":"ホルヘ・デ・フルートス","Cucho Hernández":"クチョ・エルナンデス","André Silva":"アンドレ・シルヴァ","Hugo Duro":"ウーゴ・ドゥロ","Gorka Guruzeta":"ゴルカ・グルセタ","Federico Viñas":"フェデリコ・ビニャス","Vladyslav Vanat":"ヴラディスラフ・ヴァナト","Álvaro Rodríguez":"アルバロ・ロドリゲス","Yuri Berchiche":"ユーリ・ベルチチェ","Rubén García":"ルベン・ガルシア","Javier Guerra":"ハビエル・ゲラ","Luis Rioja":"ルイス・リオハ","Ander Barrenetxea":"アンデル・バレネチェア","Rômulo":"ホムル","Maximilian Beier":"マクシミリアン・バイアー","Jens Stage":"イェンス・ステーイ","Jakub Kaminski":"ヤクブ・カミンスキ","Tim Lemperle":"ティム・レンペール","Grischa Prömel":"グリシャ・プレメル","Igor Matanovic":"イゴール・マタノヴィッチ","Nadiem Amiri":"ナディーム・アミリ","Chris Führich":"クリス・ヒューリッヒ","Fisnik Asllani":"フィスニク・アスラニ","Franck Honorat":"フランク・オノラ","Fábio Silva":"ファビオ・シルヴァ","Angelo Stiller":"アンジェロ・スティラー","Aleix García":"アレイクス・ガルシア","Riccardo Orsolini":"リッカルド・オルソリーニ","Moise Kean":"モイーズ・キーン","Domenico Berardi":"ドメニコ・ベラルディ","Lorenzo Colombo":"ロレンツォ・コロンボ","Santiago Castro":"サンティアゴ・カストロ","Marco Palestra":"マルコ・パレストラ","Antonino Gallo":"アントニーノ・ガッロ","Máximo Perrone":"マクシモ・ペローネ","Jonathan David":"ジョナサン・デイヴィッド","Nicola Zalewski":"ニコラ・ザレフスキ","Esteban Lepaul":"エステバン・ルポール","Maghnes Akliouche":"マグネス・アクリウシェ","Ludovic Ajorque":"ルドヴィク・アジョルク","Felix Correia":"フェリックス・コレイア","Igor Paixão":"イゴール・パイシャオン","Aleksandr Golovin":"アレクサンドル・ゴロヴィン"}};
 (function(){ try { const s=localStorage.getItem('nameOverrides'); if(s){ const o=JSON.parse(s); nameOverrides.teams=Object.assign({},nameOverrides.teams,o.teams||{}); nameOverrides.players=Object.assign({},nameOverrides.players,o.players||{}); } } catch{} })();
+// 得点ランキングの自動日本語化キャッシュ：一度Wikipediaで「日本語名なし」と確定した選手を記録し、
+// 毎回の再検索を防ぐ（＝表示はカタカナ自動変換で確定）。localStorageに永続化。
+let resolvedMiss = {};
+(function(){ try { resolvedMiss = JSON.parse(localStorage.getItem('scorerNameMiss') || '{}') || {}; } catch { resolvedMiss = {}; } })();
 
 /* ════════════════════════════════════════
    ユーティリティ
@@ -1641,7 +1646,9 @@ function cleanJaName(s) {
 function playerNameJa(name) {
   if (!name) return name;
   if (LANG !== 'ja') return name;
-  return cleanJaName(nameOverrides.players[name] || PLAYER_NAMES_JA[name] || nameToKatakana(name));
+  // 手動登録 or Wikipediaで確定した日本語名があればそれを使う。
+  // 無ければ（カタカナ自動変換はせず）英語表記のまま表示する。
+  return cleanJaName(nameOverrides.players[name] || PLAYER_NAMES_JA[name] || name);
 }
 
 function getLogo(team) {
@@ -2713,7 +2720,8 @@ function lookupUnregistered(data, code) {
   const unregistered = [...data.goals, ...data.assists].filter(p => {
     if (!p.nameEn || seen.has(p.nameEn)) return false;
     seen.add(p.nameEn);
-    return !nameOverrides.players[p.nameEn] && !PLAYER_NAMES_JA[p.nameEn];
+    // 既に日本語名がある／過去に「該当なし」と確定済み の選手は再検索しない
+    return !nameOverrides.players[p.nameEn] && !PLAYER_NAMES_JA[p.nameEn] && !resolvedMiss[p.nameEn];
   });
   if (unregistered.length) autoLookupPlayers(unregistered, code);
 }
@@ -2748,33 +2756,49 @@ async function loadScorers(code, showLoader = true) {
 }
 
 // 未登録選手を1人ずつWikipedia検索してキャッシュに保存・再描画
+function persistNameOverrides() { try { localStorage.setItem('nameOverrides', JSON.stringify(nameOverrides)); } catch {} }
+function persistResolvedMiss()  { try { localStorage.setItem('scorerNameMiss', JSON.stringify(resolvedMiss)); } catch {} }
+
+// 検索結果の反映をまとめて再描画（並列で次々に解決するので、都度描画せず400ms間隔に集約）
+let _scorerRerenderT = null;
+function scheduleScorerRerender(code) {
+  clearTimeout(_scorerRerenderT);
+  _scorerRerenderT = setTimeout(() => {
+    if (activePage === 'scorers' && activeScorersCode === code && scorersCache[code]) renderScorers(scorersCache[code], code);
+  }, 400);
+}
+
 async function autoLookupPlayers(players, code) {
   if (LANG !== 'ja') return;
-  let updated = false;
-  for (const p of players) {
-    if (nameOverrides.players[p.nameEn] || PLAYER_NAMES_JA[p.nameEn]) continue;
+  // 未解決（日本語名なし・該当なし未確定）の選手だけを対象に、並列で検索する
+  const seen = new Set();
+  const targets = players.filter(p => {
+    if (!p.nameEn || seen.has(p.nameEn)) return false;
+    seen.add(p.nameEn);
+    return !nameOverrides.players[p.nameEn] && !PLAYER_NAMES_JA[p.nameEn] && !resolvedMiss[p.nameEn];
+  });
+  await mapPool(targets, LOOKUP_CONCURRENCY, async p => {
     try {
-      const ja = cleanJaName(await lookupWikipediaJa(p.nameEn));
+      const { ja: raw, reached } = await lookupWikipediaJaEx(p.nameEn);
+      const ja = cleanJaName(raw);
       if (ja) {
         nameOverrides.players[p.nameEn] = ja;
-        updated = true;
-        // キャッシュの選手名を更新
+        persistNameOverrides();   // ★1人見つかるごとに即保存（途中で離脱しても消えない＝再変換しない）
         if (scorersCache[code]) {
           for (const list of [scorersCache[code].goals, scorersCache[code].assists]) {
             list.forEach(pl => { if (pl.nameEn === p.nameEn) pl.name = ja; });
           }
         }
-        // 表示中なら再描画
-        if (activePage === 'scorers' && activeScorersCode === code) {
-          renderScorers(scorersCache[code], code);
-        }
+        scheduleScorerRerender(code);
+      } else if (reached) {
+        // Wikipediaに到達したが日本語名が無かった → 「該当なし」と確定して即記録。
+        // 以後この選手は再検索せず英語表記のまま（毎回の再変換を防ぐ）。
+        // 通信不可(reached=false)の時は記録せず、次回に再試行する。
+        resolvedMiss[p.nameEn] = 1;
+        persistResolvedMiss();
       }
     } catch {}
-    await new Promise(r => setTimeout(r, 800)); // 800ms間隔でリクエスト
-  }
-  if (updated) {
-    try { localStorage.setItem('nameOverrides', JSON.stringify(nameOverrides)); } catch {}
-  }
+  });
 }
 
 function renderScorers(data, code) {
@@ -2925,7 +2949,13 @@ function buildScorersFilter() {
 /* ════════════════════════════════════════
    Wikipedia 日本語名検索
 ════════════════════════════════════════ */
-async function lookupWikipediaJa(name) {
+// 後方互換ラッパー（W検索ボタン等が使用）：日本語名の文字列 or null を返す
+async function lookupWikipediaJa(name) { return (await lookupWikipediaJaEx(name)).ja; }
+
+// 本体：{ ja: 見つかった日本語名 or null, reached: Wikipedia/Wikidataに一度でも到達できたか }
+// reached はこの呼び出し内のローカル変数なので、並列実行しても他の呼び出しと混ざらない（concurrency安全）。
+async function lookupWikipediaJaEx(name) {
+  let reached = false;
   const wpApi = 'https://en.wikipedia.org/w/api.php';
   const wdApi = 'https://www.wikidata.org/w/api.php';
   const llq   = '&prop=langlinks&lllang=ja&format=json&origin=*';
@@ -2952,37 +2982,39 @@ async function lookupWikipediaJa(name) {
   async function wpFetch(titles) {
     try {
       const r = await fetch(`${wpApi}?action=query&titles=${encodeURIComponent(titles)}${llq}`);
-      return r.ok ? firstJa((await r.json()).query?.pages) : null;
+      if (r.ok) { reached = true; return firstJa((await r.json()).query?.pages); }
+      return null;
     } catch { return null; }
   }
   async function wpSearch(q, n = 5) {
     try {
       const r = await fetch(`${wpApi}?action=query&list=search&srsearch=${encodeURIComponent(q)}&srlimit=${n}&srnamespace=0&format=json&origin=*`);
-      return r.ok ? ((await r.json()).query?.search || []).map(h => h.title).join('|') : '';
+      if (r.ok) { reached = true; return ((await r.json()).query?.search || []).map(h => h.title).join('|'); }
+      return '';
     } catch { return ''; }
   }
+  const done = ja => ({ ja, reached });
 
   // 試み①〜④: 英語Wikipedia → 日本語langlink
   const ja1 = await wpFetch(name);
-  if (ja1) return ja1;
+  if (ja1) return done(ja1);
 
   const t2 = await wpSearch(name, 5);
-  if (t2) { const ja2 = await wpFetch(t2); if (ja2) return ja2; }
+  if (t2) { const ja2 = await wpFetch(t2); if (ja2) return done(ja2); }
 
   const t3 = await wpSearch(name + ' footballer', 3);
-  if (t3) { const ja3 = await wpFetch(t3); if (ja3) return ja3; }
+  if (t3) { const ja3 = await wpFetch(t3); if (ja3) return done(ja3); }
 
   const t4 = await wpSearch(name + ' football club', 3);
-  if (t4) { const ja4 = await wpFetch(t4); if (ja4) return ja4; }
+  if (t4) { const ja4 = await wpFetch(t4); if (ja4) return done(ja4); }
 
   // 試み⑤: Wikidata 日本語ラベル
-  // 英語Wikipedia ↔ 日本語Wikipedia の対応がない選手でも
-  // Wikidata には日本語ラベル（表記）が登録されていることが多い
   try {
     const r5 = await fetch(
       `${wdApi}?action=wbsearchentities&search=${encodeURIComponent(name)}&language=en&type=item&limit=5&format=json&origin=*`
     );
     if (r5.ok) {
+      reached = true;
       const items = (await r5.json()).search || [];
       for (const item of items) {
         if (!matches(item.label || '')) continue;
@@ -2990,16 +3022,17 @@ async function lookupWikipediaJa(name) {
           `${wdApi}?action=wbgetentities&ids=${encodeURIComponent(item.id)}&languages=ja&props=labels%7Csitelinks&sitefilter=jawiki&format=json&origin=*`
         );
         if (!r6.ok) continue;
+        reached = true;
         const ent = (await r6.json()).entities?.[item.id];
         const jaTitle = ent?.sitelinks?.jawiki?.title;
-        if (jaTitle) return jaTitle;
+        if (jaTitle) return done(jaTitle);
         const jaLabel = ent?.labels?.ja?.value;
-        if (jaLabel) return jaLabel;
+        if (jaLabel) return done(jaLabel);
       }
     }
   } catch {}
 
-  return null;
+  return done(null);
 }
 
 /* ════════════════════════════════════════
