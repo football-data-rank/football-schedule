@@ -184,9 +184,7 @@
     .tbl thead th.r { text-align: right; }
     .tbl tbody tr { border-top: 1px solid var(--border); }
     .tbl tbody tr:nth-child(even) { background: var(--row-alt); }
-    .tbl.sched { font-family: 'BIZ UDPMincho', serif; background: rgba(180,225,248,0.35); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(186,230,253,0.55); box-shadow: 0 4px 28px rgba(8,145,178,0.13), inset 0 1px 0 rgba(255,255,255,0.5); border-collapse: separate; border-spacing: 0 3px; table-layout: fixed; width: 100%; }
-    /* ホーム列とアウェー列を左右均等にしてスコアを常に中央へ（auto時は名前の長さで中央がずれる） */
-    .tbl.sched .td-home, .tbl.sched .td-away, .tbl.sched th.r, .tbl.sched th.l { width: auto; }
+    .tbl.sched { font-family: 'BIZ UDPMincho', serif; background: rgba(180,225,248,0.35); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(186,230,253,0.55); box-shadow: 0 4px 28px rgba(8,145,178,0.13), inset 0 1px 0 rgba(255,255,255,0.5); border-collapse: separate; border-spacing: 0 3px; }
     .tbl.sched tbody tr:not(.drow) td { background: rgba(255,255,255,0.62); }
     .tbl.sched td { border-top: 1.5px solid rgba(10,40,80,0.42); border-bottom: 1.5px solid rgba(10,40,80,0.42); }
     .tbl.sched td:first-child { border-left: 1.5px solid rgba(10,40,80,0.42); border-radius: 6px 0 0 6px; }
@@ -524,8 +522,6 @@
       /* ヘッダーはページ先頭に通常配置（スクロールで一緒に流れる） */
       /* 試合日程 */
       #scheduleWrap { padding-left: 2px; padding-right: 2px; }
-      /* 長いチーム名でテーブルが画面幅を超えない（初期ズームの原因対策） */
-      .tbl.sched { table-layout: fixed; width: 100%; }
       .tbl.sched td { padding: 4px 0; }
       .tbl tr.drow td { padding: 6px 8px; }
       .th-time  { width: 38px; }
@@ -1536,9 +1532,6 @@ let nameOverrides = {"teams":{"Liverpool":"リヴァプール","Liverpool FC":"�
 // 毎回の再検索を防ぐ（＝表示はカタカナ自動変換で確定）。localStorageに永続化。
 let resolvedMiss = {};
 (function(){ try { resolvedMiss = JSON.parse(localStorage.getItem('scorerNameMiss') || '{}') || {}; } catch { resolvedMiss = {}; } })();
-// クラブ名版：Wikipediaに日本語表記が無いと確定したクラブ（以後は原語表記で確定・再検索しない）
-let teamMiss = {};
-(function(){ try { teamMiss = JSON.parse(localStorage.getItem('teamNameMiss') || '{}') || {}; } catch { teamMiss = {}; } })();
 
 /* ════════════════════════════════════════
    ユーティリティ
@@ -1634,9 +1627,6 @@ function nameToKatakana(name) {
 function teamNameJa(name) {
   if (!name) return name;
   if (LANG !== 'ja') return name;
-  // W杯前からの仕様：日本語モードでは必ずカタカナ表示（英語のまま出さない）。
-  // 優先順位: 手動登録/Wikipedia確定名 → 辞書 → カタカナ自動変換。
-  // Wikipedia正式表記は裏の自動検索(autoLookupTeams)で見つかり次第 nameOverrides に入り、自動変換を置き換える。
   return nameOverrides.teams[name]
       || TEAM_NAMES_JA[name]
       || TEAM_NAMES_JA[name.replace(/\s+FC$/i,'').trim()]
@@ -1713,13 +1703,6 @@ function parseEvent(ev, lg) {
     logicalDate: timing.logicalDate, displayTime: timing.displayTime, isLate: timing.isLate,
     homeTeam: teamNameJa(home.team.displayName || home.team.shortDisplayName || home.team.name),
     awayTeam: teamNameJa(away.team.displayName || away.team.shortDisplayName || away.team.name),
-    // ESPN公式短縮名（スマホ幅のラテン文字名短縮用）と原語名（Wikipedia自動検索のキー）
-    homeShort: home.team.shortDisplayName || null,
-    awayShort: away.team.shortDisplayName || null,
-    homeTeamEn: home.team.displayName || home.team.shortDisplayName || home.team.name,
-    awayTeamEn: away.team.displayName || away.team.shortDisplayName || away.team.name,
-    homeAbbr: home.team.abbreviation || null,
-    awayAbbr: away.team.abbreviation || null,
     homeLogo: getLogo(home.team), awayLogo: getLogo(away.team),
     homeScore: (state !== 'pre') ? home.score : null,
     awayScore: (state !== 'pre') ? away.score : null,
@@ -1883,18 +1866,11 @@ const HALF_KANA_MAP = {
 function toHalfKana(str) {
   return [...str].map(c => HALF_KANA_MAP[c] ?? c).join('');
 }
-function fitTeamName(name, short, abbr) {
-  // スマホ幅では長いクラブ名を縮めて列に収める（「…」を出さないための多段フォールバック）
-  // 日本語: カタカナ8文字以上 → 半角カナ（幅が約半分になる）
-  // 英字(元々半角): 14文字以上 → ESPN公式短縮名("Man United"等) → それでも長ければ公式略号("MUN"等)
+function fitTeamName(name) {
+  if (LANG !== 'ja') return name;
   if (window.innerWidth >= 600) return name;
   const fw = [...name].filter(c => c.charCodeAt(0) >= 0x30A0 && c.charCodeAt(0) <= 0x30FF).length;
-  if (LANG === 'ja' && fw >= 8) return toHalfKana(name);
-  if (fw === 0 && name.length > 13) {
-    if (short && short.length < name.length) return short.length <= 13 ? short : (abbr || short);
-    return abbr || name;
-  }
-  return name;
+  return fw >= 8 ? toHalfKana(name) : name;
 }
 
 function scheduleRow(m) {
@@ -1907,8 +1883,8 @@ function scheduleRow(m) {
   const cl = toHalfKana(compLabel);
   const hb = m.homeLogo ? `<img class="badge" src="${attr(m.homeLogo)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '';
   const ab = m.awayLogo ? `<img class="badge" src="${attr(m.awayLogo)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '';
-  const hn = fitTeamName(m.homeTeam, m.homeShort, m.homeAbbr);
-  const an = fitTeamName(m.awayTeam, m.awayShort, m.awayAbbr);
+  const hn = fitTeamName(m.homeTeam);
+  const an = fitTeamName(m.awayTeam);
   let timeEl;
   if (m.state === 'post') timeEl = `<span class="t-fin">${LANG==='ja'?'終了':'FT'}</span>`;
   else if (m.state === 'in') timeEl = `<span class="t-live"><span class="live-dot"></span>${esc(m.clock.replace(':00',"'"))}</span>`;
@@ -2823,55 +2799,6 @@ async function autoLookupPlayers(players, code) {
   });
 }
 
-function persistTeamMiss() { try { localStorage.setItem('teamNameMiss', JSON.stringify(teamMiss)); } catch {} }
-
-let _teamLookupBusy = false;
-let _schedRerenderT = null;
-function scheduleSchedRerender() {
-  clearTimeout(_schedRerenderT);
-  _schedRerenderT = setTimeout(() => renderSchedule(), 400);
-}
-
-// 日程に出てきた未知クラブ名をWikipediaで日本語化（選手名と同じ仕組み）。
-// 見つかれば nameOverrides.teams に即保存（以後は再検索なし）、
-// Wikipediaに日本語表記が無ければ原語のまま確定（teamMiss に記録）。
-async function autoLookupTeams() {
-  if (LANG !== 'ja' || _teamLookupBusy) return;
-  const targets = [];
-  const seen = new Set();
-  for (const m of allMatches) {
-    for (const en of [m.homeTeamEn, m.awayTeamEn]) {
-      if (!en || seen.has(en)) continue;
-      seen.add(en);
-      if (!/[A-Za-z]/.test(en)) continue;   // ESPNが最初から日本語名を返しているものは対象外
-      if (nameOverrides.teams[en] || TEAM_NAMES_JA[en] || teamMiss[en]) continue;
-      targets.push(en);
-    }
-  }
-  if (!targets.length) return;
-  _teamLookupBusy = true;
-  try {
-    await mapPool(targets, LOOKUP_CONCURRENCY, async en => {
-      try {
-        const { ja: raw, reached } = await lookupWikipediaJaEx(en);
-        const ja = cleanJaName(raw);
-        if (ja) {
-          nameOverrides.teams[en] = ja;
-          persistNameOverrides();   // 1件ごとに即保存＝途中離脱でも消えない・次回は変換済み
-          for (const m of allMatches) {
-            if (m.homeTeamEn === en) m.homeTeam = ja;
-            if (m.awayTeamEn === en) m.awayTeam = ja;
-          }
-          scheduleSchedRerender();
-        } else if (reached) {
-          teamMiss[en] = 1;   // 日本語表記なしと確定 → 原語表記のまま・再検索しない
-          persistTeamMiss();
-        }
-      } catch {}
-    });
-  } finally { _teamLookupBusy = false; }
-}
-
 function renderScorers(data, code) {
   const wrap  = document.getElementById('scorersWrap');
   const lname = SCORERS_LEAGUES.find(l => l.code === code)?.label ?? '';
@@ -3412,7 +3339,6 @@ async function load(showLoader = false) {
     buildCountryFilter();
     renderSchedule();
     markUpdated();
-    autoLookupTeams();   // 未知クラブ名のWikipedia日本語化（裏で実行・見つかり次第差し替え）
   } catch(e) {
     document.getElementById('scheduleWrap').innerHTML = `<div class="state"><span class="ico">⚠️</span>${T.failed}: ${esc(e.message)}</div>`;
   } finally {
