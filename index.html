@@ -1474,7 +1474,7 @@ const TOP_N       = 200;  // 全件取得（最後尾まで表示）
 ════════════════════════════════════════ */
 const FETCH_CONCURRENCY = 6;   // 同時に投げる最大リクエスト数
 const SCORER_CONCURRENCY = 10; // 得点ランキングの軽量な詳細取得（選手詳細/試合summary）は多めに並列化
-const LOOKUP_CONCURRENCY = 4;  // Wikipedia日本語名検索の並列数（1人ずつ800msだと選手数が多い時に激遅なため。多すぎるとレート制限で失敗するので4）
+const LOOKUP_CONCURRENCY = 3;  // Wikipedia日本語名検索の並列数（直列800msは激遅・多並列は429レート制限。429になった分は保存されず次回の更新で自動再試行される）
 const FETCH_RETRIES     = 2;   // 失敗時の追加リトライ回数
 const FETCH_TIMEOUT     = 10_000; // 1リクエストの最大待ち時間(ms)
 async function fetchJson(url, { retries = FETCH_RETRIES, timeout = FETCH_TIMEOUT } = {}) {
@@ -1536,6 +1536,9 @@ let nameOverrides = {"teams":{"Liverpool":"リヴァプール","Liverpool FC":"�
 // 毎回の再検索を防ぐ（＝表示はカタカナ自動変換で確定）。localStorageに永続化。
 let resolvedMiss = {};
 (function(){ try { resolvedMiss = JSON.parse(localStorage.getItem('scorerNameMiss') || '{}') || {}; } catch { resolvedMiss = {}; } })();
+// クラブ名版：Wikipediaに日本語表記が無いと確定したクラブ（以後は原語表記で確定・再検索しない）
+let teamMiss = {};
+(function(){ try { teamMiss = JSON.parse(localStorage.getItem('teamNameMiss') || '{}') || {}; } catch { teamMiss = {}; } })();
 
 /* ════════════════════════════════════════
    ユーティリティ
@@ -1631,11 +1634,14 @@ function nameToKatakana(name) {
 function teamNameJa(name) {
   if (!name) return name;
   if (LANG !== 'ja') return name;
+  // 辞書・手動登録・Wikipedia確定名のみ日本語化。未知のクラブは（機械カタカナ変換をやめて）
+  // いったん原語のまま表示し、裏のWikipedia自動検索(autoLookupTeams)で正式表記が見つかり次第差し替える。
+  // 機械変換は「スク・スト・トニス」等の誤表記を生むため廃止（Wikipedia表記に統一）。
   return nameOverrides.teams[name]
       || TEAM_NAMES_JA[name]
       || TEAM_NAMES_JA[name.replace(/\s+FC$/i,'').trim()]
       || TEAM_NAMES_JA[name.replace(/^FC\s+/i,'').trim()]
-      || nameToKatakana(name);
+      || name;
 }
 
 // Wikipedia由来の名前に付く曖昧さ回避注記「(1974年生のサッカー選手)」等の末尾括弧を除去
@@ -1707,6 +1713,11 @@ function parseEvent(ev, lg) {
     logicalDate: timing.logicalDate, displayTime: timing.displayTime, isLate: timing.isLate,
     homeTeam: teamNameJa(home.team.displayName || home.team.shortDisplayName || home.team.name),
     awayTeam: teamNameJa(away.team.displayName || away.team.shortDisplayName || away.team.name),
+    // ESPN公式短縮名（スマホ幅のラテン文字名短縮用）と原語名（Wikipedia自動検索のキー）
+    homeShort: home.team.shortDisplayName || null,
+    awayShort: away.team.shortDisplayName || null,
+    homeTeamEn: home.team.displayName || home.team.shortDisplayName || home.team.name,
+    awayTeamEn: away.team.displayName || away.team.shortDisplayName || away.team.name,
     homeLogo: getLogo(home.team), awayLogo: getLogo(away.team),
     homeScore: (state !== 'pre') ? home.score : null,
     awayScore: (state !== 'pre') ? away.score : null,
@@ -1870,13 +1881,15 @@ const HALF_KANA_MAP = {
 function toHalfKana(str) {
   return [...str].map(c => HALF_KANA_MAP[c] ?? c).join('');
 }
-function fitTeamName(name) {
-  // W杯前からの仕様：スマホ幅ではカタカナ8文字以上の長いクラブ名を半角カナにして列に収める
-  // （W杯期間中は国名が短いため素通しにしていたが、クラブ名では文字が入りきらないため復元）
-  if (LANG !== 'ja') return name;
+function fitTeamName(name, short) {
+  // W杯前からの仕様：スマホ幅では長いクラブ名を縮めて列に収める
+  // カタカナ8文字以上（日本語）→ 半角カナに変換（幅が約半分になる）
+  // ラテン文字の長い名前（英語モード／日本語モードの未変換名）→ ESPN公式短縮名("Man United"等)に切替
   if (window.innerWidth >= 600) return name;
   const fw = [...name].filter(c => c.charCodeAt(0) >= 0x30A0 && c.charCodeAt(0) <= 0x30FF).length;
-  return fw >= 8 ? toHalfKana(name) : name;
+  if (LANG === 'ja' && fw >= 8) return toHalfKana(name);
+  if (fw === 0 && name.length > 13 && short && short.length < name.length) return short;
+  return name;
 }
 
 function scheduleRow(m) {
@@ -1889,8 +1902,8 @@ function scheduleRow(m) {
   const cl = toHalfKana(compLabel);
   const hb = m.homeLogo ? `<img class="badge" src="${attr(m.homeLogo)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '';
   const ab = m.awayLogo ? `<img class="badge" src="${attr(m.awayLogo)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '';
-  const hn = fitTeamName(m.homeTeam);
-  const an = fitTeamName(m.awayTeam);
+  const hn = fitTeamName(m.homeTeam, m.homeShort);
+  const an = fitTeamName(m.awayTeam, m.awayShort);
   let timeEl;
   if (m.state === 'post') timeEl = `<span class="t-fin">${LANG==='ja'?'終了':'FT'}</span>`;
   else if (m.state === 'in') timeEl = `<span class="t-live"><span class="live-dot"></span>${esc(m.clock.replace(':00',"'"))}</span>`;
@@ -2805,6 +2818,55 @@ async function autoLookupPlayers(players, code) {
   });
 }
 
+function persistTeamMiss() { try { localStorage.setItem('teamNameMiss', JSON.stringify(teamMiss)); } catch {} }
+
+let _teamLookupBusy = false;
+let _schedRerenderT = null;
+function scheduleSchedRerender() {
+  clearTimeout(_schedRerenderT);
+  _schedRerenderT = setTimeout(() => renderSchedule(), 400);
+}
+
+// 日程に出てきた未知クラブ名をWikipediaで日本語化（選手名と同じ仕組み）。
+// 見つかれば nameOverrides.teams に即保存（以後は再検索なし）、
+// Wikipediaに日本語表記が無ければ原語のまま確定（teamMiss に記録）。
+async function autoLookupTeams() {
+  if (LANG !== 'ja' || _teamLookupBusy) return;
+  const targets = [];
+  const seen = new Set();
+  for (const m of allMatches) {
+    for (const en of [m.homeTeamEn, m.awayTeamEn]) {
+      if (!en || seen.has(en)) continue;
+      seen.add(en);
+      if (!/[A-Za-z]/.test(en)) continue;   // ESPNが最初から日本語名を返しているものは対象外
+      if (nameOverrides.teams[en] || TEAM_NAMES_JA[en] || teamMiss[en]) continue;
+      targets.push(en);
+    }
+  }
+  if (!targets.length) return;
+  _teamLookupBusy = true;
+  try {
+    await mapPool(targets, LOOKUP_CONCURRENCY, async en => {
+      try {
+        const { ja: raw, reached } = await lookupWikipediaJaEx(en);
+        const ja = cleanJaName(raw);
+        if (ja) {
+          nameOverrides.teams[en] = ja;
+          persistNameOverrides();   // 1件ごとに即保存＝途中離脱でも消えない・次回は変換済み
+          for (const m of allMatches) {
+            if (m.homeTeamEn === en) m.homeTeam = ja;
+            if (m.awayTeamEn === en) m.awayTeam = ja;
+          }
+          scheduleSchedRerender();
+        } else if (reached) {
+          teamMiss[en] = 1;   // 日本語表記なしと確定 → 原語表記のまま・再検索しない
+          persistTeamMiss();
+        }
+      } catch {}
+    });
+  } finally { _teamLookupBusy = false; }
+}
+
 function renderScorers(data, code) {
   const wrap  = document.getElementById('scorersWrap');
   const lname = SCORERS_LEAGUES.find(l => l.code === code)?.label ?? '';
@@ -3345,6 +3407,7 @@ async function load(showLoader = false) {
     buildCountryFilter();
     renderSchedule();
     markUpdated();
+    autoLookupTeams();   // 未知クラブ名のWikipedia日本語化（裏で実行・見つかり次第差し替え）
   } catch(e) {
     document.getElementById('scheduleWrap').innerHTML = `<div class="state"><span class="ico">⚠️</span>${T.failed}: ${esc(e.message)}</div>`;
   } finally {
