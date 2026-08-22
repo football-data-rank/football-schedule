@@ -1871,8 +1871,12 @@ function toHalfKana(str) {
   return [...str].map(c => HALF_KANA_MAP[c] ?? c).join('');
 }
 function fitTeamName(name) {
-  // 正式なカタカナ表記を崩さない。長い名前は列のellipsis（…）で省略表示する
-  return name;
+  // W杯前からの仕様：スマホ幅ではカタカナ8文字以上の長いクラブ名を半角カナにして列に収める
+  // （W杯期間中は国名が短いため素通しにしていたが、クラブ名では文字が入りきらないため復元）
+  if (LANG !== 'ja') return name;
+  if (window.innerWidth >= 600) return name;
+  const fw = [...name].filter(c => c.charCodeAt(0) >= 0x30A0 && c.charCodeAt(0) <= 0x30FF).length;
+  return fw >= 8 ? toHalfKana(name) : name;
 }
 
 function scheduleRow(m) {
