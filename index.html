@@ -1634,14 +1634,14 @@ function nameToKatakana(name) {
 function teamNameJa(name) {
   if (!name) return name;
   if (LANG !== 'ja') return name;
-  // 辞書・手動登録・Wikipedia確定名のみ日本語化。未知のクラブは（機械カタカナ変換をやめて）
-  // いったん原語のまま表示し、裏のWikipedia自動検索(autoLookupTeams)で正式表記が見つかり次第差し替える。
-  // 機械変換は「スク・スト・トニス」等の誤表記を生むため廃止（Wikipedia表記に統一）。
+  // W杯前からの仕様：日本語モードでは必ずカタカナ表示（英語のまま出さない）。
+  // 優先順位: 手動登録/Wikipedia確定名 → 辞書 → カタカナ自動変換。
+  // Wikipedia正式表記は裏の自動検索(autoLookupTeams)で見つかり次第 nameOverrides に入り、自動変換を置き換える。
   return nameOverrides.teams[name]
       || TEAM_NAMES_JA[name]
       || TEAM_NAMES_JA[name.replace(/\s+FC$/i,'').trim()]
       || TEAM_NAMES_JA[name.replace(/^FC\s+/i,'').trim()]
-      || name;
+      || nameToKatakana(name);
 }
 
 // Wikipedia由来の名前に付く曖昧さ回避注記「(1974年生のサッカー選手)」等の末尾括弧を除去
@@ -1718,6 +1718,8 @@ function parseEvent(ev, lg) {
     awayShort: away.team.shortDisplayName || null,
     homeTeamEn: home.team.displayName || home.team.shortDisplayName || home.team.name,
     awayTeamEn: away.team.displayName || away.team.shortDisplayName || away.team.name,
+    homeAbbr: home.team.abbreviation || null,
+    awayAbbr: away.team.abbreviation || null,
     homeLogo: getLogo(home.team), awayLogo: getLogo(away.team),
     homeScore: (state !== 'pre') ? home.score : null,
     awayScore: (state !== 'pre') ? away.score : null,
@@ -1881,14 +1883,17 @@ const HALF_KANA_MAP = {
 function toHalfKana(str) {
   return [...str].map(c => HALF_KANA_MAP[c] ?? c).join('');
 }
-function fitTeamName(name, short) {
-  // W杯前からの仕様：スマホ幅では長いクラブ名を縮めて列に収める
-  // カタカナ8文字以上（日本語）→ 半角カナに変換（幅が約半分になる）
-  // ラテン文字の長い名前（英語モード／日本語モードの未変換名）→ ESPN公式短縮名("Man United"等)に切替
+function fitTeamName(name, short, abbr) {
+  // スマホ幅では長いクラブ名を縮めて列に収める（「…」を出さないための多段フォールバック）
+  // 日本語: カタカナ8文字以上 → 半角カナ（幅が約半分になる）
+  // 英字(元々半角): 14文字以上 → ESPN公式短縮名("Man United"等) → それでも長ければ公式略号("MUN"等)
   if (window.innerWidth >= 600) return name;
   const fw = [...name].filter(c => c.charCodeAt(0) >= 0x30A0 && c.charCodeAt(0) <= 0x30FF).length;
   if (LANG === 'ja' && fw >= 8) return toHalfKana(name);
-  if (fw === 0 && name.length > 13 && short && short.length < name.length) return short;
+  if (fw === 0 && name.length > 13) {
+    if (short && short.length < name.length) return short.length <= 13 ? short : (abbr || short);
+    return abbr || name;
+  }
   return name;
 }
 
@@ -1902,8 +1907,8 @@ function scheduleRow(m) {
   const cl = toHalfKana(compLabel);
   const hb = m.homeLogo ? `<img class="badge" src="${attr(m.homeLogo)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '';
   const ab = m.awayLogo ? `<img class="badge" src="${attr(m.awayLogo)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '';
-  const hn = fitTeamName(m.homeTeam, m.homeShort);
-  const an = fitTeamName(m.awayTeam, m.awayShort);
+  const hn = fitTeamName(m.homeTeam, m.homeShort, m.homeAbbr);
+  const an = fitTeamName(m.awayTeam, m.awayShort, m.awayAbbr);
   let timeEl;
   if (m.state === 'post') timeEl = `<span class="t-fin">${LANG==='ja'?'終了':'FT'}</span>`;
   else if (m.state === 'in') timeEl = `<span class="t-live"><span class="live-dot"></span>${esc(m.clock.replace(':00',"'"))}</span>`;
