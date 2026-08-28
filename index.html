@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Football Week | 欧州サッカー 日程・結果・順位・得点ランキング</title>
+  <title>Football Today | 欧州サッカー日程表</title>
   <meta name="google-site-verification" content="36E2heKne3wfqWYS__XDLWlvbopcAhlE-k4p4K3UlxM" />
   <meta name="description" content="プレミアリーグ・ラ・リーガ・セリエA・ブンデスリーガ・チャンピオンズリーグの試合日程・結果・順位表・得点ランキングをシンプルに確認。日本語・英語対応、毎日自動更新。Soccer schedule, standings and top scorers for Premier League, La Liga, Serie A, Bundesliga, Champions League.">
   <meta name="keywords" content="欧州サッカー,試合日程,順位表,得点ランキング,プレミアリーグ,ラ・リーガ,セリエA,ブンデスリーガ,チャンピオンズリーグ,soccer schedule,Premier League,La Liga,Serie A,Bundesliga,Champions League,football schedule">
@@ -38,11 +38,10 @@
       --nav:     42px;
     }
 
-    /* キャンバス背景＝Safariのバー（磨りガラス）の下地。ページ背景と同系色にして馴染ませる */
-    html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; background: #c8e6f7; }
     body {
       font-family: 'M PLUS 1p', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: linear-gradient(160deg, #c8e6f7 0%, #dff0f8 35%, #cceef5 70%, #d4eef9 100%);
+      background-attachment: fixed;
       color: var(--text);
       font-size: 14px;
       min-height: 100vh;
@@ -57,20 +56,18 @@
       justify-content: space-between;
       padding: 0 20px;
       height: var(--hdr);
+      position: sticky;
+      top: 0;
       z-index: 30;
-      overflow: hidden; /* バッジ等がヘッダー外にはみ出さない */
     }
     .site-title {
       font-size: 17px; font-weight: 800; letter-spacing: -.4px;
       display: flex; align-items: center; gap: 9px;
       font-family: 'BIZ UDPGothic', sans-serif;
-      white-space: nowrap; /* 画面が狭くても「Football Week」を折り返さない */
     }
     .site-title em { font-style: normal; }
     .site-logo {
       width: 30px; height: 30px; flex-shrink: 0;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 26px; line-height: 1;
       filter: drop-shadow(0 1px 2px rgba(0,0,0,.4));
     }
     .hright { display: flex; align-items: center; gap: 10px; }
@@ -93,6 +90,8 @@
       display: flex;
       padding: 0 20px;
       border-top: 1px solid #1e293b;
+      position: sticky;
+      top: var(--hdr);
       z-index: 29;
       height: var(--nav);
     }
@@ -125,6 +124,9 @@
       padding: 0 16px;
       overflow-x: auto;
       scrollbar-width: none;
+      position: sticky;
+      top: calc(var(--hdr) + var(--nav));
+      z-index: 28;
     }
     .filter-bar::-webkit-scrollbar { display: none; }
 
@@ -246,63 +248,8 @@
       80%  { opacity: 0.4; }
       100% { transform: translateY(-105vh) scale(1.15); opacity: 0; }
     }
-    /* 上端には触れさせない（画面全面の固定要素があるとSafariがバーを不透明にするため top をあける） */
-    #bubbles { position: fixed; left: 0; right: 0; bottom: 0; top: 120px; pointer-events: none; z-index: 0; overflow: hidden; }
+    #bubbles { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
     .bubble { position: absolute; bottom: -60px; border-radius: 50%; background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.45); animation: riseUp linear infinite; }
-
-    /* ─── World Cup mode（W杯期間中のみ body.wc-mode で有効） ─── */
-    body.wc-mode {
-      background: linear-gradient(160deg, #cdeeda 0%, #e3f6e8 35%, #d2f0df 70%, #d9f3e3 100%);
-    }
-    body.wc-mode #topbar {
-      background: linear-gradient(120deg, #14532d 0%, #166534 60%, #3f6212 100%);
-      border-bottom: 2px solid #facc15;
-    }
-    body.wc-mode #pageNav {
-      background: linear-gradient(120deg, #14532d 0%, #15803d 100%);
-      border-top-color: #166534;
-    }
-    body.wc-mode .pnav.active { color: #fde047; border-bottom-color: #facc15; }
-    body.wc-mode .pnav:hover  { color: #fde047; }
-    body.wc-mode .hbtn:hover  { border-color: #fde047; color: #fde047; }
-    body.wc-mode #lastUpdated.fresh { color: #fde047; }
-    body.wc-mode .filter-bar { background: rgba(220,252,231,0.85); border-bottom-color: rgba(187,247,208,0.7); }
-    body.wc-mode .ftab.active { color: #15803d; border-bottom-color: #15803d; }
-    body.wc-mode .ftab:hover  { color: #15803d; }
-    body.wc-mode .tbl.sched th { background: rgba(187,247,208,0.5); }
-    body.wc-mode .tbl.sched tr.drow td { background: rgba(22,163,74,0.22) !important; color: #14532d !important; }
-    @keyframes trophyPulse {
-      0%, 100% { transform: scale(1); }
-      50%      { transform: scale(1.18); }
-    }
-    /* 高さは固定（絵文字のフォントメトリクスで行が膨らみヘッダーからはみ出すのを防ぐ） */
-    #siteSubtitle { height: 13px; line-height: 13px; overflow: hidden; }
-    .wc-badge {
-      display: inline-flex; align-items: center; gap: 3px;
-      height: 13px; line-height: 1;
-      background: linear-gradient(120deg, #facc15, #eab308);
-      color: #14532d; font-size: 8px; font-weight: 800; letter-spacing: .4px;
-      border-radius: 8px; padding: 0 6px; white-space: nowrap;
-      vertical-align: top;
-    }
-    .wc-badge .tr { animation: trophyPulse 1.6s ease-in-out infinite; display: inline-block; font-size: 9px; line-height: 1; }
-    /* W杯モード: 金色に輝く光の粒（ゆらぎながら舞い上がる） */
-    @keyframes riseSway {
-      0%   { transform: translate(0, 0) scale(1); opacity: 0; }
-      8%   { opacity: .75; }
-      45%  { transform: translate(16px, -46vh) scale(1.06); }
-      75%  { opacity: .5; }
-      100% { transform: translate(-10px, -105vh) scale(1.18); opacity: 0; }
-    }
-    .bubble.wc-gold {
-      background: radial-gradient(circle at 35% 35%,
-        rgba(255,241,150,.95) 0%,
-        rgba(250,204,21,.55) 45%,
-        rgba(234,179,8,0) 72%);
-      border: none;
-      animation-name: riseSway;
-    }
-    /* （スタジアム照明グローは Safari のバー透明化を妨げる固定レイヤーになるため廃止） */
     #schedulePage, #standingsPage, #scorersPage, #editPage { position: relative; z-index: 1; }
     .stnd-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 8px 0 12px; font-size: 11px; color: var(--muted); }
     .legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
@@ -317,9 +264,6 @@
     }
     .player-inner { display: inline-flex; align-items: center; gap: 8px; }
     .player-hs { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: #e2e8f0; }
-    /* 得点ランキング：選手名の左にチームロゴ／国旗 */
-    .scorer-name-inner { display: inline-flex; align-items: center; gap: 7px; }
-    .scorer-badge { width: 18px; height: 18px; object-fit: contain; flex-shrink: 0; }
     .stat-val { width: 42px; text-align: center; font-size: 15px; font-weight: 800; color: var(--indigo); font-variant-numeric: tabular-nums; }
 
     /* ─── Knockout list (フォールバック) ─── */
@@ -344,10 +288,9 @@
       font-size: 10px; font-weight: 700; color: var(--muted);
       min-width: 36px; flex-shrink: 0;
     }
-    .ko-team { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: var(--text); }
-    .ko-team.right { justify-content: flex-end; text-align: right; }
+    .ko-team { flex: 1; font-size: 13px; font-weight: 500; color: var(--text); }
+    .ko-team.right { text-align: right; }
     .ko-team.winner { font-weight: 800; color: var(--indigo); }
-    .ko-badge { width: 18px; height: 18px; object-fit: contain; flex-shrink: 0; }
     .ko-score-box {
       display: flex; align-items: center; gap: 4px;
       font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums;
@@ -385,8 +328,7 @@
     .bc-team + .bc-team { border-top: none; }
     .bc-team.bc-w  { background: #eef2ff; border-color: #818cf8; font-weight: 700; color: var(--indigo); }
     .bc-team.bc-ch { background: #fef9c3; border-color: #eab308; font-weight: 800; color: #92400e; }
-    .bc-badge { width: 14px; height: 14px; object-fit: contain; flex-shrink: 0; margin-right: 4px; }
-    .bc-name { overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
+    .bc-name { overflow: hidden; text-overflow: ellipsis; flex: 1; }
     .bc-sc { font-size: 10px; color: var(--muted); flex-shrink: 0; padding-left: 4px; font-variant-numeric: tabular-nums; }
     .bc-lbl {
       text-align: center; font-size: 9px; font-weight: 700;
@@ -492,7 +434,7 @@
       text-align: left; padding: 7px 10px;
       background: var(--row-alt); border-bottom: 2px solid var(--border);
       font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: .4px;
-      position: sticky; top: 0;
+      position: sticky; top: calc(var(--hdr) + var(--nav));
     }
     .edit-tbl td { padding: 4px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
     .edit-tbl td:first-child { color: var(--muted); font-size: 12px; width: 50%; }
@@ -519,19 +461,21 @@
     /* ─── Responsive ─── */
     @media (max-width: 640px) {
       .hide-sm { display: none; }
-      /* ヘッダーはページ先頭に通常配置（スクロールで一緒に流れる） */
+      /* ヘッダーを画面幅に固定（テーブルが広くても崩れない） */
+      #topbar  { position: fixed; top: 0; left: 0; right: 0; transition: transform .3s ease; }
+      #pageNav { position: fixed; top: var(--hdr); left: 0; right: 0; transition: transform .3s ease; }
+      body.header-hidden #topbar  { transform: translateY(calc(-1 * var(--hdr))); }
+      body.header-hidden #pageNav { transform: translateY(calc(-1 * (var(--hdr) + var(--nav)))); }
+      #schedulePage, #standingsPage, #scorersPage, #editPage {
+        padding-top: calc(var(--hdr) + var(--nav));
+      }
       /* 試合日程 */
       #scheduleWrap { padding-left: 2px; padding-right: 2px; }
-      /* 長いチーム名で表が画面右へはみ出す（アウェイ列が見切れる）のを防ぐ。
-         2026-08-28のiPhone実機スクショで再発確認済み＝この指定は必須。外してはいけない */
-      .tbl.sched { table-layout: fixed; width: 100%; }
       .tbl.sched td { padding: 4px 0; }
       .tbl tr.drow td { padding: 6px 8px; }
       .th-time  { width: 38px; }
       .th-score { width: 44px; }
       .th-comp  { width: 40px; }
-      /* Home/Score/Away が中央で密着しないよう、チーム列ラベルは列の中央に */
-      .tbl.sched thead th.r, .tbl.sched thead th.l { text-align: center; }
       .td-score { width: 44px; padding: 4px 0; vertical-align: middle; text-align: center; }
       .score-inner { display: flex; flex-direction: column; align-items: center; gap: 1px; }
       .score-inner .t-pre  { position: static; display: inline-block; font-size: 12px; font-weight: 700; color: #fff; font-family: 'BIZ UDPMincho', serif; line-height: 1.3; background: rgba(10,40,80,0.55); border-radius: 5px; padding: 1px 5px; text-shadow: none; }
@@ -553,11 +497,6 @@
       .stnd-num  { width: 24px; }
       .stnd-pts  { width: 30px; }
       .stnd-gd   { width: 30px; }
-    }
-    /* #lastUpdated はモバイルで非表示済みなので、時計は通常スマホ幅では必ず表示する。
-       極端に狭い場合だけ秒…ではなくゾーン表記を省いて省スペース化（時刻自体は残す） */
-    @media (max-width: 360px) {
-      #clock { font-size: 11px; }
     }
   </style>
 </head>
@@ -597,13 +536,40 @@
 <!-- ── Header ── -->
 <div id="topbar">
   <div class="site-title" id="siteTitle">
-    <span class="site-logo" role="img" aria-label="サッカーボール">⚽</span>
+    <svg class="site-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <clipPath id="ballclip"><circle cx="50" cy="50" r="47.5"/></clipPath>
+        <radialGradient id="ballgrad" cx="38%" cy="32%" r="60%">
+          <stop offset="0%" stop-color="#ffffff"/>
+          <stop offset="100%" stop-color="#d8d8d8"/>
+        </radialGradient>
+      </defs>
+      <!-- ボール本体 -->
+      <circle cx="50" cy="50" r="48" fill="url(#ballgrad)" stroke="#aaa" stroke-width="1.5"/>
+      <!-- 黒パッチ（正五角形＋周囲5枚、白縫い目付き） -->
+      <g clip-path="url(#ballclip)" fill="#111" stroke="#fff" stroke-width="2.5" stroke-linejoin="round">
+        <!-- 中央五角形 -->
+        <polygon points="50,28 68.6,42 61.8,64 38.2,64 31.4,42"/>
+        <!-- 上 -->
+        <polygon points="35,2 65,2 72,16 68.6,42 50,28 31.4,42 28,16"/>
+        <!-- 右上 -->
+        <polygon points="72,16 95,26 98,55 80,66 68.6,42"/>
+        <!-- 右下 -->
+        <polygon points="80,66 96,88 76,102 55,102 61.8,64"/>
+        <!-- 左下 -->
+        <polygon points="20,66 4,88 24,102 45,102 38.2,64"/>
+        <!-- 左上 -->
+        <polygon points="28,16 5,26 2,55 20,66 31.4,42"/>
+      </g>
+      <!-- 外枠 -->
+      <circle cx="50" cy="50" r="48" fill="none" stroke="#999" stroke-width="1.5"/>
+    </svg>
     <span>
       <span style="display:block;line-height:1.1">
         <span style="color:#fff">Football</span>
-        <em style="background:#fff;color:#111;padding:1px 5px;border-radius:3px;margin-left:3px;font-size:15px">Week</em>
+        <em style="background:#fff;color:#111;padding:1px 5px;border-radius:3px;margin-left:3px;font-size:15px">Today</em>
       </span>
-      <span id="siteSubtitle" style="display:block;font-size:9px;font-weight:400;opacity:.65;letter-spacing:.8px;margin-top:1px">欧州サッカー日程・順位</span>
+      <span id="siteSubtitle" style="display:block;font-size:9px;font-weight:400;opacity:.65;letter-spacing:.8px;margin-top:1px">欧州サッカー日程表</span>
     </span>
   </div>
   <div class="hright">
@@ -699,39 +665,10 @@
 /* ════════════════════════════════════════
    言語設定
 ════════════════════════════════════════ */
-const LANG = (() => {
-  // 優先順位: ①URLの?lang=（指定されたら端末に記憶） ②過去に記憶した言語 ③ブラウザの言語リスト
-  // ③でjaを「リスト全体」から探すのは、検索結果等から ?lang=en 付きで開いてしまった日本語端末や、
-  // 第一言語が英語でも日本語を併記している端末で、勝手に英語表示にならないようにするため。
-  const q = new URLSearchParams(location.search).get('lang');
-  if (q === 'ja' || q === 'en') {
-    try { localStorage.setItem('langPref', q); } catch {}
-    return q;
-  }
-  try { const s = localStorage.getItem('langPref'); if (s === 'ja' || s === 'en') return s; } catch {}
-  const langs = (navigator.languages && navigator.languages.length) ? navigator.languages : [navigator.language];
-  return langs.some(l => String(l).toLowerCase().startsWith('ja')) ? 'ja' : 'en';
-})();
+const LANG = navigator.language.startsWith('ja') ? 'ja' : 'en';
 const WC_START = new Date('2026-06-11T00:00:00Z');
-// 大会は7/19決勝で終了したが、欧州リーグ開幕（8月中旬）までは結果・順位・得点王・ブラケットを
-// 見られるようW杯仕様を残す。プレミア開幕に合わせて 8/15 で自動終了。
-const WC_END   = new Date('2026-08-15T00:00:00Z');
+const WC_END   = new Date('2026-07-20T00:00:00Z');
 const isWorldCup = new Date() >= WC_START && new Date() <= WC_END;
-
-/* W杯期間中: 特別テーマ＋ヘッダーバッジ */
-if (isWorldCup) {
-  document.body.classList.add('wc-mode');
-  // Safariのバーの下地をW杯ページ背景と同じ淡い緑に
-  document.documentElement.style.background = '#cdeeda';
-  // 英語モード初期化がsubtitleのtextContentを書き換えた後に実行する
-  setTimeout(() => {
-    const sub = document.getElementById('siteSubtitle');
-    if (sub && !sub.querySelector('.wc-badge')) {
-      // サブタイトルをバッジに置き換える（追記すると幅が足りず折り返してヘッダーからはみ出す）
-      sub.innerHTML = '<span class="wc-badge"><span class="tr">🏆</span>WORLD CUP 2026</span>';
-    }
-  }, 0);
-}
 const T = {
   schedule:    LANG==='ja' ? '試合日程'             : 'Schedule',
   standings:   LANG==='ja' ? '各リーグ順位'         : 'Standings',
@@ -761,7 +698,7 @@ const T = {
   savedSuffix: LANG==='ja' ? '件）'                 : ' items)',
   leaguePhase: LANG==='ja' ? 'リーグフェーズ'       : 'League Phase',
   knockout:    LANG==='ja' ? 'ノックアウトステージ' : 'Knockout Stage',
-  subtitle:    LANG==='ja' ? '欧州サッカー日程・順位' : 'Scores · Fixtures · Tables',
+  subtitle:    LANG==='ja' ? 'サッカー日程表'       : 'Soccer Schedule',
   all:         LANG==='ja' ? 'すべて'               : 'All',
 };
 
@@ -1014,56 +951,6 @@ const TEAM_NAMES_JA = {
   'Maccabi Haifa':'マッカビ・ハイファ','Maccabi Tel Aviv':'マッカビ・テルアビブ',
   'Zenit':'ゼニト','Zenit Saint Petersburg':'ゼニト',
   'Spartak Moscow':'スパルタク・モスクワ','Lokomotiv Moscow':'ロコモティフ・モスクワ','CSKA Moscow':'CSKAモスクワ',
-
-  // ── 代表（ワールドカップ出場国 / ウィキペディア準拠のカタカナ）──
-  'Algeria':'アルジェリア',
-  'Argentina':'アルゼンチン',
-  'Australia':'オーストラリア',
-  'Austria':'オーストリア',
-  'Belgium':'ベルギー',
-  'Bosnia-Herzegovina':'ボスニア・ヘルツェゴビナ','Bosnia and Herzegovina':'ボスニア・ヘルツェゴビナ','Bosnia & Herzegovina':'ボスニア・ヘルツェゴビナ',
-  'Brazil':'ブラジル',
-  'Canada':'カナダ',
-  'Cape Verde':'カーボベルデ','Cabo Verde':'カーボベルデ',
-  'Colombia':'コロンビア',
-  'Congo DR':'コンゴ民主共和国','DR Congo':'コンゴ民主共和国','Democratic Republic of the Congo':'コンゴ民主共和国','Congo DR ':'コンゴ民主共和国',
-  'Croatia':'クロアチア',
-  'Curaçao':'キュラソー','Curacao':'キュラソー',
-  'Czechia':'チェコ','Czech Republic':'チェコ',
-  'Ecuador':'エクアドル',
-  'Egypt':'エジプト',
-  'England':'イングランド',
-  'France':'フランス',
-  'Germany':'ドイツ',
-  'Ghana':'ガーナ',
-  'Haiti':'ハイチ',
-  'Iran':'イラン','IR Iran':'イラン',
-  'Iraq':'イラク',
-  'Ivory Coast':'コートジボワール',"Côte d'Ivoire":'コートジボワール','Cote d\'Ivoire':'コートジボワール',
-  'Japan':'日本',
-  'Jordan':'ヨルダン',
-  'Mexico':'メキシコ',
-  'Morocco':'モロッコ',
-  'Netherlands':'オランダ',
-  'New Zealand':'ニュージーランド',
-  'Norway':'ノルウェー',
-  'Panama':'パナマ',
-  'Paraguay':'パラグアイ',
-  'Portugal':'ポルトガル',
-  'Qatar':'カタール',
-  'Saudi Arabia':'サウジアラビア',
-  'Scotland':'スコットランド',
-  'Senegal':'セネガル',
-  'South Africa':'南アフリカ',
-  'South Korea':'韓国','Korea Republic':'韓国','Republic of Korea':'韓国',
-  'Spain':'スペイン',
-  'Sweden':'スウェーデン',
-  'Switzerland':'スイス',
-  'Tunisia':'チュニジア',
-  'Türkiye':'トルコ','Turkiye':'トルコ','Turkey':'トルコ',
-  'United States':'アメリカ','USA':'アメリカ','United States of America':'アメリカ',
-  'Uruguay':'ウルグアイ',
-  'Uzbekistan':'ウズベキスタン',
 };
 
 /* ────────────────────────────────────────
@@ -1475,51 +1362,39 @@ const BOUNDARY_H  = 5;
 const TOP_N       = 200;  // 全件取得（最後尾まで表示）
 
 /* ════════════════════════════════════════
-   通信ユーティリティ（取りこぼし対策）
-   - fetchJson: 失敗時に短いリトライ（ESPN非公式APIのレート制限／瞬断対策）
-   - mapPool   : 同時実行数を絞って一気に撃たない（バーストでの失敗を防ぐ）
+   ライブ反映用・通信ユーティリティ
+   - fetchJson: リトライ＋10秒タイムアウト（モバイル回線はfetchがエラーにならず永遠にハングする
+     ことがあり、放置すると自動更新チェーンが無言で死ぬ）＋キャッシュ回避
+   - mapPool  : 同時実行数を絞る（一斉送信だとESPNのレート制限で歯抜けになる）
 ════════════════════════════════════════ */
-const FETCH_CONCURRENCY = 6;   // 同時に投げる最大リクエスト数
-const SCORER_CONCURRENCY = 10; // 得点ランキングの軽量な詳細取得（選手詳細/試合summary）は多めに並列化
-const LOOKUP_CONCURRENCY = 3;  // Wikipedia日本語名検索の並列数（直列800msは激遅・多並列は429レート制限。429になった分は保存されず次回の更新で自動再試行される）
-const FETCH_RETRIES     = 2;   // 失敗時の追加リトライ回数
-const FETCH_TIMEOUT     = 10_000; // 1リクエストの最大待ち時間(ms)
+const FETCH_CONCURRENCY = 6;
+const FETCH_RETRIES     = 2;
+const FETCH_TIMEOUT     = 10_000;
 async function fetchJson(url, { retries = FETCH_RETRIES, timeout = FETCH_TIMEOUT } = {}) {
   let lastErr;
   for (let attempt = 0; attempt <= retries; attempt++) {
-    // ⚠️ タイムアウト必須：モバイル回線ではfetchがエラーにならず永遠にハングすることがある。
-    //    ハングすると load() が完了せず「次の自動更新の予約」に到達しない＝自動更新が無言で死ぬ。
-    //    （「手動更新なら動くのに自動では固まる」の正体）。AbortControllerで強制打ち切り→リトライ。
     const ctrl = new AbortController();
     const tid  = setTimeout(() => ctrl.abort(), timeout);
     try {
-      // 毎回ユニークな ?_= でCDNの古いスナップショットを回避。no-store はブラウザ側キャッシュ対策。
-      // 古い応答の混入は描画側の単調マージ(applyMonotonic)でガード済み。
+      // 毎回ユニークな ?_= でESPN側CDNの古いスナップショットを掴まない。no-storeはブラウザ側対策
       const bust = (url.includes('?') ? '&' : '?') + '_=' + Date.now() + '-' + attempt;
       const res = await fetch(url + bust, { cache: 'no-store', signal: ctrl.signal });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       return await res.json();
     } catch (e) {
       lastErr = e;
-      if (attempt < retries) {
-        // 指数バックオフ + ジッタ（350ms, 700ms ...）でレート制限を避ける
-        await new Promise(r => setTimeout(r, 350 * (attempt + 1) + Math.random() * 200));
-      }
+      if (attempt < retries) await new Promise(r => setTimeout(r, 350 * (attempt + 1) + Math.random() * 200));
     } finally {
       clearTimeout(tid);
     }
   }
   throw lastErr;
 }
-// items を fn で処理。同時実行は limit 本まで。順序は保持して結果配列を返す
 async function mapPool(items, limit, fn) {
   const results = new Array(items.length);
   let i = 0;
   async function worker() {
-    while (i < items.length) {
-      const idx = i++;
-      results[idx] = await fn(items[idx], idx);
-    }
+    while (i < items.length) { const idx = i++; results[idx] = await fn(items[idx], idx); }
   }
   await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
   return results;
@@ -1531,18 +1406,14 @@ let activeStandCode     = STANDINGS_LEAGUES[0].code;
 let activeScorersCode   = SCORERS_LEAGUES[0].code;
 let activeScorersTab    = 'goals';
 let allMatches          = [];
-let lastSchedByLeague   = {};   // リーグ別・直近の取得成功データ（取得失敗時に試合を消さないためのフォールバック）
-let matchBest           = {};   // 試合ID別・これまでに見た「最も進んだ」状態（後戻り防止＝単調マージ用）
+let lastSchedByLeague   = {};   // リーグ別・直近の取得成功データ（一部リーグの取得失敗時に試合を消さない）
+let matchBest           = {};   // 試合ID別・これまでに見た最も進んだ状態（古い応答による後戻り防止）
 const standingsCache    = {};
 const scorersCache      = {};
 let timer               = null;
 let _bracketConns       = [];
 let nameOverrides = {"teams":{"Liverpool":"リヴァプール","Liverpool FC":"リヴァプール","Aston Villa":"アストン・ヴィラ","Aston Villa FC":"アストン・ヴィラ","Brighton":"ブライトン","Brighton & Hove Albion":"ブライトン","Brighton and Hove Albion":"ブライトン","Wolves":"ウォルヴァーハンプトン","Wolverhampton":"ウォルヴァーハンプトン","Wolverhampton Wanderers":"ウォルヴァーハンプトン","Everton":"エヴァートン","Everton FC":"エヴァートン","Frankfurt":"フランクフルト","Eintracht Frankfurt":"フランクフルト","Ein. Frankfurt":"フランクフルト","Levante":"レバンテ","1. FC Heidenheim 1846":"ハイデンハイム","Hamburg SV":"ハンブルガーSV","FC Cologne":"ケルン","Paris FC":"パリFC"},"players":{"Bryan Mbeumo":"ブライアン・エンベウモ","Kai Havertz":"カイ・ハヴァーツ","Ivan Toney":"アイヴァン・トニー","Kylian Mbappe":"キリアン・エンバペ","Kylian Mbappé":"キリアン・エンバペ","Robert Lewandowski":"ロベルト・レヴァンドフスキ","Vinicius Junior":"ヴィニシウス・ジュニオール","Vinícius Júnior":"ヴィニシウス・ジュニオール","Vinicius Jr.":"ヴィニシウス・ジュニオール","Florian Wirtz":"フロリアン・ヴィルツ","Victor Boniface":"ヴィクター・ボニフェイス","Serhou Guirassy":"セール・ギラシ","Omar Marmoush":"オマル・マーモウシュ","Deniz Undav":"デニズ・ウンダフ","Michael Olise":"マイケル・オリーセ","Alphonso Davies":"アルフォンソ・デイビス","Dusan Vlahovic":"ドゥシャン・ヴラホビッチ","Dušan Vlahović":"ドゥシャン・ヴラホビッチ","Khvicha Kvaratskhelia":"クヴィチャ・クヴァラツヘリア","Tijjani Reijnders":"ティジャニ・ラインデルス","Victor Osimhen":"ヴィクター・オシムヘン","Marc Cucurella":"マルク・ククレジャ","Levi Colwill":"リーヴァイ・コルウィル","Malo Gusto":"マロ・ギュスト","Guglielmo Vicario":"グリエルモ・ヴィカーリオ","Aurelien Tchouameni":"オーレリアン・チュアメニ","Aurélien Tchouaméni":"オーレリアン・チュアメニ","Nahuel Molina":"ナウエル・モリーナ","Sergi Roberto":"セルジ・ロベルト","Xavi Simons":"シャビ・シモンズ","Olivier Giroud":"オリヴィエ・ジルー","Nathan Ake":"ナタン・アケ","Nathan Aké":"ナタン・アケ","Mathys Tel":"マチス・テル","Gabriel Magalhães":"ガブリエル・マガリャンイス","Nwaneri":"ヌワネリ","Ethan Nwaneri":"エタン・ヌワネリ","Alexis Mac Allister":"アレクシス・マクアリスター","Viktor Gyokeres":"ヴィクトル・ギョケレシュ","Viktor Gyökeres":"ヴィクトル・ギョケレシュ","Dominik Livakovic":"ドミニク・リヴァコビッチ","Dominik Livaković":"ドミニク・リヴァコビッチ","João Pedro":"ジョアン・ペドロ","Dominic Calvert-Lewin":"ドミニク・カルヴァート＝ルーウィン","Hugo Ekitike":"ヒューゴ・エキティケ","Harry Wilson":"ハリー・ウィルソン","Morgan Gibbs-White":"モーガン・ギブスホワイト","James Garner":"ジェームズ・ガーナー","Vedat Muriqi":"ベダト・ムリキ","Alexander Sørloth":"アレクサンデル・セルロート","Georges Mikautadze":"ジョージズ・ミカウタゼ","Alberto Moleiro":"アルベルト・モレイロ","Luis Milla":"ルイス・ミジャ","Arda Güler":"アルダ・キュレル","Antony":"アントニー","Edu Expósito":"エドゥ・エスポジト","Giuliano Simeone":"ジュリアーノ・シメオネ","Guela Doué":"ゲラ・ドゥエ","Endrick":"エンドリッキ","Adrien Thomasson":"アドリアン・トマソン","Joaquín Panichelli":"ホアキン・パニチェッリ","Folarin Balogun":"フォラリン・バログン","Florian Thauvin":"フロリアン・トヴァン","Pablo Pagis":"パブロ・パジス","Pierre-Emerick Aubameyang":"ピエールエメリク・オーバメヤン","Donyell Malen":"ドニエル・マレン","Hakan Çalhanoglu":"ハカン・チャルハノール","Nikola Vlasic":"ニコラ・ブラシッチ","Armand Laurienté":"アルマン・ロリアンテ","Jesús Rodriguez":"ヘスス・ロドリゲス","Charles De Ketelaere":"シャルル・デケテラーレ","Antoine Semenyo":"アントワーヌ・セメンヨ","Andrej Kramaric":"アンドレイ・クラマリッチ","Christoph Baumgartner":"クリストフ・バウムガルトナー","Said El Mala":"サイード・エル・マラ","Haris Tabakovic":"ハリス・タバコヴィッチ","Julian Ryerson":"ユリアン・リエルソン","Bazoumana Touré":"バズマナ・トゥーレ","Farès Chaïbi":"ファレス・シャイビ","Vladimír Coufal":"ヴラディミール・ツォウファル","Romano Schmid":"ロマーノ・シュミット","Jamie Leweling":"ジェイミー・レヴェリング","Giovane":"ジオヴァーニ","Matìas Soulè":"マティアス・スーレ","Maxence Caqueret":"マクサンス・カケレ","Anastasios Douvikas":"アナスタシオス・バカセタス","Nikola Krstovic":"ニコラ・クルストヴィッチ","Yan Diomande":"ヤン・ディオマンデ","Andrej Ilic":"アンドレイ・イリッチ","Christian Eriksen":"クリスティアン・エリクセン","Sebastiano Esposito":"セバスティアーノ・エスポジト","Pavel Sulc":"パヴェル・シュルツ","Sergi Darder":"セルジ・ダルデル","Santi Comesaña":"サンティ・コメサーニャ","Lucas Boyé":"ルーカス・ボジェ","Jorge de Frutos":"ホルヘ・デ・フルートス","Cucho Hernández":"クチョ・エルナンデス","André Silva":"アンドレ・シルヴァ","Hugo Duro":"ウーゴ・ドゥロ","Gorka Guruzeta":"ゴルカ・グルセタ","Federico Viñas":"フェデリコ・ビニャス","Vladyslav Vanat":"ヴラディスラフ・ヴァナト","Álvaro Rodríguez":"アルバロ・ロドリゲス","Yuri Berchiche":"ユーリ・ベルチチェ","Rubén García":"ルベン・ガルシア","Javier Guerra":"ハビエル・ゲラ","Luis Rioja":"ルイス・リオハ","Ander Barrenetxea":"アンデル・バレネチェア","Rômulo":"ホムル","Maximilian Beier":"マクシミリアン・バイアー","Jens Stage":"イェンス・ステーイ","Jakub Kaminski":"ヤクブ・カミンスキ","Tim Lemperle":"ティム・レンペール","Grischa Prömel":"グリシャ・プレメル","Igor Matanovic":"イゴール・マタノヴィッチ","Nadiem Amiri":"ナディーム・アミリ","Chris Führich":"クリス・ヒューリッヒ","Fisnik Asllani":"フィスニク・アスラニ","Franck Honorat":"フランク・オノラ","Fábio Silva":"ファビオ・シルヴァ","Angelo Stiller":"アンジェロ・スティラー","Aleix García":"アレイクス・ガルシア","Riccardo Orsolini":"リッカルド・オルソリーニ","Moise Kean":"モイーズ・キーン","Domenico Berardi":"ドメニコ・ベラルディ","Lorenzo Colombo":"ロレンツォ・コロンボ","Santiago Castro":"サンティアゴ・カストロ","Marco Palestra":"マルコ・パレストラ","Antonino Gallo":"アントニーノ・ガッロ","Máximo Perrone":"マクシモ・ペローネ","Jonathan David":"ジョナサン・デイヴィッド","Nicola Zalewski":"ニコラ・ザレフスキ","Esteban Lepaul":"エステバン・ルポール","Maghnes Akliouche":"マグネス・アクリウシェ","Ludovic Ajorque":"ルドヴィク・アジョルク","Felix Correia":"フェリックス・コレイア","Igor Paixão":"イゴール・パイシャオン","Aleksandr Golovin":"アレクサンドル・ゴロヴィン"}};
 (function(){ try { const s=localStorage.getItem('nameOverrides'); if(s){ const o=JSON.parse(s); nameOverrides.teams=Object.assign({},nameOverrides.teams,o.teams||{}); nameOverrides.players=Object.assign({},nameOverrides.players,o.players||{}); } } catch{} })();
-// 得点ランキングの自動日本語化キャッシュ：一度Wikipediaで「日本語名なし」と確定した選手を記録し、
-// 毎回の再検索を防ぐ（＝表示はカタカナ自動変換で確定）。localStorageに永続化。
-let resolvedMiss = {};
-(function(){ try { resolvedMiss = JSON.parse(localStorage.getItem('scorerNameMiss') || '{}') || {}; } catch { resolvedMiss = {}; } })();
 
 /* ════════════════════════════════════════
    ユーティリティ
@@ -1645,17 +1516,10 @@ function teamNameJa(name) {
       || nameToKatakana(name);
 }
 
-// Wikipedia由来の名前に付く曖昧さ回避注記「(1974年生のサッカー選手)」等の末尾括弧を除去
-function cleanJaName(s) {
-  if (!s) return s;
-  return String(s).replace(/\s*[（(][^（()）]*[)）]\s*$/, '').trim();
-}
 function playerNameJa(name) {
   if (!name) return name;
   if (LANG !== 'ja') return name;
-  // 手動登録 or Wikipediaで確定した日本語名があればそれを使う。
-  // 無ければ（カタカナ自動変換はせず）英語表記のまま表示する。
-  return cleanJaName(nameOverrides.players[name] || PLAYER_NAMES_JA[name] || name);
+  return nameOverrides.players[name] || PLAYER_NAMES_JA[name] || nameToKatakana(name);
 }
 
 function getLogo(team) {
@@ -1702,12 +1566,10 @@ function parseEvent(ev, lg) {
   if (!home || !away) return null;
   const stType = comp.status?.type ?? ev.status?.type ?? {};
   let state  = stType.state ?? 'pre';
-  // 完了フラグが最も信頼できる「終了」シグナル。state が古くても終了済みなら post に
+  // 完了フラグが最も信頼できる「終了」シグナル。stateが古くても終了済みならpostに。
+  // ※端末の時計を使った補正（旧minsFromStart）は、閲覧者の時計ズレでライブが未開始/終了に化ける
+  //   原因だったため廃止。ESPNの状態をそのまま信頼する（古い応答は下のマージで弾く）。
   if (stType.completed === true) state = 'post';
-  // ※以前はここで端末の時計（Date.now）を使って 'in'→'pre'/'post' を補正していたが、
-  //   閲覧者の端末の時計やタイムゾーンがズレていると「ライブ中の試合が未開始/終了に化ける」
-  //   ＝リアルタイムで反映されない主因になっていた。範囲指定クエリにしたことでESPNの
-  //   state は信頼できるため、端末時計に依存する補正は撤廃し ESPN の状態をそのまま使う。
   const timing = getMatchTiming(ev.date);
   return {
     id: ev.id, utcDate: ev.date,
@@ -1718,31 +1580,8 @@ function parseEvent(ev, lg) {
     homeScore: (state !== 'pre') ? home.score : null,
     awayScore: (state !== 'pre') ? away.score : null,
     state, clock: comp.status?.displayClock || '',
-    homeId: home.team?.id, awayId: away.team?.id,
-    // 英語モードのスマホ幅で長い名前を収めるためのESPN公式短縮名・略号（日本語モードでは未使用）
-    homeShort: home.team?.shortDisplayName || null, awayShort: away.team?.shortDisplayName || null,
-    homeAbbr: home.team?.abbreviation || null, awayAbbr: away.team?.abbreviation || null,
     label: lg.label, shortLabel: lg.short || lg.label, country: lg.country, leagueColor: lg.color || '#64748b',
   };
-}
-
-/* W杯グループステージ用：チームID→グループ名（"A".."L"）の対応表。順位表から一度だけ構築 */
-let wcGroupMap = null;
-async function fetchWcGroupMap() {
-  if (wcGroupMap) return wcGroupMap;
-  wcGroupMap = {};
-  try {
-    const res = await fetch(`${ESPN_STND}/fifa.world/standings?lang=ja&region=jp`);
-    if (!res.ok) return wcGroupMap;
-    const data = await res.json();
-    for (const ch of data.children || []) {
-      const g = (ch.abbreviation || ch.name || '').replace(/^Group\s+/i, '').trim();
-      for (const e of ch.standings?.entries || []) {
-        if (e.team?.id) wcGroupMap[e.team.id] = g;
-      }
-    }
-  } catch {}
-  return wcGroupMap;
 }
 
 async function fetchSchedule() {
@@ -1751,27 +1590,25 @@ async function fetchSchedule() {
     return d.toISOString().slice(0,10).replace(/-/g,'');
   };
   const from = dayStr(-1), to = dayStr(6);
-  // ⚠️ ESPNのCDNはクエリURLの「形」ごとに鮮度がバラバラで、しかも時々逆転する。
-  //    実測：あるライブ試合が「範囲クエリ」では10時間前のまま(89'で固着)なのに、
-  //    「今日の単日クエリ」では正しく進行中(32')が返る…という事が起きる（逆の日もある）。
-  //    1種類のクエリに頼るとライブ/結果が固まる主因。→ 範囲(表示の広さ)＋直近2日の単日(鮮度確保)を
-  //    全部取得し、同じ試合は“最も進んだ状態”を採用して取りこぼしを無くす。
+  // ⚠️ ESPNのCDNは「クエリURLの形」ごとに鮮度がバラバラで、どれが新しいかは時間帯で逆転する
+  //    （実測：同じライブ試合が範囲クエリでは10時間前で固着、単日クエリでは最新…その逆も）。
+  //    1種類に頼るとライブ/結果が固まるため、範囲＋今日＋昨日の3クエリを取得し、
+  //    同じ試合は「最も進んだ状態」を採用する。
   const jobs = SCHEDULE_LEAGUES.flatMap(lg => [
     { lg, url: `${ESPN_SCHED}/${lg.code}/scoreboard?dates=${from}-${to}&limit=300&lang=ja&region=jp` },
     { lg, url: `${ESPN_SCHED}/${lg.code}/scoreboard?dates=${dayStr(0)}&limit=100&lang=ja&region=jp` },
     { lg, url: `${ESPN_SCHED}/${lg.code}/scoreboard?dates=${dayStr(-1)}&limit=100&lang=ja&region=jp` },
   ]);
-
   const results = await mapPool(jobs, FETCH_CONCURRENCY, async ({ lg, url }) => {
     try {
       const d = await fetchJson(url);
       return { code: lg.code, evs: (d.events || []).map(ev => parseEvent(ev, lg)).filter(Boolean) };
     } catch {
-      return { code: lg.code, evs: null };   // このURLは失敗（＝無視。他のクエリ/前回データで補う）
+      return { code: lg.code, evs: null };   // このURLは失敗（他のクエリ/前回データで補う）
     }
   });
 
-  // リーグごとに集約。1試合も取れなかったリーグだけ直近の成功データでフォールバック（試合を消さない）
+  // リーグごとに集約。1件も取れなかったリーグだけ直近の成功データでフォールバック（試合を消さない）
   const perLeague = {};
   for (const { code, evs } of results) {
     if (evs === null) continue;
@@ -1785,24 +1622,21 @@ async function fetchSchedule() {
     all.push(...evs);
   }
 
-  // 同一試合IDが複数クエリで重複 → バッチ内は“最も進んだ状態”で重複排除し、
-  // さらにセッション横断の単調マージで、古い応答による後戻りを防ぐ。
+  // 同一試合IDはバッチ内で「最も進んだ状態」に統合し、さらに過去に見た状態より後退した応答は捨てる
   const byId = {};
   for (const e of all) byId[e.id] = byId[e.id] ? (moreAdvanced(e, byId[e.id]) ? e : byId[e.id]) : e;
   return Object.values(byId).map(applyMonotonic);
 }
 
-// 試合の「進み具合」比較キー：状態(pre<in<post) → 経過分(clock)。
-// clockを使うことで、ライブの分進行や、より新しい応答（VARで得点訂正=減点でも新しい方）を正しく採用できる。
+// 試合の「進み具合」比較: 状態(pre<in<post) → 経過分(clock)。古い応答による後戻りを防ぐ
 const STATE_RANK = { pre: 0, in: 1, post: 2 };
 function clockMins(e) { const m = String(e.clock || '').match(/\d+/); return m ? parseInt(m[0], 10) : 0; }
 function advKey(e) { return [STATE_RANK[e.state] ?? 0, clockMins(e)]; }
-function moreAdvanced(a, b) {         // a が b と同等以上に進んでいるか
+function moreAdvanced(a, b) {
   const ka = advKey(a), kb = advKey(b);
   for (let i = 0; i < ka.length; i++) if (ka[i] !== kb[i]) return ka[i] > kb[i];
   return true;
 }
-// 単調マージ：過去に見た最も進んだ状態より後退した応答は捨てる（ESPNの鮮度ゆらぎ対策）
 function applyMonotonic(e) {
   const prev = matchBest[e.id];
   if (prev && !moreAdvanced(e, prev)) return prev;
@@ -1818,17 +1652,7 @@ function renderSchedule() {
   const base = activeCountry === 'all' ? allMatches : allMatches.filter(m => m.country === activeCountry);
   // 終了試合は前日以降のみ表示
   const list = base.filter(m => m.state !== 'post' || m.logicalDate >= yesterdayLocal);
-  const label = COUNTRY_FILTERS.find(f => f.id === activeCountry)?.label ?? 'すべて';
-
-  // 試合が無くてもフィルター（リーグ選択）は必ず残す＝別リーグへ戻れるように
-  if (!list.length) {
-    wrap.innerHTML = `
-      <div class="sec-head">
-        <button id="countryTriggerBtn" class="sec-title">${esc(label)} ▼</button>
-      </div>
-      <p style="color:var(--muted);font-size:13px;padding:14px 2px">${T.noMatches}</p>`;
-    return;
-  }
+  if (!list.length) { wrap.innerHTML = `<div class="state"><span class="ico">📋</span>${T.noMatches}</div>`; return; }
 
   const sorted  = list.slice().sort((a,b) => new Date(a.utcDate) - new Date(b.utcDate));
   const dates   = [...new Set(sorted.map(m => m.logicalDate))];
@@ -1837,9 +1661,10 @@ function renderSchedule() {
   let lastDate  = null;
   const rows    = [];
   for (const m of sorted) {
-    if (m.logicalDate !== lastDate) { rows.push(`<tr class="drow"><td colspan="3">${dayLabel(m.logicalDate)}</td></tr>`); lastDate = m.logicalDate; }
+    if (m.logicalDate !== lastDate) { rows.push(`<tr class="drow"><td colspan="5">${dayLabel(m.logicalDate)}</td></tr>`); lastDate = m.logicalDate; }
     rows.push(scheduleRow(m));
   }
+  const label = COUNTRY_FILTERS.find(f => f.id === activeCountry)?.label ?? 'すべて';
   wrap.innerHTML = `
     <div class="sec-head">
       <button id="countryTriggerBtn" class="sec-title">${esc(label)} ▼</button>
@@ -1880,34 +1705,19 @@ const HALF_KANA_MAP = {
 function toHalfKana(str) {
   return [...str].map(c => HALF_KANA_MAP[c] ?? c).join('');
 }
-function fitTeamName(name, short, abbr) {
+function fitTeamName(name) {
+  if (LANG !== 'ja') return name;
   if (window.innerWidth >= 600) return name;
-  if (LANG !== 'ja') {
-    // 英語: 14文字以上はESPN公式短縮名("Man United"等)、それでも長ければ略号("MUN"等)。
-    // table-layout:fixed の列に収め、「…」も画面はみ出しも出さないため
-    if (name.length > 13) {
-      if (short && short.length < name.length) return short.length <= 13 ? short : (abbr || short);
-      return abbr || name;
-    }
-    return name;
-  }
-  // 日本語: W杯前からの仕様（カタカナ8文字以上 → 半角カナ）
   const fw = [...name].filter(c => c.charCodeAt(0) >= 0x30A0 && c.charCodeAt(0) <= 0x30FF).length;
   return fw >= 8 ? toHalfKana(name) : name;
 }
 
 function scheduleRow(m) {
-  // W杯グループステージは「WC」の代わりにグループ名（グループA / Group A）を表示
-  let compLabel = m.shortLabel;
-  if (isWorldCup && m.country === 'world' && wcGroupMap) {
-    const g = wcGroupMap[m.homeId] || wcGroupMap[m.awayId];
-    if (g) compLabel = `Group ${g}`;
-  }
-  const cl = toHalfKana(compLabel);
+  const cl = toHalfKana(m.shortLabel);
   const hb = m.homeLogo ? `<img class="badge" src="${attr(m.homeLogo)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '';
   const ab = m.awayLogo ? `<img class="badge" src="${attr(m.awayLogo)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '';
-  const hn = fitTeamName(m.homeTeam, m.homeShort, m.homeAbbr);
-  const an = fitTeamName(m.awayTeam, m.awayShort, m.awayAbbr);
+  const hn = fitTeamName(m.homeTeam);
+  const an = fitTeamName(m.awayTeam);
   let timeEl;
   if (m.state === 'post') timeEl = `<span class="t-fin">${LANG==='ja'?'終了':'FT'}</span>`;
   else if (m.state === 'in') timeEl = `<span class="t-live"><span class="live-dot"></span>${esc(m.clock.replace(':00',"'"))}</span>`;
@@ -1923,38 +1733,28 @@ function scheduleRow(m) {
    ② 各リーグ順位 — 取得・描画
 ════════════════════════════════════════ */
 async function fetchStandings(code) {
-  return fetchJson(`${ESPN_STND}/${code}/standings?lang=ja&region=jp`);
+  const res = await fetch(`${ESPN_STND}/${code}/standings?lang=ja&region=jp`);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
 }
 
 function parseStandings(data) {
-  // 全グループ対応：children が複数（W杯のグループA〜L等）なら全て処理
-  const groups = (data.children?.length)
-    ? data.children.map(ch => ({ name: ch.name || '', entries: ch.standings?.entries || [] }))
-    : [{ name: '', entries: data.standings?.entries || [] }];
-  const multi = groups.length > 1;
-  const out = [];
-  for (const g of groups) {
-    const groupName = multi
-      ? (LANG === 'ja' ? g.name.replace(/^Group\s+/i, 'グループ') : g.name)
-      : null;
-    g.entries.map(e => {
-      const s = {};
-      (e.stats||[]).forEach(st => { s[st.name] = st.value; });
-      return {
-        rank:   Math.round(s.rank||0),
-        team:   teamNameJa(e.team?.displayName || e.team?.shortDisplayName || '?'),
-        teamEn: e.team?.displayName || e.team?.shortDisplayName || '?',
-        logo:   e.team?.logos?.[0]?.href || null,
-        gp: Math.round(s.gamesPlayed||0), w: Math.round(s.wins||0),
-        d:  Math.round(s.ties||0),        l: Math.round(s.losses||0),
-        gf: Math.round(s.pointsFor||0),   ga: Math.round(s.pointsAgainst||0),
-        gd: Math.round(s.pointDifferential||0), pts: Math.round(s.points||0),
-        noteColor: e.note?.color || null, noteDesc: e.note?.description || null,
-        group: groupName,
-      };
-    }).sort((a,b) => a.rank - b.rank).forEach(e => out.push(e));
-  }
-  return out;
+  const entries = data.children?.[0]?.standings?.entries || data.standings?.entries || [];
+  return entries.map(e => {
+    const s = {};
+    (e.stats||[]).forEach(st => { s[st.name] = st.value; });
+    return {
+      rank:   Math.round(s.rank||0),
+      team:   teamNameJa(e.team?.displayName || e.team?.shortDisplayName || '?'),
+      teamEn: e.team?.displayName || e.team?.shortDisplayName || '?',
+      logo:   e.team?.logos?.[0]?.href || null,
+      gp: Math.round(s.gamesPlayed||0), w: Math.round(s.wins||0),
+      d:  Math.round(s.ties||0),        l: Math.round(s.losses||0),
+      gf: Math.round(s.pointsFor||0),   ga: Math.round(s.pointsAgainst||0),
+      gd: Math.round(s.pointDifferential||0), pts: Math.round(s.points||0),
+      noteColor: e.note?.color || null, noteDesc: e.note?.description || null,
+    };
+  }).sort((a,b) => a.rank - b.rank);
 }
 
 /* ════════════════════════════════════════
@@ -1964,18 +1764,12 @@ const CUP_KO_CODES = new Set(['uefa.champions','uefa.europa','uefa.europa.conf',
 const koCache = {};
 
 const KO_ROUND_ORDER = ['round-of-32','round-of-16','quarterfinals','semifinals','final'];
-const KO_ROUND_JA = LANG === 'ja' ? {
+const KO_ROUND_JA = {
   'round-of-32':  'ベスト32',
   'round-of-16':  'ベスト16',
   'quarterfinals':'準々決勝',
   'semifinals':   '準決勝',
   'final':        '決勝',
-} : {
-  'round-of-32':  'Round of 32',
-  'round-of-16':  'Round of 16',
-  'quarterfinals':'Quarterfinals',
-  'semifinals':   'Semifinals',
-  'final':        'Final',
 };
 
 /* ラウンド識別（slugが無い場合はイベント名から推定） */
@@ -2002,18 +1796,9 @@ async function fetchKnockoutEvents(code) {
 
   const isKO = e => e.competitions?.[0]?.competitors?.length >= 2;
 
-  // W杯: ノックアウト全体（R32〜決勝）を日付範囲で一括取得
-  if (code === 'fifa.world') {
-    try {
-      const d = await fetchJson(`${ESPN_SCHED}/fifa.world/scoreboard?dates=20260628-20260720&limit=300&lang=ja&region=jp`);
-      return (d.events||[]).filter(e => isKO(e) && slugFromEvent(e));
-    } catch {}
-    return [];
-  }
-
-  // 試み① seasontype=3（ノックアウト専用）※日付範囲必須：無指定だと直近の試合しか返らない
+  // 試み① seasontype=3（ノックアウト専用）
   try {
-    const r = await fetch(`${ESPN_SCHED}/${code}/scoreboard?seasontype=3&dates=${year}0101-${year}0701&limit=200&lang=ja&region=jp`);
+    const r = await fetch(`${ESPN_SCHED}/${code}/scoreboard?seasontype=3&limit=200`);
     if (r.ok) {
       const d = await r.json();
       const evts = (d.events||[]).filter(isKO);
@@ -2083,15 +1868,12 @@ function parseKnockoutEvents(events) {
     const home = comps.find(c => c.homeAway === 'home') || comps[0];
     const away = comps.find(c => c.homeAway === 'away') || comps[1];
     const seriesComps = comp.series?.competitors || [];
+    const homeWin = seriesComps.find(s => s.id === home.id)?.winner ?? false;
+    const awayWin = seriesComps.find(s => s.id === away.id)?.winner ?? false;
     const key   = [home.id, away.id].sort().join('-');
     const evtId = evt.id || evt.date;   // イベントIDで重複排除（leg番号に頼らない）
     const note  = (comp.notes || []).find(n => n.type === 'event')?.text || '';
-    // 「終了」は completed フラグで判定するのが最も確実。
-    // 以前は STATUS_FINAL/STATUS_FULL_TIME のみを見ていたため、PK決着(STATUS_FINAL_PEN)や
-    // 延長決着(STATUS_FINAL_AET)の試合が終了扱いにならず、スコアが「–」になっていた（独=パラグアイ等）。
-    const stType = comp.status?.type || evt.status?.type || {};
-    const fin   = stType.completed === true
-               || ['STATUS_FINAL','STATUS_FULL_TIME'].includes(stType.name);
+    const fin   = ['STATUS_FINAL','STATUS_FULL_TIME'].includes(evt.status?.type?.name);
 
     if (!rounds[slug]) rounds[slug] = {};
     if (!rounds[slug][key]) {
@@ -2102,58 +1884,23 @@ function parseKnockoutEvents(events) {
         awayName:   teamNameJa(away.team?.displayName || away.team?.shortDisplayName || '?'),
         homeNameEn: home.team?.displayName || home.team?.shortDisplayName || '?',
         awayNameEn: away.team?.displayName || away.team?.shortDisplayName || '?',
-        homeLogo:   getLogo(home.team),
-        awayLogo:   getLogo(away.team),
+        homeLogo:   home.team?.logo || null,
+        awayLogo:   away.team?.logo || null,
         legs: [], homeWin: false, awayWin: false,
-        seriesHomeWin: false, seriesAwayWin: false,
-        minEvtId: Infinity, // ラウンド内の公式試合順（イベントID昇順）の判定に使う
       };
     }
-    rounds[slug][key].minEvtId = Math.min(rounds[slug][key].minEvtId, parseInt(evtId, 10) || Infinity);
     const tie = rounds[slug][key];
-    // 2戦合計の勝者はseries情報から（イベント単体のwinnerはレグ勝者なので使わない）
-    if (seriesComps.find(s => s.id === tie.homeId)?.winner) tie.seriesHomeWin = true;
-    if (seriesComps.find(s => s.id === tie.awayId)?.winner) tie.seriesAwayWin = true;
+    tie.homeWin = tie.homeWin || homeWin;
+    tie.awayWin = tie.awayWin || awayWin;
     // イベントIDで重複チェック（leg番号が全て1でも複数戦を正しく保存）
     if (!tie.legs.find(l => l.evtId === evtId)) {
-      // 第2戦はホーム/アウェイが逆転するため、タイの向きにスコアを揃える
-      const aligned = String(home.id) === String(tie.homeId);
-      const hs = fin ? (parseInt(home.score) || 0) : null;
-      const as = fin ? (parseInt(away.score) || 0) : null;
       tie.legs.push({
         evtId,
-        homeScore: aligned ? hs : as,
-        awayScore: aligned ? as : hs,
-        evtHomeWin: (aligned ? home.winner : away.winner) === true,
-        evtAwayWin: (aligned ? away.winner : home.winner) === true,
+        homeScore: fin ? (parseInt(home.score) || 0) : null,
+        awayScore: fin ? (parseInt(away.score) || 0) : null,
         fin, note,
         date: evt.date,
       });
-    }
-  }
-
-  // タイ勝者を確定：series情報 → 一発勝負はイベント勝者 → 2戦は合計スコア
-  for (const slug of Object.keys(rounds)) {
-    for (const tie of Object.values(rounds[slug])) {
-      if (tie.seriesHomeWin || tie.seriesAwayWin) {
-        tie.homeWin = tie.seriesHomeWin;
-        tie.awayWin = tie.seriesAwayWin;
-        continue;
-      }
-      const legs = tie.legs.slice().sort((a,b) => new Date(a.date) - new Date(b.date));
-      if (legs.length === 1) {
-        tie.homeWin = legs[0].evtHomeWin;
-        tie.awayWin = legs[0].evtAwayWin;
-      } else if (legs.length >= 2 && legs.every(l => l.fin)) {
-        const ah = legs.reduce((s,l) => s + (l.homeScore||0), 0);
-        const aa = legs.reduce((s,l) => s + (l.awayScore||0), 0);
-        if      (ah > aa) tie.homeWin = true;
-        else if (aa > ah) tie.awayWin = true;
-        else { // 合計同点（PK等）→ 最終戦のイベント勝者
-          tie.homeWin = legs[legs.length-1].evtHomeWin;
-          tie.awayWin = legs[legs.length-1].evtAwayWin;
-        }
-      }
     }
   }
 
@@ -2172,53 +1919,40 @@ function parseKnockoutEvents(events) {
     }));
 }
 
-// 国旗（W杯）/ クラブエンブレム（CL等）の小アイコン。logoが無ければ空文字
-function koBadgeImg(logo, cls) {
-  return logo ? `<img class="${cls}" src="${attr(logo)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '';
-}
-
 /* ── ノックアウト HTML 生成（文字列を返す） ── */
 function buildKnockoutHtml(rounds) {
   if (!rounds.length) return '';
 
-  // W杯のノックアウトは出場枠が未確定で「Round of 32 1 Winner」等のプレースホルダー名のため、
-  // カタカナ化すると崩れる。W杯は英語名のまま表示する（CL/ELは実クラブ名なので日本語）
-  const useEn = activeCupCode === 'fifa.world';
-  const disp  = (nameJa, nameEn) => useEn ? (nameEn || nameJa) : nameJa;
-
   function teamSpan(nameJa, nameEn) {
-    const shown = disp(nameJa, nameEn);
-    if (adminMode && nameEn && !useEn)
-      return `<span class="admin-name" data-en="${attr(nameEn)}" data-type="team" title="クリックで編集">${esc(shown)}</span>`;
-    return esc(shown);
+    if (adminMode && nameEn)
+      return `<span class="admin-name" data-en="${attr(nameEn)}" data-type="team" title="クリックで編集">${esc(nameJa)}</span>`;
+    return esc(nameJa);
   }
 
   let html = `<div class="sec-head" style="margin-top:24px">
-    <span class="sec-title">${LANG==='ja'?'ノックアウトステージ':'Knockout Stage'}</span>
-    <span class="sec-cnt">${LANG==='ja'?'対戦結果':'Results'}</span>
+    <span class="sec-title">ノックアウトステージ</span>
+    <span class="sec-cnt">ベスト16〜</span>
   </div>`;
   for (const round of rounds) {
     html += `<div class="ko-round"><div class="ko-round-head">${esc(round.label)}</div>`;
     for (const tie of round.ties) {
       const legs    = tie.legs;
       const isFinal = round.slug === 'final';
-      const winner  = tie.homeWin ? disp(tie.homeName, tie.homeNameEn) : tie.awayWin ? disp(tie.awayName, tie.awayNameEn) : null;
+      const winner  = tie.homeWin ? tie.homeName : tie.awayWin ? tie.awayName : null;
       const hSpan   = teamSpan(tie.homeName, tie.homeNameEn);
       const aSpan   = teamSpan(tie.awayName, tie.awayNameEn);
       html += `<div class="ko-tie">`;
       for (const leg of legs) {
-        const label  = isFinal ? (LANG==='ja'?'決勝':'Final')
-                     : legs.length <= 1 ? ''
-                     : (LANG==='ja'?`第${leg.leg}戦`:`Leg ${leg.leg}`);
+        const label  = isFinal ? '決勝' : `第${leg.leg}戦`;
         const hScore = leg.fin && leg.homeScore !== null ? leg.homeScore : '–';
         const aScore = leg.fin && leg.awayScore !== null ? leg.awayScore : '–';
         const hCls   = tie.homeWin ? ' winner' : '';
         const aCls   = tie.awayWin ? ' winner' : '';
         html += `<div class="ko-leg">
-          ${label ? `<span class="ko-leg-num">${esc(label)}</span>` : ''}
-          <span class="ko-team${hCls}">${koBadgeImg(tie.homeLogo,'ko-badge')}${hSpan}</span>
+          <span class="ko-leg-num">${esc(label)}</span>
+          <span class="ko-team${hCls}">${hSpan}</span>
           <span class="ko-score-box">${hScore}<span class="ko-score-sep">-</span>${aScore}</span>
-          <span class="ko-team right${aCls}">${aSpan}${koBadgeImg(tie.awayLogo,'ko-badge')}</span>
+          <span class="ko-team right${aCls}">${aSpan}</span>
         </div>`;
       }
       if (!isFinal && legs.length >= 2 && legs.every(l => l.fin)) {
@@ -2227,7 +1961,7 @@ function buildKnockoutHtml(rounds) {
         const note    = legs[legs.length-1].note;
         html += `<div class="ko-agg">
           <span class="ko-note">${note ? esc(note) : ''}</span>
-          <span class="${winner ? 'ko-agg-winner' : ''}">${winner ? esc(winner) + (LANG==='ja'?' が突破':' advances') : LANG==='ja' ? `${homeAgg} – ${awayAgg}（合計）` : `${homeAgg} – ${awayAgg} (agg.)`}</span>
+          <span class="${winner ? 'ko-agg-winner' : ''}">${winner ? esc(winner) + ' が突破' : `${homeAgg} – ${awayAgg}（合計）`}</span>
         </div>`;
       }
       html += `</div>`;
@@ -2244,7 +1978,6 @@ function buildStandingsHtml(entries, lname, subtitle) {
   entries.forEach(e => { if (e.noteColor && e.noteDesc && !zSeen.has(e.noteDesc)) { zSeen.add(e.noteDesc); zones.push({color:e.noteColor,desc:e.noteDesc}); } });
   const legend  = zones.length ? `<div class="stnd-legend">${zones.map(z=>`<span><span class="legend-dot" style="background:${attr(z.color)}"></span>${esc(z.desc)}</span>`).join('')}</div>` : '';
   const cntHtml = subtitle ? `<span class="sec-cnt">${esc(subtitle)}</span>` : `<span class="sec-cnt">${entries.length} ${T.clubUnit}</span>`;
-  let lastGroup = null;
   const rows    = entries.map(e => {
     const zbar     = `<td class="zone-bar"${e.noteColor ? ` style="background:${attr(e.noteColor)}"` : ''}></td>`;
     const logo     = e.logo ? `<img class="stnd-badge" src="${attr(e.logo)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '';
@@ -2254,12 +1987,7 @@ function buildStandingsHtml(entries, lname, subtitle) {
     const teamName = (adminMode && e.teamEn)
       ? `<span class="admin-name" data-en="${attr(e.teamEn)}" data-type="team" title="クリックで編集">${esc(displayName)}</span>`
       : esc(displayName);
-    let groupRow = '';
-    if (e.group && e.group !== lastGroup) {
-      groupRow = `<tr class="drow"><td colspan="10">${esc(e.group)}</td></tr>`;
-      lastGroup = e.group;
-    }
-    return `${groupRow}<tr>${zbar}<td class="stnd-rank">${e.rank}</td><td class="stnd-team"><span class="stnd-team-inner">${logo}${teamName}</span></td><td class="stnd-num">${e.gp}</td><td class="stnd-num stnd-w">${e.w}</td><td class="stnd-num stnd-d">${e.d}</td><td class="stnd-num stnd-l">${e.l}</td><td class="stnd-num">${e.gf}</td><td class="stnd-num">${e.ga}</td><td class="stnd-pts">${e.pts}</td></tr>`;
+    return `<tr>${zbar}<td class="stnd-rank">${e.rank}</td><td class="stnd-team"><span class="stnd-team-inner">${logo}${teamName}</span></td><td class="stnd-num">${e.gp}</td><td class="stnd-num stnd-w">${e.w}</td><td class="stnd-num stnd-d">${e.d}</td><td class="stnd-num stnd-l">${e.l}</td><td class="stnd-num">${e.gf}</td><td class="stnd-num">${e.ga}</td><td class="stnd-pts">${e.pts}</td></tr>`;
   }).join('');
   return `
     <div class="sec-head"><button id="leagueTriggerBtn" class="sec-title">${esc(lname)} ▼</button>${cntHtml}</div>
@@ -2284,96 +2012,37 @@ function buildStandingsHtml(entries, lname, subtitle) {
 function buildBracketHtml(rounds) {
   _bracketConns = [];
   const get = slug => rounds.find(r => r.slug === slug)?.ties || [];
+  const r16 = get('round-of-16');
+  const qf  = get('quarterfinals');
+  const sf  = get('semifinals');
   const fin = get('final');
 
-  // 表示するラウンド列（外側→内側）。データのある最も外側のラウンドから連鎖表示
-  const PRE   = ['round-of-32', 'round-of-16', 'quarterfinals', 'semifinals'];
-  const SLOTS = { 'round-of-32': 8, 'round-of-16': 4, 'quarterfinals': 2, 'semifinals': 1 }; // 片側スロット数
-  const firstIdx = PRE.findIndex(s => get(s).length > 0);
-
-  if (firstIdx === -1 && !fin.length)
+  if (!r16.length && !qf.length && !sf.length && !fin.length)
     return `<div class="state"><span class="ico">🏆</span>${LANG==='ja'?'トーナメントデータがありません':'No tournament data'}</div>`;
 
-  const shown = firstIdx === -1 ? [] : PRE.slice(firstIdx);
+  // Which columns to show (cascading: showing a later round implies all prior rounds too)
+  const showR16 = r16.length > 0;
+  const showQF  = showR16 || qf.length > 0;
+  const showSF  = showQF  || sf.length > 0;
 
-  const BH     = 56;                                     // match box height (2 rows × 28px)
-  const nPS    = shown.length ? SLOTS[shown[0]] : 1;     // 片側の最大スロット数
-  const totalH = nPS * BH;
+  // nPS = match slots per side in the first (outermost) column
+  const nPS = showR16 ? Math.max(4, Math.ceil(r16.length / 2))
+            : showQF  ? Math.max(2, Math.ceil(qf.length / 2))
+            : 1;
 
-  /* ── トーナメント木の構築 ──
-     隣接ペアが次戦で当たるとは限らない（例: W杯R16はR32第1試合と第3試合の勝者が対戦）。
-     各タイの2チームについて「前ラウンドのどのタイから来たか」を
-     ①実チームID一致 → ②プレースホルダー名（"Round of 32 3 Winner"等）→ ③未使用タイの順 で解決する */
-  const lists = shown.map(slug =>
-    get(slug).slice().sort((a, b) => (a.minEvtId || 0) - (b.minEvtId || 0))); // イベントID昇順 = 公式試合番号順
-  const used  = lists.map(() => new Set());
-  const PH = {
-    'round-of-32':   /round of 32\s+(\d+)/i,
-    'round-of-16':   /round of 16\s+(\d+)/i,
-    'quarterfinals': /quarterfinal\s+(\d+)/i,
-    'semifinals':    /semifinal\s+(\d+)/i,
-  };
-  function findFeeder(side, li) {           // side: {id, nameEn} / li: 前ラウンドのlists添字
-    const prev = lists[li], uset = used[li];
-    let f = side.id != null
-      ? prev.find(p => !uset.has(p) && (String(p.homeId) === String(side.id) || String(p.awayId) === String(side.id)))
-      : null;
-    if (!f && side.nameEn) {
-      const m = side.nameEn.match(PH[shown[li]]);
-      if (m) { const c = prev[parseInt(m[1], 10) - 1]; if (c && !uset.has(c)) f = c; }
-    }
-    if (f) uset.add(f);
-    return f || null;
-  }
-  function takeUnused(li) {                 // フォールバック: 未使用タイを順番に
-    const f = lists[li].find(p => !used[li].has(p)) || null;
-    if (f) used[li].add(f);
-    return f;
-  }
-  function build(tie, li) {                 // li: このタイのlists添字。子はlists[li-1]から
-    const node = { tie, children: [] };
-    if (li <= 0) return node;
-    const sides = tie
-      ? [{ id: tie.homeId, nameEn: tie.homeNameEn }, { id: tie.awayId, nameEn: tie.awayNameEn }]
-      : [{}, {}];
-    node.children = sides.map(s => build((s.id != null || s.nameEn) ? (findFeeder(s, li - 1) || takeUnused(li - 1)) : takeUnused(li - 1), li - 1));
-    return node;
-  }
+  // fill: pad array with nulls to length n
+  const fill = (arr, n) => { const a = [...arr]; while (a.length < n) a.push(null); return a; };
 
-  let leftRoot = null, rightRoot = null;
-  if (shown.length) {
-    const inner = shown.length - 1;          // 最内ラウンド（決勝の前）
-    const f     = fin[0] || null;
-    const fSides = f
-      ? [{ id: f.homeId, nameEn: f.homeNameEn }, { id: f.awayId, nameEn: f.awayNameEn }]
-      : [{}, {}];
-    leftRoot  = build((fSides[0].id != null || fSides[0].nameEn) ? (findFeeder(fSides[0], inner) || takeUnused(inner)) : takeUnused(inner), inner);
-    rightRoot = build((fSides[1].id != null || fSides[1].nameEn) ? (findFeeder(fSides[1], inner) || takeUnused(inner)) : takeUnused(inner), inner);
-  }
+  // Build each half's column data (nulls for undecided/future matches)
+  const lR16 = showR16 ? fill(r16.slice(0, Math.ceil(r16.length / 2)), nPS)            : [];
+  const rR16 = showR16 ? fill(r16.slice(Math.ceil(r16.length / 2)),    nPS)            : [];
+  const lQF  = showQF  ? fill(qf.slice(0, Math.ceil(qf.length / 2)),   Math.ceil(nPS / 2)) : [];
+  const rQF  = showQF  ? fill(qf.slice(Math.ceil(qf.length / 2)),      Math.ceil(nPS / 2)) : [];
+  const lSF  = showSF  ? fill(sf.slice(0, 1), 1) : [];
+  const rSF  = showSF  ? fill(sf.slice(1, 2), 1) : [];
 
-  // 木を列ごとに平坦化（lists添字liの列、親の子は隣接して並ぶ）
-  function flatten(root) {
-    const out = lists.map(() => []);
-    (function rec(node, li) {
-      out[li].push(node);
-      if (li > 0) node.children.forEach(ch => rec(ch, li - 1));
-    })(root, lists.length - 1);
-    return out;
-  }
-  const leftLv  = leftRoot  ? flatten(leftRoot)  : lists.map(() => []);
-  const rightLv = rightRoot ? flatten(rightRoot) : lists.map(() => []);
-
-  // 各ラウンドの左右データとbid（木の並び順をそのまま採用）
-  const cols = shown.map((slug, li) => {
-    const n = SLOTS[slug];
-    return {
-      slug,
-      left:   leftLv[li].map(nd => nd.tie),
-      right:  rightLv[li].map(nd => nd.tie),
-      leftB:  Array.from({length: n}, (_, i) => `l-${slug}-${i}`),
-      rightB: Array.from({length: n}, (_, i) => `r-${slug}-${i}`),
-    };
-  });
+  const BH     = 56;          // match box height (2 rows × 28px)
+  const totalH = nPS * BH;   // total bracket height
 
   function agg(t) {
     if (!t?.legs.length) return null;
@@ -2382,19 +2051,12 @@ function buildBracketHtml(rounds) {
     return ok ? {h, a} : null;
   }
 
-  // W杯はプレースホルダー名のため英語表示（CL/ELは日本語クラブ名）
-  const useEn = activeCupCode === 'fifa.world';
-  const nm = (ja, en) => useEn ? (en || ja) : ja;
-
-  function mHtml(t, bid, isFinal) {
+  function mHtml(t, bid) {
     if (!t) return `<div class="bc-match" data-bid="${bid}"><div class="bc-team"></div><div class="bc-team"></div></div>`;
-    const sc  = agg(t);
+    const sc = agg(t);
     const hSc = sc != null ? `<span class="bc-sc">${sc.h}</span>` : '';
     const aSc = sc != null ? `<span class="bc-sc">${sc.a}</span>` : '';
-    const wCls = isFinal ? ' bc-ch' : ' bc-w';
-    const hCls = t.homeWin ? wCls : '';
-    const aCls = t.awayWin ? wCls : '';
-    return `<div class="bc-match" data-bid="${bid}"><div class="bc-team${hCls}">${koBadgeImg(t.homeLogo,'bc-badge')}<span class="bc-name">${esc(nm(t.homeName, t.homeNameEn))}</span>${hSc}</div><div class="bc-team${aCls}">${koBadgeImg(t.awayLogo,'bc-badge')}<span class="bc-name">${esc(nm(t.awayName, t.awayNameEn))}</span>${aSc}</div></div>`;
+    return `<div class="bc-match" data-bid="${bid}"><div class="bc-team"><span class="bc-name">${esc(t.homeName)}</span>${hSc}</div><div class="bc-team"><span class="bc-name">${esc(t.awayName)}</span>${aSc}</div></div>`;
   }
 
   function colHtml(matches, bids) {
@@ -2405,44 +2067,66 @@ function buildBracketHtml(rounds) {
     let html = `<div class="bc-col">`;
     for (let i = 0; i < cnt; i++) {
       html += `<div class="bc-spacer" style="height:${Math.max(0, i === 0 ? hs : gap)}px"></div>`;
-      html += mHtml(matches[i], bids[i], false);
+      html += mHtml(matches[i], bids[i]);
     }
     html += `<div class="bc-spacer" style="height:${Math.max(0, hs)}px"></div></div>`;
     return html;
   }
 
-  // 接続線を登録（ラウンドi → i+1、最終ラウンド → 決勝）
-  for (let c = 0; c < cols.length - 1; c++) {
-    const cur = cols[c], nxt = cols[c+1];
-    for (let i = 0; i < nxt.left.length; i++)
-      _bracketConns.push({src1: cur.leftB[i*2],  src2: cur.leftB[i*2+1],  tgt: nxt.leftB[i],  side: 'left'});
-    for (let i = 0; i < nxt.right.length; i++)
-      _bracketConns.push({src1: cur.rightB[i*2], src2: cur.rightB[i*2+1], tgt: nxt.rightB[i], side: 'right'});
-  }
-  if (cols.length) {
-    const last = cols[cols.length - 1];
-    _bracketConns.push({src1: last.leftB[0],  src2: null, tgt: 'final', side: 'left'});
-    _bracketConns.push({src1: last.rightB[0], src2: null, tgt: 'final', side: 'right'});
-  }
+  // Bid (data-bid) arrays — nulls in matches still get a unique bid
+  const lR16B = lR16.map((_, i) => `l-r16-${i}`);
+  const rR16B = rR16.map((_, i) => `r-r16-${i}`);
+  const lQFB  = lQF.map((_,  i) => `l-qf-${i}`);
+  const rQFB  = rQF.map((_,  i) => `r-qf-${i}`);
+  const lSFB  = lSF.map((_,  i) => `l-sf-${i}`);
+  const rSFB  = rSF.map((_,  i) => `r-sf-${i}`);
 
-  // 決勝列（中央）優勝チーム名も表示
-  const f     = fin[0] || null;
-  const champ = f ? (f.homeWin ? nm(f.homeName, f.homeNameEn) : f.awayWin ? nm(f.awayName, f.awayNameEn) : null) : null;
-  const fhs   = Math.max(0, totalH / 2 - BH / 2);
+  // Register bracket connections (SVG lines drawn after DOM insert)
+  // Left: R16 → QF → SF → Final
+  for (let i = 0; i < lQF.length; i++)
+    _bracketConns.push({src1: lR16B[i*2], src2: lR16B[i*2+1], tgt: lQFB[i], side: 'left'});
+  for (let i = 0; i < lSF.length; i++)
+    _bracketConns.push({src1: lQFB[i*2],  src2: lQFB[i*2+1],  tgt: lSFB[i], side: 'left'});
+  if      (lSF.length)  _bracketConns.push({src1: lSFB[0],  src2: null, tgt: 'final', side: 'left'});
+  else if (lQF.length)  _bracketConns.push({src1: lQFB[0],  src2: null, tgt: 'final', side: 'left'});
+  else if (lR16.length) _bracketConns.push({src1: lR16B[0], src2: null, tgt: 'final', side: 'left'});
+  // Right: R16 → QF → SF → Final
+  for (let i = 0; i < rQF.length; i++)
+    _bracketConns.push({src1: rR16B[i*2], src2: rR16B[i*2+1], tgt: rQFB[i], side: 'right'});
+  for (let i = 0; i < rSF.length; i++)
+    _bracketConns.push({src1: rQFB[i*2],  src2: rQFB[i*2+1],  tgt: rSFB[i], side: 'right'});
+  if      (rSF.length)  _bracketConns.push({src1: rSFB[0],  src2: null, tgt: 'final', side: 'right'});
+  else if (rQF.length)  _bracketConns.push({src1: rQFB[0],  src2: null, tgt: 'final', side: 'right'});
+  else if (rR16.length) _bracketConns.push({src1: rR16B[0], src2: null, tgt: 'final', side: 'right'});
+
+  // Final column (center)
+  const f   = fin[0] || null;
+  const sc  = f ? agg(f) : null;
+  const hN  = f ? f.homeName : '';
+  const aN  = f ? f.awayName : '';
+  const hSc = sc != null ? `<span class="bc-sc">${sc.h}</span>` : '';
+  const aSc = sc != null ? `<span class="bc-sc">${sc.a}</span>` : '';
+  const fhs = Math.max(0, totalH / 2 - BH / 2);
   const finalHtml = `<div class="bc-final-col">
     <div class="bc-spacer" style="height:${fhs}px"></div>
-    ${mHtml(f, 'final', true)}
+    <div class="bc-match" data-bid="final">
+      <div class="bc-team"><span class="bc-name">${esc(hN)}</span>${hSc}</div>
+      <div class="bc-team"><span class="bc-name">${esc(aN)}</span>${aSc}</div>
+    </div>
     <div class="bc-trophy">🏆</div>
-    ${champ ? `<div class="bc-champ-name">${esc(champ)}</div>` : ''}
   </div>`;
 
   let html = '<div class="bracket-outer"><div class="bracket-wrap" id="bcWrap">';
   html += '<div class="bc-half left">';
-  for (const c of cols) html += colHtml(c.left, c.leftB);
+  if (lR16.length) html += colHtml(lR16, lR16B);
+  if (lQF.length)  html += colHtml(lQF,  lQFB);
+  if (lSF.length)  html += colHtml(lSF,  lSFB);
   html += '</div>';
   html += finalHtml;
   html += '<div class="bc-half right">';
-  for (let i = cols.length - 1; i >= 0; i--) html += colHtml(cols[i].right, cols[i].rightB);
+  if (rSF.length)  html += colHtml(rSF,  rSFB);
+  if (rQF.length)  html += colHtml(rQF,  rQFB);
+  if (rR16.length) html += colHtml(rR16, rR16B);
   html += '</div>';
   html += '<svg class="bc-svg" id="bcSvg"></svg>';
   html += '</div></div>';
@@ -2511,11 +2195,6 @@ function buildCupSubFilter(code) {
   activeCupCode = code;
   const bar = document.getElementById('cupSubFilter');
   bar.style.visibility = '';
-  // W杯はタブ名を「グループステージ」に切り替え
-  const leagueTab = bar.querySelector('.ftab[data-sub="league"]');
-  if (leagueTab) leagueTab.textContent = code === 'fifa.world'
-    ? (LANG==='ja' ? 'グループステージ' : 'Group Stage')
-    : T.leaguePhase;
   bar.querySelectorAll('.ftab').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.sub === activeCupSub);
     btn.onclick = () => {
@@ -2530,21 +2209,12 @@ function buildCupSubFilter(code) {
 /* ── CL/EL 描画：サブタブに応じて切り替え ── */
 function renderCupPage(entries, koRounds, lname) {
   const wrap = document.getElementById('standingsWrap');
-  const isWC = activeCupCode === 'fifa.world';
   if (activeCupSub === 'league') {
-    const sub  = isWC ? (LANG==='ja'?'グループステージ':'Group Stage') : (LANG==='ja'?'リーグフェーズ':'League Phase');
-    const html = buildStandingsHtml(entries, lname, sub);
+    const html = buildStandingsHtml(entries, lname, 'リーグフェーズ');
     wrap.innerHTML = html || `<div class="state"><span class="ico">📋</span>${LANG==='ja'?'リーグフェーズのデータがありません':'No league phase data'}</div>`;
   } else {
-    // トーナメントブラケット図 + 詳細リスト
-    const bracket = buildBracketHtml(koRounds);
-    const list    = buildKnockoutHtml(koRounds);
-    if (!koRounds.length) {
-      wrap.innerHTML = `<div class="state"><span class="ico">🏆</span>${LANG==='ja'?'ノックアウトステージのデータがありません':'No knockout data'}</div>`;
-      return;
-    }
-    wrap.innerHTML = bracket + list;
-    requestAnimationFrame(drawBracketLines);
+    const html = buildKnockoutHtml(koRounds);
+    wrap.innerHTML = html || `<div class="state"><span class="ico">🏆</span>${LANG==='ja'?'ノックアウトステージのデータがありません':'No knockout data'}</div>`;
   }
 }
 
@@ -2554,7 +2224,6 @@ async function loadCupPage(code, showLoader = true) {
   buildCupSubFilter(code);
   if (koCache[code] && standingsCache[code] !== undefined) {
     renderCupPage(standingsCache[code] || [], koCache[code], lname);
-    refreshCupBg(code, lname);   // 裏で順位・ノックアウトを取り直し、変化があれば差し替える
     return;
   }
   if (showLoader) wrap.innerHTML = `<div class="state"><span class="ico">🏆</span>${T.loading}</div>`;
@@ -2569,26 +2238,11 @@ async function loadCupPage(code, showLoader = true) {
   renderCupPage(entries, koRounds, lname);
 }
 
-// カップ戦（W杯/CL等）の背景更新：順位＋ノックアウトを取り直し、変化があった時だけ再描画
-async function refreshCupBg(code, lname) {
-  try {
-    const [stRes, koRes] = await Promise.allSettled([fetchStandings(code), fetchKnockoutEvents(code)]);
-    const entries  = stRes.status === 'fulfilled' ? parseStandings(stRes.value)      : standingsCache[code];
-    const koRounds = koRes.status === 'fulfilled' ? parseKnockoutEvents(koRes.value) : koCache[code];
-    const changed = JSON.stringify(entries) !== JSON.stringify(standingsCache[code]) ||
-                    JSON.stringify(koRounds) !== JSON.stringify(koCache[code]);
-    standingsCache[code] = entries;
-    koCache[code]        = koRounds;
-    if (changed && activePage === 'standings' && activeStandCode === code) renderCupPage(entries, koRounds, lname);
-  } catch {}
-}
-
 async function loadStandings(code, showLoader = true) {
   if (CUP_KO_CODES.has(code)) { await loadCupPage(code, showLoader); return; }
   document.getElementById('cupSubFilter').style.visibility = 'hidden';
   const wrap = document.getElementById('standingsWrap');
-  // キャッシュがあれば即描画しつつ、裏で最新を取り直して変化があれば差し替える（結果を反映しやすく）
-  if (standingsCache[code]) { renderStandings(standingsCache[code], code); refreshStandingsBg(code); return; }
+  if (standingsCache[code]) { renderStandings(standingsCache[code], code); return; }
   if (showLoader) wrap.innerHTML = `<div class="state"><span class="ico">📊</span>${T.loading}</div>`;
   try {
     const data = await fetchStandings(code);
@@ -2597,16 +2251,6 @@ async function loadStandings(code, showLoader = true) {
   } catch(e) {
     wrap.innerHTML = `<div class="state"><span class="ico">⚠️</span>${T.failed}: ${esc(e.message)}</div>`;
   }
-}
-
-// 背景更新：順位を取り直し、変化があった時だけ再描画（変化なしならチラつかせない）
-async function refreshStandingsBg(code) {
-  try {
-    const entries = parseStandings(await fetchStandings(code));
-    if (JSON.stringify(entries) === JSON.stringify(standingsCache[code])) return;
-    standingsCache[code] = entries;
-    if (activePage === 'standings' && activeStandCode === code && !CUP_KO_CODES.has(code)) renderStandings(entries, code);
-  } catch {}
 }
 
 function renderStandings(entries, code) {
@@ -2619,73 +2263,11 @@ function renderStandings(entries, code) {
 /* ════════════════════════════════════════
    ③ 得点ランキング — 取得・描画
 ════════════════════════════════════════ */
-/* W杯: leaders APIが存在しないため全試合から得点・アシストを集計
-   得点はscoreboardのdetailsから（軽量）、アシストは各試合のsummary.keyEventsから取得 */
-async function fetchWorldCupScorers(withAssists = true) {
-  const data = await fetchJson(`${ESPN_SCHED}/fifa.world/scoreboard?dates=20260611-20260720&limit=300&lang=ja&region=jp`);
-  const goalT   = {};   // nameEn → {goals, teamId}
-  const assistT = {};   // nameEn → {assists, teamId}
-  const doneIds = [];   // 完了試合のID（アシスト集計用）
-
-  for (const ev of data.events || []) {
-    const comp = ev.competitions?.[0];
-    if (!comp) continue;
-    if (comp.status?.type?.completed) doneIds.push(ev.id);
-    for (const det of comp.details || []) {
-      if (!det.scoringPlay || det.ownGoal) continue;
-      const ath = det.athletesInvolved?.[0];
-      if (!ath) continue;
-      const nameEn = ath.displayName || ath.shortName || '?';
-      if (!goalT[nameEn]) goalT[nameEn] = { goals: 0, teamId: det.team?.id || null };
-      goalT[nameEn].goals++;
-      if (!goalT[nameEn].teamId && det.team?.id) goalT[nameEn].teamId = det.team.id;
-    }
-  }
-
-  // アシスト：完了試合のsummaryをまとめて取得（同時実行数を絞る）
-  async function fetchSummaryAssists(id) {
-    try {
-      const s = await fetchJson(`${ESPN_SCHED}/fifa.world/summary?event=${id}&lang=ja&region=jp`);
-      for (const ke of s.keyEvents || []) {
-        const isGoal = ke.scoringPlay || /goal/i.test(ke.type?.text || '');
-        if (!isGoal || ke.ownGoal) continue;
-        const assister = ke.participants?.[1]?.athlete;   // [0]=得点者, [1]=アシスト者
-        if (!assister) continue;
-        const nameEn = assister.displayName || assister.shortName || '?';
-        if (!assistT[nameEn]) assistT[nameEn] = { assists: 0, teamId: ke.team?.id || null };
-        assistT[nameEn].assists++;
-        if (!assistT[nameEn].teamId && ke.team?.id) assistT[nameEn].teamId = ke.team.id;
-      }
-    } catch {}
-  }
-  // アシストは完了試合ごとにsummaryを取得する重い処理。goalsだけ欲しい初回描画では withAssists=false で丸ごとスキップ
-  if (withAssists) await mapPool(doneIds, SCORER_CONCURRENCY, fetchSummaryAssists);
-
-  const toList = (tally, key) => {
-    const list = Object.entries(tally)
-      .map(([nameEn, t]) => ({
-        rank:     0,
-        name:     playerNameJa(nameEn),
-        nameEn,
-        teamLogo: t.teamId ? `https://a.espncdn.com/i/teamlogos/soccer/500/${t.teamId}.png` : null,
-        value:    t[key],
-        matches:  '–',
-      }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, TOP_N);
-    for (let i = 0; i < list.length; i++) {
-      list[i].rank = (i > 0 && list[i].value === list[i-1].value) ? list[i-1].rank : i + 1;
-    }
-    return list;
-  };
-
-  return { goals: toList(goalT, 'goals'), assists: toList(assistT, 'assists') };
-}
-
 async function fetchScorers(code) {
-  if (code === 'fifa.world') return fetchWorldCupScorers();
   const season = currentSeason();
-  const data = await fetchJson(`${ESPN_CORE}/${code}/seasons/${season}/types/1/leaders`);
+  const res    = await fetch(`${ESPN_CORE}/${code}/seasons/${season}/types/1/leaders`);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const data = await res.json();
 
   const goalsCat   = data.categories?.find(c => c.name === 'goalsLeaders');
   const assistsCat = data.categories?.find(c => c.name === 'assistsLeaders');
@@ -2697,16 +2279,19 @@ async function fetchScorers(code) {
   const aidSet = new Set(allL.map(l => extractId(l.athlete?.['$ref'], 'athletes')).filter(Boolean));
   const athMap = {};
 
-  await mapPool([...aidSet], SCORER_CONCURRENCY, async id => {
+  await Promise.all([...aidSet].map(async id => {
     try {
-      const a = await fetchJson(`${ESPN_CORE}/${code}/seasons/${season}/athletes/${id}?lang=ja&region=jp`);
-      athMap[id] = {
-        nameEn: a.displayName || a.shortName || '?',
-        name:   playerNameJa(a.displayName || a.shortName || '?'),
-        teamId: extractId(a.team?.['$ref'], 'teams'),
-      };
+      const r = await fetch(`${ESPN_CORE}/${code}/seasons/${season}/athletes/${id}?lang=ja&region=jp`);
+      if (r.ok) {
+        const a = await r.json();
+        athMap[id] = {
+          nameEn: a.displayName || a.shortName || '?',
+          name:   playerNameJa(a.displayName || a.shortName || '?'),
+          teamId: extractId(a.team?.['$ref'], 'teams'),
+        };
+      }
     } catch {}
-  });
+  }));
 
   function buildList(leaders) {
     const list = leaders.map((l, i) => {
@@ -2735,91 +2320,56 @@ async function fetchScorers(code) {
   return { goals: buildList(gLeaders), assists: buildList(aLeaders) };
 }
 
-// 未登録選手をバックグラウンドでWikipedia日本語名検索にかける
-function lookupUnregistered(data, code) {
-  const seen = new Set();
-  const unregistered = [...data.goals, ...data.assists].filter(p => {
-    if (!p.nameEn || seen.has(p.nameEn)) return false;
-    seen.add(p.nameEn);
-    // 既に日本語名がある／過去に「該当なし」と確定済み の選手は再検索しない
-    return !nameOverrides.players[p.nameEn] && !PLAYER_NAMES_JA[p.nameEn] && !resolvedMiss[p.nameEn];
-  });
-  if (unregistered.length) autoLookupPlayers(unregistered, code);
-}
-
 async function loadScorers(code, showLoader = true) {
   const wrap = document.getElementById('scorersWrap');
   if (scorersCache[code]) { renderScorers(scorersCache[code], code); return; }
   if (showLoader) wrap.innerHTML = `<div class="state"><span class="ico">⚽</span>${T.loading}</div>`;
   try {
-    if (code === 'fifa.world') {
-      // W杯は「得点（scoreboard1回で計算・高速）」を即描画し、「アシスト（試合ごとのsummary＝重い）」は
-      // 裏で取得して後から差し込む。これで得点ランキングが待たされずに出る。
-      const partial = await fetchWorldCupScorers(false);
-      partial.assistsLoading = true;   // アシストは裏で集計中（タブ表示のヒント用）
-      scorersCache[code] = partial;
-      renderScorers(partial, code);
-      lookupUnregistered(partial, code);
-      fetchWorldCupScorers(true).then(full => {
-        scorersCache[code] = full;
-        if (activePage === 'scorers' && activeScorersCode === code) renderScorers(full, code);
-        lookupUnregistered(full, code);
-      }).catch(() => {});
-    } else {
-      const data = await fetchScorers(code);
-      scorersCache[code] = data;
-      renderScorers(data, code);
-      lookupUnregistered(data, code);
-    }
+    const data = await fetchScorers(code);
+    scorersCache[code] = data;
+    renderScorers(data, code);
+    // 未登録選手をバックグラウンドでWikipedia検索
+    const all = [...data.goals, ...data.assists];
+    const seen = new Set();
+    const unregistered = all.filter(p => {
+      if (!p.nameEn || seen.has(p.nameEn)) return false;
+      seen.add(p.nameEn);
+      return !nameOverrides.players[p.nameEn] && !PLAYER_NAMES_JA[p.nameEn];
+    });
+    if (unregistered.length) autoLookupPlayers(unregistered, code);
   } catch(e) {
     wrap.innerHTML = `<div class="state"><span class="ico">⚠️</span>${T.failed}: ${esc(e.message)}</div>`;
   }
 }
 
 // 未登録選手を1人ずつWikipedia検索してキャッシュに保存・再描画
-function persistNameOverrides() { try { localStorage.setItem('nameOverrides', JSON.stringify(nameOverrides)); } catch {} }
-function persistResolvedMiss()  { try { localStorage.setItem('scorerNameMiss', JSON.stringify(resolvedMiss)); } catch {} }
-
-// 検索結果の反映をまとめて再描画（並列で次々に解決するので、都度描画せず400ms間隔に集約）
-let _scorerRerenderT = null;
-function scheduleScorerRerender(code) {
-  clearTimeout(_scorerRerenderT);
-  _scorerRerenderT = setTimeout(() => {
-    if (activePage === 'scorers' && activeScorersCode === code && scorersCache[code]) renderScorers(scorersCache[code], code);
-  }, 400);
-}
-
 async function autoLookupPlayers(players, code) {
   if (LANG !== 'ja') return;
-  // 未解決（日本語名なし・該当なし未確定）の選手だけを対象に、並列で検索する
-  const seen = new Set();
-  const targets = players.filter(p => {
-    if (!p.nameEn || seen.has(p.nameEn)) return false;
-    seen.add(p.nameEn);
-    return !nameOverrides.players[p.nameEn] && !PLAYER_NAMES_JA[p.nameEn] && !resolvedMiss[p.nameEn];
-  });
-  await mapPool(targets, LOOKUP_CONCURRENCY, async p => {
+  let updated = false;
+  for (const p of players) {
+    if (nameOverrides.players[p.nameEn] || PLAYER_NAMES_JA[p.nameEn]) continue;
     try {
-      const { ja: raw, reached } = await lookupWikipediaJaEx(p.nameEn);
-      const ja = cleanJaName(raw);
+      const ja = await lookupWikipediaJa(p.nameEn);
       if (ja) {
         nameOverrides.players[p.nameEn] = ja;
-        persistNameOverrides();   // ★1人見つかるごとに即保存（途中で離脱しても消えない＝再変換しない）
+        updated = true;
+        // キャッシュの選手名を更新
         if (scorersCache[code]) {
           for (const list of [scorersCache[code].goals, scorersCache[code].assists]) {
             list.forEach(pl => { if (pl.nameEn === p.nameEn) pl.name = ja; });
           }
         }
-        scheduleScorerRerender(code);
-      } else if (reached) {
-        // Wikipediaに到達したが日本語名が無かった → 「該当なし」と確定して即記録。
-        // 以後この選手は再検索せず英語表記のまま（毎回の再変換を防ぐ）。
-        // 通信不可(reached=false)の時は記録せず、次回に再試行する。
-        resolvedMiss[p.nameEn] = 1;
-        persistResolvedMiss();
+        // 表示中なら再描画
+        if (activePage === 'scorers' && activeScorersCode === code) {
+          renderScorers(scorersCache[code], code);
+        }
       }
     } catch {}
-  });
+    await new Promise(r => setTimeout(r, 800)); // 800ms間隔でリクエスト
+  }
+  if (updated) {
+    try { localStorage.setItem('nameOverrides', JSON.stringify(nameOverrides)); } catch {}
+  }
 }
 
 function renderScorers(data, code) {
@@ -2827,11 +2377,6 @@ function renderScorers(data, code) {
   const lname = SCORERS_LEAGUES.find(l => l.code === code)?.label ?? '';
   const players = activeScorersTab === 'goals' ? data.goals : data.assists;
   const colLabel = activeScorersTab === 'goals' ? T.goals : T.assists;
-  // W杯のアシストは裏で集計中。空でも「データなし」ではなく「集計中」を出す
-  const assistsPending = activeScorersTab === 'assists' && data.assistsLoading && !players.length;
-  const body = assistsPending
-    ? `<p style="color:var(--muted);font-size:13px;padding:8px 0"><span class="ico">⚽</span>${LANG==='ja'?'アシストを集計中…':'Loading assists…'}</p>`
-    : scorerTable(players, colLabel);
   wrap.innerHTML = `
     <div class="sec-head">
       <button id="scorersTriggerBtn" class="sec-title">${esc(lname)} ▼</button>
@@ -2840,7 +2385,7 @@ function renderScorers(data, code) {
       <button class="scorer-sub${activeScorersTab==='goals'?' active':''}" data-sub="goals">⚽ ${T.goals}</button>
       <button class="scorer-sub${activeScorersTab==='assists'?' active':''}" data-sub="assists">🎯 ${T.assists}</button>
     </div>
-    ${body}`;
+    ${scorerTable(players, colLabel)}`;
 }
 
 function rankStyle(rank) {
@@ -2858,16 +2403,16 @@ function nameStyle(rank) {
 }
 
 function scorerTable(players, colLabel) {
-  if (!players.length) return `<p style="color:var(--muted);font-size:13px;padding:8px 0">${LANG==='ja'?'データなし（試合開始後に表示されます）':'No data yet (appears after matches are played)'}</p>`;
+  if (!players.length) return '<p style="color:var(--muted);font-size:13px;padding:8px 0">データなし</p>';
   const rows = players.map(p => {
-    // 所属チームのロゴ（リーグ＝クラブのエンブレム、W杯＝出場国の国旗）を選手名の左に表示
-    const tl = p.teamLogo ? `<img class="badge scorer-badge" src="${attr(p.teamLogo)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '';
-    const nameTxt = adminMode && p.nameEn
+    const tl = p.teamLogo ? `<img class="badge" src="${attr(p.teamLogo)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '';
+    const nameCell = adminMode && p.nameEn
       ? `<span class="admin-name" data-en="${attr(p.nameEn)}" title="クリックで編集">${esc(p.name)}</span>`
       : esc(p.name);
     return `<tr>
       <td class="stnd-rank" style="${rankStyle(p.rank)}">${p.rank}</td>
-      <td style="${nameStyle(p.rank)};padding:8px 10px"><span class="scorer-name-inner">${tl}${nameTxt}</span></td>
+      <td style="${nameStyle(p.rank)};padding:8px 10px">${nameCell}</td>
+      <td class="stnd-num hide-sm">${tl}</td>
       <td class="stnd-num hide-sm">${p.matches}</td>
       <td class="stat-val">${p.value}</td>
     </tr>`;
@@ -2876,6 +2421,7 @@ function scorerTable(players, colLabel) {
     <thead><tr>
       <th class="c" style="width:28px"></th>
       <th class="l">${T.player}</th>
+      <th class="c hide-sm" style="width:36px">${T.team}</th>
       <th class="c hide-sm" style="width:36px">${T.pCol}</th>
       <th class="c" style="width:52px">${esc(colLabel)}</th>
     </tr></thead>
@@ -2970,13 +2516,7 @@ function buildScorersFilter() {
 /* ════════════════════════════════════════
    Wikipedia 日本語名検索
 ════════════════════════════════════════ */
-// 後方互換ラッパー（W検索ボタン等が使用）：日本語名の文字列 or null を返す
-async function lookupWikipediaJa(name) { return (await lookupWikipediaJaEx(name)).ja; }
-
-// 本体：{ ja: 見つかった日本語名 or null, reached: Wikipedia/Wikidataに一度でも到達できたか }
-// reached はこの呼び出し内のローカル変数なので、並列実行しても他の呼び出しと混ざらない（concurrency安全）。
-async function lookupWikipediaJaEx(name) {
-  let reached = false;
+async function lookupWikipediaJa(name) {
   const wpApi = 'https://en.wikipedia.org/w/api.php';
   const wdApi = 'https://www.wikidata.org/w/api.php';
   const llq   = '&prop=langlinks&lllang=ja&format=json&origin=*';
@@ -3003,39 +2543,37 @@ async function lookupWikipediaJaEx(name) {
   async function wpFetch(titles) {
     try {
       const r = await fetch(`${wpApi}?action=query&titles=${encodeURIComponent(titles)}${llq}`);
-      if (r.ok) { reached = true; return firstJa((await r.json()).query?.pages); }
-      return null;
+      return r.ok ? firstJa((await r.json()).query?.pages) : null;
     } catch { return null; }
   }
   async function wpSearch(q, n = 5) {
     try {
       const r = await fetch(`${wpApi}?action=query&list=search&srsearch=${encodeURIComponent(q)}&srlimit=${n}&srnamespace=0&format=json&origin=*`);
-      if (r.ok) { reached = true; return ((await r.json()).query?.search || []).map(h => h.title).join('|'); }
-      return '';
+      return r.ok ? ((await r.json()).query?.search || []).map(h => h.title).join('|') : '';
     } catch { return ''; }
   }
-  const done = ja => ({ ja, reached });
 
   // 試み①〜④: 英語Wikipedia → 日本語langlink
   const ja1 = await wpFetch(name);
-  if (ja1) return done(ja1);
+  if (ja1) return ja1;
 
   const t2 = await wpSearch(name, 5);
-  if (t2) { const ja2 = await wpFetch(t2); if (ja2) return done(ja2); }
+  if (t2) { const ja2 = await wpFetch(t2); if (ja2) return ja2; }
 
   const t3 = await wpSearch(name + ' footballer', 3);
-  if (t3) { const ja3 = await wpFetch(t3); if (ja3) return done(ja3); }
+  if (t3) { const ja3 = await wpFetch(t3); if (ja3) return ja3; }
 
   const t4 = await wpSearch(name + ' football club', 3);
-  if (t4) { const ja4 = await wpFetch(t4); if (ja4) return done(ja4); }
+  if (t4) { const ja4 = await wpFetch(t4); if (ja4) return ja4; }
 
   // 試み⑤: Wikidata 日本語ラベル
+  // 英語Wikipedia ↔ 日本語Wikipedia の対応がない選手でも
+  // Wikidata には日本語ラベル（表記）が登録されていることが多い
   try {
     const r5 = await fetch(
       `${wdApi}?action=wbsearchentities&search=${encodeURIComponent(name)}&language=en&type=item&limit=5&format=json&origin=*`
     );
     if (r5.ok) {
-      reached = true;
       const items = (await r5.json()).search || [];
       for (const item of items) {
         if (!matches(item.label || '')) continue;
@@ -3043,17 +2581,16 @@ async function lookupWikipediaJaEx(name) {
           `${wdApi}?action=wbgetentities&ids=${encodeURIComponent(item.id)}&languages=ja&props=labels%7Csitelinks&sitefilter=jawiki&format=json&origin=*`
         );
         if (!r6.ok) continue;
-        reached = true;
         const ent = (await r6.json()).entities?.[item.id];
         const jaTitle = ent?.sitelinks?.jawiki?.title;
-        if (jaTitle) return done(jaTitle);
+        if (jaTitle) return jaTitle;
         const jaLabel = ent?.labels?.ja?.value;
-        if (jaLabel) return done(jaLabel);
+        if (jaLabel) return jaLabel;
       }
     }
   } catch {}
 
-  return done(null);
+  return null;
 }
 
 /* ════════════════════════════════════════
@@ -3321,16 +2858,9 @@ document.querySelectorAll('.pnav').forEach(btn => { btn.onclick = () => showPage
    時計・更新表示
 ════════════════════════════════════════ */
 function tick() {
-  // サイトが「今」をどう認識しているかを常に表示（端末の時計ズレに気付けるように）。
-  // 日本語環境はJST固定、それ以外は閲覧者の地域時刻でスケジュールと同じ基準を出す。
-  const tz  = LANG === 'ja' ? 'Asia/Tokyo' : Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const now = new Date();
-  const dateStr = now.toLocaleDateString(LANG==='ja'?'ja-JP':'en-US',
-    { timeZone: tz, month:'numeric', day:'numeric' });
-  const timeStr = now.toLocaleTimeString(LANG==='ja'?'ja-JP':'en-US',
-    { timeZone: tz, hour:'2-digit', minute:'2-digit', hour12:false });
-  const zone = LANG === 'ja' ? 'JST' : '';
-  document.getElementById('clock').textContent = `${dateStr} ${timeStr} ${zone}`.trim();
+  document.getElementById('clock').textContent =
+    'JST ' + new Date().toLocaleTimeString('ja-JP',
+      { timeZone:'Asia/Tokyo', hour:'2-digit', minute:'2-digit', hour12:false });
 }
 
 function markUpdated() {
@@ -3348,17 +2878,13 @@ let loadInFlight = false;          // load()の多重実行防止
 let lastLoadDone = Date.now();     // 最後にload()が完了した時刻（見張りタイマーの判定用）
 
 async function load(showLoader = false) {
-  if (loadInFlight) return;        // 前回のloadがまだ走っていたら重ねない
+  if (loadInFlight) return;
   loadInFlight = true;
   const btn = document.getElementById('reloadBtn');
   btn.classList.add('spin');
   if (showLoader) document.getElementById('scheduleWrap').innerHTML = `<div class="state"><span class="ico">⚽</span>${T.loading}</div>`;
   try {
-    const [matches] = await Promise.all([
-      fetchSchedule(),
-      isWorldCup ? fetchWcGroupMap() : Promise.resolve(),
-    ]);
-    allMatches = matches;
+    allMatches = await fetchSchedule();
     buildCountryFilter();
     renderSchedule();
     markUpdated();
@@ -3372,7 +2898,8 @@ async function load(showLoader = false) {
   scheduleNextRefresh();
 }
 
-// 現在の状況に応じた更新間隔：ライブ中 or 試合時間帯（開始15分前〜3時間後）は速く
+// 現在の状況に応じた更新間隔：ライブ中 or 試合時間帯（開始15分前〜3時間後）は60秒、それ以外は3分。
+// 従来はESPNが state=in を返した時しか高速化されず、初回の応答が古いと最大3分間据え置かれていた
 function refreshIntervalMs() {
   const hasLive = allMatches.some(m => m.state === 'in');
   const t = Date.now();
@@ -3391,19 +2918,16 @@ function scheduleNextRefresh() {
 
 function startAutoRefresh() {
   scheduleNextRefresh();
-  // スマホはタブを閉じている間タイマーが止まるため、復帰時は即座に最新へ更新
-  // （「ライブなのに反映されない／終了済みなのに試合中」の主因はこの停止）
+  // スマホはタブを閉じている間タイマーが停止する。復帰時に30秒以上経っていたら即更新
+  //（「ライブなのに反映されない／終了済みなのに試合中のまま」の主因のひとつ）
   let lastWake = Date.now();
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible') return;
-    tick();   // 時計も即座に現在時刻へ
-    // 30秒以上離れていたら鮮度が落ちているので即リロード
     if (Date.now() - lastWake > 30_000) load(false);
     lastWake = Date.now();
   });
   // 見張りタイマー（自己修復）：何らかの理由で自動更新チェーンが死んでも、
-  // 「予定間隔の2倍以上更新されていない」を検知して自動でload()を再起動する。
-  // （fetchのハング等でチェーンが無言で止まる事故への最終防衛線）
+  // 「予定間隔の2倍以上更新されていない」を検知して自動でload()を再起動する
   setInterval(() => {
     if (loadInFlight) return;
     if (Date.now() - lastLoadDone > refreshIntervalMs() * 2 + 15_000) load(false);
@@ -3417,7 +2941,7 @@ document.getElementById('reloadBtn').onclick = () => load(true);
 
 /* 非日本語環境のUI文字列初期化 */
 if (LANG !== 'ja') {
-  document.title = 'Football Week — Live Scores, Fixtures & Standings';
+  document.title = 'Football Today | Soccer Schedule';
   document.getElementById('siteSubtitle').textContent = T.subtitle;
   document.querySelector('.pnav[data-page="schedule"]').textContent  = T.schedule;
   document.querySelector('.pnav[data-page="standings"]').textContent = T.standings;
@@ -3436,7 +2960,24 @@ startAutoRefresh();
 tick();
 setInterval(tick, 30_000);
 
-/* ヘッダーは常に固定表示（スクロールで隠す動きは廃止） */
+/* スクロールで上バナーを隠す（モバイルのみ） */
+(function() {
+  let lastY = 0, ticking = false;
+  window.addEventListener('scroll', () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      const y = window.scrollY;
+      if (y > lastY && y > 60) {
+        document.body.classList.add('header-hidden');
+      } else if (y <= 10) {
+        document.body.classList.remove('header-hidden');
+      }
+      lastY = y;
+      ticking = false;
+    });
+  }, { passive: true });
+})();
 
 /* ── 泡アニメーション生成 ── */
 (function() {
@@ -3452,30 +2993,12 @@ setInterval(tick, 30_000);
     {size:20, left:86, dur:12, delay: 4},
     {size:13, left:94, dur:10, delay: 6},
   ];
-  // W杯期間中は金色の光の粒が舞い上がる（粒は小さめ・数は多め）
-  if (isWorldCup) {
-    const golds = [
-      {size: 7, left:  5, dur:11, delay: 0}, {size:12, left: 13, dur:15, delay: 4},
-      {size: 5, left: 22, dur: 9, delay: 7}, {size:14, left: 31, dur:16, delay: 2},
-      {size: 8, left: 40, dur:12, delay: 9}, {size: 6, left: 49, dur:10, delay: 5},
-      {size:11, left: 58, dur:14, delay: 1}, {size: 5, left: 67, dur: 9, delay: 8},
-      {size:13, left: 75, dur:15, delay: 3}, {size: 7, left: 83, dur:11, delay: 6},
-      {size: 9, left: 90, dur:13, delay:10}, {size: 6, left: 96, dur:10, delay: 2},
-    ];
-    golds.forEach(b => {
-      const el = document.createElement('div');
-      el.className = 'bubble wc-gold';
-      el.style.cssText = `width:${b.size}px;height:${b.size}px;left:${b.left}%;animation-duration:${b.dur}s;animation-delay:-${b.delay}s`;
-      wrap.appendChild(el);
-    });
-  } else {
-    bubbles.forEach(b => {
-      const el = document.createElement('div');
-      el.className = 'bubble';
-      el.style.cssText = `width:${b.size}px;height:${b.size}px;left:${b.left}%;animation-duration:${b.dur}s;animation-delay:-${b.delay}s`;
-      wrap.appendChild(el);
-    });
-  }
+  bubbles.forEach(b => {
+    const el = document.createElement('div');
+    el.className = 'bubble';
+    el.style.cssText = `width:${b.size}px;height:${b.size}px;left:${b.left}%;animation-duration:${b.dur}s;animation-delay:-${b.delay}s`;
+    wrap.appendChild(el);
+  });
 })();
 </script>
 </body>
