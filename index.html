@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Football Today | 欧州サッカー日程表</title>
+  <title>Football Week | 欧州サッカー日程表</title>
   <meta name="google-site-verification" content="36E2heKne3wfqWYS__XDLWlvbopcAhlE-k4p4K3UlxM" />
   <meta name="description" content="プレミアリーグ・ラ・リーガ・セリエA・ブンデスリーガ・チャンピオンズリーグの試合日程・結果・順位表・得点ランキングをシンプルに確認。日本語・英語対応、毎日自動更新。Soccer schedule, standings and top scorers for Premier League, La Liga, Serie A, Bundesliga, Champions League.">
   <meta name="keywords" content="欧州サッカー,試合日程,順位表,得点ランキング,プレミアリーグ,ラ・リーガ,セリエA,ブンデスリーガ,チャンピオンズリーグ,soccer schedule,Premier League,La Liga,Serie A,Bundesliga,Champions League,football schedule">
@@ -202,6 +202,13 @@
     .tbl tr.drow:first-child td { border-top: none; }
     .th-time { width: 72px; }
     .th-score { width: 66px; }
+    /* 英語表示のみ：クラブ名の長さで表の中心（スコア列）がずれる／表が画面右へはみ出すのを防ぐ。
+       固定レイアウトにするとスコア列以外の2列（ホーム/アウェー）が必ず同じ幅になる。
+       日本語表示は半角カナで収まっており問題が無いので対象外（html.lang-en の時だけ効く） */
+    html.lang-en .tbl.sched { table-layout: fixed; width: 100%; }
+    html.lang-en .tbl.sched .td-home, html.lang-en .tbl.sched .td-away,
+    html.lang-en .tbl.sched th.r, html.lang-en .tbl.sched th.l { width: auto; }
+    html.lang-en .tbl.sched thead th.r, html.lang-en .tbl.sched thead th.l { text-align: center; }
     .th-comp { max-width: 140px; }
     .td-time { width: 72px; text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap; }
     .t-pre  { display: inline-block; font-size: 14px; font-weight: 700; color: #fff; font-family: 'BIZ UDPMincho', serif; background: rgba(10,40,80,0.55); border-radius: 6px; padding: 2px 7px; text-shadow: none; }
@@ -567,7 +574,7 @@
     <span>
       <span style="display:block;line-height:1.1">
         <span style="color:#fff">Football</span>
-        <em style="background:#fff;color:#111;padding:1px 5px;border-radius:3px;margin-left:3px;font-size:15px">Today</em>
+        <em style="background:#fff;color:#111;padding:1px 5px;border-radius:3px;margin-left:3px;font-size:15px">Week</em>
       </span>
       <span id="siteSubtitle" style="display:block;font-size:9px;font-weight:400;opacity:.65;letter-spacing:.8px;margin-top:1px">欧州サッカー日程表</span>
     </span>
@@ -666,6 +673,8 @@
    言語設定
 ════════════════════════════════════════ */
 const LANG = navigator.language.startsWith('ja') ? 'ja' : 'en';
+// 英語表示の時だけ効かせるレイアウト調整用の目印（日本語表示には一切影響させない）
+if (LANG !== 'ja') document.documentElement.classList.add('lang-en');
 const WC_START = new Date('2026-06-11T00:00:00Z');
 const WC_END   = new Date('2026-07-20T00:00:00Z');
 const isWorldCup = new Date() >= WC_START && new Date() <= WC_END;
@@ -1408,6 +1417,8 @@ let activeScorersTab    = 'goals';
 let allMatches          = [];
 let lastSchedByLeague   = {};   // リーグ別・直近の取得成功データ（一部リーグの取得失敗時に試合を消さない）
 let matchBest           = {};   // 試合ID別・これまでに見た最も進んだ状態（古い応答による後戻り防止）
+let farByLeague         = {};   // リーグ別・+2〜+6日の日程（10分に1回だけ取得して使い回す）
+let farFetchedAt        = 0;
 const standingsCache    = {};
 const scorersCache      = {};
 let timer               = null;
@@ -1580,6 +1591,9 @@ function parseEvent(ev, lg) {
     homeScore: (state !== 'pre') ? home.score : null,
     awayScore: (state !== 'pre') ? away.score : null,
     state, clock: comp.status?.displayClock || '',
+    // 英語表示のスマホ幅で長い名前を収めるためのESPN公式短縮名・略号（日本語表示では未使用）
+    homeShort: home.team?.shortDisplayName || null, awayShort: away.team?.shortDisplayName || null,
+    homeAbbr: home.team?.abbreviation || null, awayAbbr: away.team?.abbreviation || null,
     label: lg.label, shortLabel: lg.short || lg.label, country: lg.country, leagueColor: lg.color || '#64748b',
   };
 }
@@ -1589,42 +1603,69 @@ async function fetchSchedule() {
     const d = new Date(); d.setUTCDate(d.getUTCDate() + off);
     return d.toISOString().slice(0,10).replace(/-/g,'');
   };
-  const from = dayStr(-1), to = dayStr(6);
-  // ⚠️ ESPNのCDNは「クエリURLの形」ごとに鮮度がバラバラで、どれが新しいかは時間帯で逆転する
-  //    （実測：同じライブ試合が範囲クエリでは10時間前で固着、単日クエリでは最新…その逆も）。
-  //    1種類に頼るとライブ/結果が固まるため、範囲＋今日＋昨日の3クエリを取得し、
-  //    同じ試合は「最も進んだ状態」を採用する。
+  // ⚠️ 2026-09時点でESPNは範囲指定(dates=from-to)を HTTP 400 で拒否する。必ず単日クエリで取る。
+  //    （範囲クエリに頼っていた版は、未来の日程が丸ごと消える不具合を起こした）
+  // 近い日(昨日・今日・明日)＋日付なしクエリは毎回取得＝ライブ/結果の鮮度用。クエリの形ごとに
+  // ESPN側キャッシュの鮮度が違うため複数取り、同じ試合は「最も進んだ状態」を採用する。
+  // 遠い日(+2〜+6日)は予定が変わりにくいので10分に1回だけ取得（リクエスト数とレート制限対策）。
+  const url = (lg, q) => `${ESPN_SCHED}/${lg.code}/scoreboard?${q}limit=100&lang=ja&region=jp`;
+  const needFar = Date.now() - farFetchedAt > 10 * 60 * 1000;
   const jobs = SCHEDULE_LEAGUES.flatMap(lg => [
-    { lg, url: `${ESPN_SCHED}/${lg.code}/scoreboard?dates=${from}-${to}&limit=300&lang=ja&region=jp` },
-    { lg, url: `${ESPN_SCHED}/${lg.code}/scoreboard?dates=${dayStr(0)}&limit=100&lang=ja&region=jp` },
-    { lg, url: `${ESPN_SCHED}/${lg.code}/scoreboard?dates=${dayStr(-1)}&limit=100&lang=ja&region=jp` },
+    ...[-1, 0, 1].map(o => ({ lg, far: false, url: url(lg, `dates=${dayStr(o)}&`) })),
+    { lg, far: false, url: url(lg, '') },
+    ...(needFar ? [2, 3, 4, 5, 6].map(o => ({ lg, far: true, url: url(lg, `dates=${dayStr(o)}&`) })) : []),
   ]);
-  const results = await mapPool(jobs, FETCH_CONCURRENCY, async ({ lg, url }) => {
+  const results = await mapPool(jobs, FETCH_CONCURRENCY, async ({ lg, far, url }) => {
     try {
       const d = await fetchJson(url);
-      return { code: lg.code, evs: (d.events || []).map(ev => parseEvent(ev, lg)).filter(Boolean) };
+      return { code: lg.code, far, evs: (d.events || []).map(ev => parseEvent(ev, lg)).filter(Boolean) };
     } catch {
-      return { code: lg.code, evs: null };   // このURLは失敗（他のクエリ/前回データで補う）
+      return { code: lg.code, far, evs: null };   // このURLは失敗（他のクエリ/前回データで補う）
     }
   });
 
+  // 遠い日の結果はリーグ別に保持し、取得しない回はそれを使う
+  if (needFar) {
+    const farNew = {};
+    let farOk = false;
+    for (const { code, far, evs } of results) {
+      if (!far || evs === null) continue;
+      farOk = true;
+      (farNew[code] = farNew[code] || []).push(...evs);
+    }
+    if (farOk) { for (const c of Object.keys(farNew)) farByLeague[c] = farNew[c]; farFetchedAt = Date.now(); }
+  }
+
   // リーグごとに集約。1件も取れなかったリーグだけ直近の成功データでフォールバック（試合を消さない）
-  const perLeague = {};
-  for (const { code, evs } of results) {
-    if (evs === null) continue;
+  const perLeague = {}, nearOk = {};
+  for (const { code, far, evs } of results) {
+    if (far || evs === null) continue;
+    nearOk[code] = true;   // 近い日のクエリが1本でも成功したリーグ
     (perLeague[code] = perLeague[code] || []).push(...evs);
   }
   const all = [];
   for (const lg of SCHEDULE_LEAGUES) {
-    let evs = perLeague[lg.code];
-    if (evs && evs.length) lastSchedByLeague[lg.code] = evs;
-    else evs = lastSchedByLeague[lg.code] || [];
+    let evs;
+    if (nearOk[lg.code]) {
+      evs = [...perLeague[lg.code], ...(farByLeague[lg.code] || [])];
+      lastSchedByLeague[lg.code] = evs;
+    } else {
+      evs = lastSchedByLeague[lg.code] || farByLeague[lg.code] || [];   // 近い日が全滅 → 前回データで表示を維持
+    }
     all.push(...evs);
   }
 
   // 同一試合IDはバッチ内で「最も進んだ状態」に統合し、さらに過去に見た状態より後退した応答は捨てる
+  // 日付なしクエリは「次節」など表示範囲外の試合も返すので、前日〜6日先(UTC)だけに絞る
+  const winStart = new Date(); winStart.setUTCDate(winStart.getUTCDate() - 1); winStart.setUTCHours(0, 0, 0, 0);
+  const winEnd   = new Date(); winEnd.setUTCDate(winEnd.getUTCDate() + 6);     winEnd.setUTCHours(23, 59, 59, 999);
+  const inWindow = e => { const t = new Date(e.utcDate).getTime(); return t >= winStart.getTime() && t <= winEnd.getTime(); };
+
   const byId = {};
-  for (const e of all) byId[e.id] = byId[e.id] ? (moreAdvanced(e, byId[e.id]) ? e : byId[e.id]) : e;
+  for (const e of all) {
+    if (!inWindow(e)) continue;
+    byId[e.id] = byId[e.id] ? (moreAdvanced(e, byId[e.id]) ? e : byId[e.id]) : e;
+  }
   return Object.values(byId).map(applyMonotonic);
 }
 
@@ -1661,7 +1702,7 @@ function renderSchedule() {
   let lastDate  = null;
   const rows    = [];
   for (const m of sorted) {
-    if (m.logicalDate !== lastDate) { rows.push(`<tr class="drow"><td colspan="5">${dayLabel(m.logicalDate)}</td></tr>`); lastDate = m.logicalDate; }
+    if (m.logicalDate !== lastDate) { rows.push(`<tr class="drow"><td colspan="3">${dayLabel(m.logicalDate)}</td></tr>`); lastDate = m.logicalDate; }
     rows.push(scheduleRow(m));
   }
   const label = COUNTRY_FILTERS.find(f => f.id === activeCountry)?.label ?? 'すべて';
@@ -1705,8 +1746,14 @@ const HALF_KANA_MAP = {
 function toHalfKana(str) {
   return [...str].map(c => HALF_KANA_MAP[c] ?? c).join('');
 }
-function fitTeamName(name) {
-  if (LANG !== 'ja') return name;
+function fitTeamName(name, short, abbr) {
+  if (LANG !== 'ja') {
+    // 英語表示・スマホ幅：固定幅の列に収めるため、14文字以上はESPN公式短縮名("Man United"等)、
+    // それでも長ければ公式略号("MUN"等)にする（「…」で切らない）
+    if (window.innerWidth >= 600 || name.length <= 13) return name;
+    if (short && short.length < name.length) return short.length <= 13 ? short : (abbr || short);
+    return abbr || name;
+  }
   if (window.innerWidth >= 600) return name;
   const fw = [...name].filter(c => c.charCodeAt(0) >= 0x30A0 && c.charCodeAt(0) <= 0x30FF).length;
   return fw >= 8 ? toHalfKana(name) : name;
@@ -1716,8 +1763,8 @@ function scheduleRow(m) {
   const cl = toHalfKana(m.shortLabel);
   const hb = m.homeLogo ? `<img class="badge" src="${attr(m.homeLogo)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '';
   const ab = m.awayLogo ? `<img class="badge" src="${attr(m.awayLogo)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '';
-  const hn = fitTeamName(m.homeTeam);
-  const an = fitTeamName(m.awayTeam);
+  const hn = fitTeamName(m.homeTeam, m.homeShort, m.homeAbbr);
+  const an = fitTeamName(m.awayTeam, m.awayShort, m.awayAbbr);
   let timeEl;
   if (m.state === 'post') timeEl = `<span class="t-fin">${LANG==='ja'?'終了':'FT'}</span>`;
   else if (m.state === 'in') timeEl = `<span class="t-live"><span class="live-dot"></span>${esc(m.clock.replace(':00',"'"))}</span>`;
@@ -2941,7 +2988,7 @@ document.getElementById('reloadBtn').onclick = () => load(true);
 
 /* 非日本語環境のUI文字列初期化 */
 if (LANG !== 'ja') {
-  document.title = 'Football Today | Soccer Schedule';
+  document.title = 'Football Week | Soccer Schedule';
   document.getElementById('siteSubtitle').textContent = T.subtitle;
   document.querySelector('.pnav[data-page="schedule"]').textContent  = T.schedule;
   document.querySelector('.pnav[data-page="standings"]').textContent = T.standings;
