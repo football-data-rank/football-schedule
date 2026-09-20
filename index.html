@@ -124,9 +124,8 @@
       padding: 0 16px;
       overflow-x: auto;
       scrollbar-width: none;
-      position: sticky;
-      top: calc(var(--hdr) + var(--nav));
-      z-index: 28;
+      /* スクロールに追従させない（リーグフェーズ/ノックアウトの切替バーが下まで付いてくるのをやめる） */
+      position: static;
     }
     .filter-bar::-webkit-scrollbar { display: none; }
 
@@ -196,7 +195,8 @@
     .tbl.sched tr.drow td { background: rgba(8,145,178,0.28) !important; color: #083d5e !important; border: none !important; letter-spacing: 0.4px !important; font-weight: 800 !important; }
 
     /* ─── Schedule ─── */
-    .tbl.sched tbody tr:hover { background: var(--row-hl); }
+    /* 行のホバー強調は廃止（スマホではタップで発動し、しかも奇数行しか光らず意味不明だった） */
+    .tbl.sched { -webkit-tap-highlight-color: transparent; }
     .tbl.sched td { padding: 8px 10px; vertical-align: middle; }
     .tbl tr.drow td { background: #f0f4ff; padding: 5px 10px; font-size: 11px; font-weight: 700; color: #4338ca; border-top: 2px solid #c7d2fe; }
     .tbl tr.drow:first-child td { border-top: none; }
@@ -209,6 +209,8 @@
     html.lang-en .tbl.sched .td-home, html.lang-en .tbl.sched .td-away,
     html.lang-en .tbl.sched th.r, html.lang-en .tbl.sched th.l { width: auto; }
     html.lang-en .tbl.sched thead th.r, html.lang-en .tbl.sched thead th.l { text-align: center; }
+    /* 英語表示：列に入らないクラブ名の横幅だけを詰める（fitSchedNamesが倍率を設定） */
+    .tn-sq { display: inline-block; white-space: nowrap; transform-origin: left center; }
     .th-comp { max-width: 140px; }
     .td-time { width: 72px; text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap; }
     .t-pre  { display: inline-block; font-size: 14px; font-weight: 700; color: #fff; font-family: 'BIZ UDPMincho', serif; background: rgba(10,40,80,0.55); border-radius: 6px; padding: 2px 7px; text-shadow: none; }
@@ -698,6 +700,7 @@ const T = {
   lCol:        LANG==='ja' ? '負'                   : 'L',
   gfCol:       LANG==='ja' ? '得'                   : 'GF',
   gaCol:       LANG==='ja' ? '失'                   : 'GA',
+  gdCol:       LANG==='ja' ? '差'                   : 'GD',
   goals:       LANG==='ja' ? '得点'                 : 'Goals',
   assists:     LANG==='ja' ? 'アシスト'             : 'Assists',
   player:      LANG==='ja' ? '選手'                 : 'Player',
@@ -1379,15 +1382,16 @@ const TOP_N       = 200;  // 全件取得（最後尾まで表示）
 const FETCH_CONCURRENCY = 6;
 const FETCH_RETRIES     = 2;
 const FETCH_TIMEOUT     = 10_000;
-async function fetchJson(url, { retries = FETCH_RETRIES, timeout = FETCH_TIMEOUT } = {}) {
+async function fetchJson(url, { retries = FETCH_RETRIES, timeout = FETCH_TIMEOUT, fresh = true } = {}) {
   let lastErr;
   for (let attempt = 0; attempt <= retries; attempt++) {
     const ctrl = new AbortController();
     const tid  = setTimeout(() => ctrl.abort(), timeout);
     try {
-      // 毎回ユニークな ?_= でESPN側CDNの古いスナップショットを掴まない。no-storeはブラウザ側対策
-      const bust = (url.includes('?') ? '&' : '?') + '_=' + Date.now() + '-' + attempt;
-      const res = await fetch(url + bust, { cache: 'no-store', signal: ctrl.signal });
+      // fresh=true: 毎回ユニークな ?_= でESPN側CDNの古いスナップショットを掴まない（ライブ/結果用）。
+      // fresh=false: 先の予定など鮮度不要のものはキャッシュを使って速く取る
+      const bust = fresh ? (url.includes('?') ? '&' : '?') + '_=' + Date.now() + '-' + attempt : '';
+      const res = await fetch(url + bust, { cache: fresh ? 'no-store' : 'default', signal: ctrl.signal });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       return await res.json();
     } catch (e) {
@@ -1604,55 +1608,69 @@ async function fetchSchedule() {
     return d.toISOString().slice(0,10).replace(/-/g,'');
   };
   // ⚠️ 2026-09時点でESPNは範囲指定(dates=from-to)を HTTP 400 で拒否する。必ず単日クエリで取る。
-  //    （範囲クエリに頼っていた版は、未来の日程が丸ごと消える不具合を起こした）
-  // 近い日(昨日・今日・明日)＋日付なしクエリは毎回取得＝ライブ/結果の鮮度用。クエリの形ごとに
-  // ESPN側キャッシュの鮮度が違うため複数取り、同じ試合は「最も進んだ状態」を採用する。
-  // 遠い日(+2〜+6日)は予定が変わりにくいので10分に1回だけ取得（リクエスト数とレート制限対策）。
-  const url = (lg, q) => `${ESPN_SCHED}/${lg.code}/scoreboard?${q}limit=100&lang=ja&region=jp`;
-  const needFar = Date.now() - farFetchedAt > 10 * 60 * 1000;
+  // 【速度対策】ここでは「昨日・今日・明日」だけを取ってすぐ返す（＝すぐ表示できる）。
+  //  先の日程(+2〜+6日)は fetchFarDays() が裏で取り、終わったら表示に足す。
+  // ライブ時間帯だけ「日付なしクエリ」も追加で取る（ESPN側キャッシュの鮮度がクエリの形ごとに違うため、
+  // 同じ試合は「最も進んだ状態」を採用する）。
+  const liveWindow = allMatches.length > 0 && refreshIntervalMs() === REFRESH_LIVE;
   const jobs = SCHEDULE_LEAGUES.flatMap(lg => [
-    ...[-1, 0, 1].map(o => ({ lg, far: false, url: url(lg, `dates=${dayStr(o)}&`) })),
-    { lg, far: false, url: url(lg, '') },
-    ...(needFar ? [2, 3, 4, 5, 6].map(o => ({ lg, far: true, url: url(lg, `dates=${dayStr(o)}&`) })) : []),
+    ...[-1, 0, 1].map(o => ({ lg, url: schedUrl(lg, `dates=${dayStr(o)}&`) })),
+    ...(liveWindow ? [{ lg, url: schedUrl(lg, '') }] : []),
   ]);
-  const results = await mapPool(jobs, FETCH_CONCURRENCY, async ({ lg, far, url }) => {
+  const results = await mapPool(jobs, NEAR_CONCURRENCY, async ({ lg, url }) => {
     try {
       const d = await fetchJson(url);
-      return { code: lg.code, far, evs: (d.events || []).map(ev => parseEvent(ev, lg)).filter(Boolean) };
+      return { code: lg.code, evs: (d.events || []).map(ev => parseEvent(ev, lg)).filter(Boolean) };
     } catch {
-      return { code: lg.code, far, evs: null };   // このURLは失敗（他のクエリ/前回データで補う）
+      return { code: lg.code, evs: null };   // このURLは失敗（他のクエリ/前回データで補う）
     }
   });
 
-  // 遠い日の結果はリーグ別に保持し、取得しない回はそれを使う
-  if (needFar) {
-    const farNew = {};
-    let farOk = false;
-    for (const { code, far, evs } of results) {
-      if (!far || evs === null) continue;
-      farOk = true;
-      (farNew[code] = farNew[code] || []).push(...evs);
-    }
-    if (farOk) { for (const c of Object.keys(farNew)) farByLeague[c] = farNew[c]; farFetchedAt = Date.now(); }
-  }
-
-  // リーグごとに集約。1件も取れなかったリーグだけ直近の成功データでフォールバック（試合を消さない）
-  const perLeague = {}, nearOk = {};
-  for (const { code, far, evs } of results) {
-    if (far || evs === null) continue;
-    nearOk[code] = true;   // 近い日のクエリが1本でも成功したリーグ
+  // リーグごとに集約。1本も成功しなかったリーグは前回データを残す（試合を消さない）
+  const perLeague = {};
+  for (const { code, evs } of results) {
+    if (evs === null) continue;
     (perLeague[code] = perLeague[code] || []).push(...evs);
   }
+  for (const code of Object.keys(perLeague)) lastSchedByLeague[code] = perLeague[code];
+  return assembleMatches();
+}
+
+const NEAR_CONCURRENCY = 12;
+function schedUrl(lg, q) { return `${ESPN_SCHED}/${lg.code}/scoreboard?${q}limit=100&lang=ja&region=jp`; }
+
+// 先の日程(+2〜+6日)。予定は変わりにくいので10分に1回だけ、裏で取得する。取得したら true
+async function fetchFarDays() {
+  if (Date.now() - farFetchedAt < 10 * 60 * 1000) return false;
+  const dayStr = off => {
+    const d = new Date(); d.setUTCDate(d.getUTCDate() + off);
+    return d.toISOString().slice(0,10).replace(/-/g,'');
+  };
+  const jobs = SCHEDULE_LEAGUES.flatMap(lg => [2, 3, 4, 5, 6].map(o => ({ lg, url: schedUrl(lg, `dates=${dayStr(o)}&`) })));
+  const results = await mapPool(jobs, FETCH_CONCURRENCY, async ({ lg, url }) => {
+    try {
+      const d = await fetchJson(url, { fresh: false });   // 未来の予定はキャッシュ利用でよい（速い）
+      return { code: lg.code, evs: (d.events || []).map(ev => parseEvent(ev, lg)).filter(Boolean) };
+    } catch { return { code: lg.code, evs: null }; }
+  });
+  const farNew = {};
+  let ok = false;
+  for (const { code, evs } of results) {
+    if (evs === null) continue;
+    ok = true;
+    (farNew[code] = farNew[code] || []).push(...evs);
+  }
+  if (!ok) return false;
+  for (const c of Object.keys(farNew)) farByLeague[c] = farNew[c];
+  farFetchedAt = Date.now();
+  return true;
+}
+
+// 近い日(lastSchedByLeague)＋先の日程(farByLeague)から表示用の試合一覧を組み立てる
+function assembleMatches() {
   const all = [];
   for (const lg of SCHEDULE_LEAGUES) {
-    let evs;
-    if (nearOk[lg.code]) {
-      evs = [...perLeague[lg.code], ...(farByLeague[lg.code] || [])];
-      lastSchedByLeague[lg.code] = evs;
-    } else {
-      evs = lastSchedByLeague[lg.code] || farByLeague[lg.code] || [];   // 近い日が全滅 → 前回データで表示を維持
-    }
-    all.push(...evs);
+    all.push(...(lastSchedByLeague[lg.code] || []), ...(farByLeague[lg.code] || []));
   }
 
   // 同一試合IDはバッチ内で「最も進んだ状態」に統合し、さらに過去に見た状態より後退した応答は捨てる
@@ -1721,6 +1739,7 @@ function renderSchedule() {
       <tbody>${rows.join('')}</tbody>
     </table>
     </div>`;
+  fitSchedNames();   // 英語表示：入らないクラブ名を実測で縮める（日本語表示では何もしない）
 }
 
 const HALF_KANA_MAP = {
@@ -1746,14 +1765,9 @@ const HALF_KANA_MAP = {
 function toHalfKana(str) {
   return [...str].map(c => HALF_KANA_MAP[c] ?? c).join('');
 }
-function fitTeamName(name, short, abbr) {
-  if (LANG !== 'ja') {
-    // 英語表示・スマホ幅：固定幅の列に収めるため、14文字以上はESPN公式短縮名("Man United"等)、
-    // それでも長ければ公式略号("MUN"等)にする（「…」で切らない）
-    if (window.innerWidth >= 600 || name.length <= 13) return name;
-    if (short && short.length < name.length) return short.length <= 13 ? short : (abbr || short);
-    return abbr || name;
-  }
+function fitTeamName(name) {
+  // 英語表示はここでは縮めない。描画後に fitSchedNames() が「実際に入るか」を測って縮める
+  if (LANG !== 'ja') return name;
   if (window.innerWidth >= 600) return name;
   const fw = [...name].filter(c => c.charCodeAt(0) >= 0x30A0 && c.charCodeAt(0) <= 0x30FF).length;
   return fw >= 8 ? toHalfKana(name) : name;
@@ -1763,8 +1777,13 @@ function scheduleRow(m) {
   const cl = toHalfKana(m.shortLabel);
   const hb = m.homeLogo ? `<img class="badge" src="${attr(m.homeLogo)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '';
   const ab = m.awayLogo ? `<img class="badge" src="${attr(m.awayLogo)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '';
-  const hn = fitTeamName(m.homeTeam, m.homeShort, m.homeAbbr);
-  const an = fitTeamName(m.awayTeam, m.awayShort, m.awayAbbr);
+  const hn = fitTeamName(m.homeTeam);
+  const an = fitTeamName(m.awayTeam);
+  // 英語表示用：実測フィット(fitSchedNames)が使う候補（正式名→公式短縮名→公式略号）
+  const fitAttrs = (full, short, abbr) => LANG === 'ja' ? '' :
+    ` data-full="${attr(full)}"${short ? ` data-short="${attr(short)}"` : ''}${abbr ? ` data-abbr="${attr(abbr)}"` : ''}`;
+  const hAttrs = fitAttrs(m.homeTeam, m.homeShort, m.homeAbbr);
+  const aAttrs = fitAttrs(m.awayTeam, m.awayShort, m.awayAbbr);
   let timeEl;
   if (m.state === 'post') timeEl = `<span class="t-fin">${LANG==='ja'?'終了':'FT'}</span>`;
   else if (m.state === 'in') timeEl = `<span class="t-live"><span class="live-dot"></span>${esc(m.clock.replace(':00',"'"))}</span>`;
@@ -1773,8 +1792,54 @@ function scheduleRow(m) {
     ? `<span class="score-num">${esc(m.homeScore)}-${esc(m.awayScore)}</span>`
     : `<span class="score-vs">vs</span>`;
   const sc = `<td class="td-score"><div class="score-inner">${timeEl}${scoreEl}<span class="score-comp" style="color:${attr(m.leagueColor)};font-weight:700">${esc(cl)}</span></div></td>`;
-  return `<tr${m.state==='in'?' class="live-row"':''}><td class="td-home"><span class="team-inner">${hb}<span class="tn">${esc(hn)}</span></span></td>${sc}<td class="td-away"><span class="team-inner">${ab}<span class="tn">${esc(an)}</span></span></td></tr>`;
+  return `<tr${m.state==='in'?' class="live-row"':''}><td class="td-home"><span class="team-inner">${hb}<span class="tn"${hAttrs}>${esc(hn)}</span></span></td>${sc}<td class="td-away"><span class="team-inner">${ab}<span class="tn"${aAttrs}>${esc(an)}</span></span></td></tr>`;
 }
+
+// 英語表示：クラブ名が列に「実際に入るか」を画面上で測り、入らない時だけ段階的に縮める。
+// 文字数での決め打ちは、端末ごとに文字の大きさ（iPhoneの拡大率やフォント）が違うため当てにならない。
+//   正式名 → 公式短縮名 → 横幅を詰める（英字の「半角化」＝日本語の半角カナと同じ発想）
+//   「…」で切らない。"MUN" のような略号は誰のことか分からないので使わない
+function fitSchedNames() {
+  if (LANG === 'ja') return;
+  const over = el => el.scrollWidth > el.clientWidth + 1;
+  // 文字の横幅だけを圧縮して列にぴったり収める。minRatio より細くなる場合は false（次の手へ）
+  const squeeze = (el, minRatio) => {
+    const txt = el.textContent;
+    const span = document.createElement('span');
+    span.className = 'tn-sq';
+    span.textContent = txt;
+    el.textContent = '';
+    el.appendChild(span);
+    const ratio = (el.clientWidth / span.offsetWidth) * 0.99;
+    if (ratio >= 1) { el.textContent = txt; return true; }
+    if (ratio < minRatio) { el.textContent = txt; return false; }
+    span.style.transform = `scaleX(${ratio.toFixed(3)})`;
+    el.style.textAlign = 'left';        // 列幅ぴったりに広がるので左基準で置く
+    el.style.textOverflow = 'clip';     // 圧縮後は収まっているので「…」を出させない
+    return true;
+  };
+  document.querySelectorAll('.tbl.sched .tn[data-full]').forEach(el => {
+    if (!el.clientWidth) return;   // 日程ページが非表示の間は測れない（表示された時に測り直す）
+    el.style.fontSize = ''; el.style.textAlign = ''; el.style.textOverflow = '';
+    const full = el.dataset.full, s = el.dataset.short;
+    el.textContent = full;
+    if (!over(el)) return;                          // ① 正式名がそのまま入る
+    if (squeeze(el, 0.85)) return;                  // ② 少し詰めれば正式名が入る（15%以内）
+    if (s && s.length < full.length) {
+      el.textContent = s;
+      if (!over(el)) return;                        // ③ 公式短縮名が入る
+      if (squeeze(el, 0.6)) return;                 // ④ 短縮名を詰める
+    } else if (squeeze(el, 0.6)) return;            // ④' 短縮名が無ければ正式名を詰める
+    // ⑤ それでも入らない超長名：文字を一回り小さくしてから詰める（下限なし＝必ず収まる）
+    const base = parseFloat(getComputedStyle(el).fontSize) || 14;
+    el.style.fontSize = (base * 0.85).toFixed(1) + 'px';
+    squeeze(el, 0);
+  });
+}
+// Webフォントの読み込み完了・画面回転/リサイズで文字幅が変わるので測り直す
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => fitSchedNames());
+let _fitT = null;
+window.addEventListener('resize', () => { clearTimeout(_fitT); _fitT = setTimeout(fitSchedNames, 150); });
 
 /* ════════════════════════════════════════
    ② 各リーグ順位 — 取得・描画
@@ -2034,7 +2099,8 @@ function buildStandingsHtml(entries, lname, subtitle) {
     const teamName = (adminMode && e.teamEn)
       ? `<span class="admin-name" data-en="${attr(e.teamEn)}" data-type="team" title="クリックで編集">${esc(displayName)}</span>`
       : esc(displayName);
-    return `<tr>${zbar}<td class="stnd-rank">${e.rank}</td><td class="stnd-team"><span class="stnd-team-inner">${logo}${teamName}</span></td><td class="stnd-num">${e.gp}</td><td class="stnd-num stnd-w">${e.w}</td><td class="stnd-num stnd-d">${e.d}</td><td class="stnd-num stnd-l">${e.l}</td><td class="stnd-num">${e.gf}</td><td class="stnd-num">${e.ga}</td><td class="stnd-pts">${e.pts}</td></tr>`;
+    // 列の並び: 勝ち点 → 試合数 → 勝 → 分 → 敗 → 得点 → 失点 → 得失点
+    return `<tr>${zbar}<td class="stnd-rank">${e.rank}</td><td class="stnd-team"><span class="stnd-team-inner">${logo}${teamName}</span></td><td class="stnd-pts">${e.pts}</td><td class="stnd-num">${e.gp}</td><td class="stnd-num stnd-w">${e.w}</td><td class="stnd-num stnd-d">${e.d}</td><td class="stnd-num stnd-l">${e.l}</td><td class="stnd-num">${e.gf}</td><td class="stnd-num">${e.ga}</td><td class="stnd-gd" style="color:${gdColor};font-weight:700">${gdNum}</td></tr>`;
   }).join('');
   return `
     <div class="sec-head"><button id="leagueTriggerBtn" class="sec-title">${esc(lname)} ▼</button>${cntHtml}</div>
@@ -2044,9 +2110,10 @@ function buildStandingsHtml(entries, lname, subtitle) {
       <thead><tr>
         <th style="width:4px;padding:0"></th>
         <th class="stnd-rank c"></th><th class="l">${T.clubHdr}</th>
+        <th class="c">${T.pts}</th>
         <th class="c">${T.pCol}</th><th class="c">${T.wCol}</th><th class="c">${T.dCol}</th><th class="c">${T.lCol}</th>
         <th class="c">${T.gfCol}</th><th class="c">${T.gaCol}</th>
-        <th class="c">${T.pts}</th>
+        <th class="c">${T.gdCol}</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>
@@ -2898,6 +2965,7 @@ function showPage(page) {
   if (page==='standings' && !standingsCache[activeStandCode])   loadStandings(activeStandCode);
   if (page==='scorers'   && !scorersCache[activeScorersCode])   loadScorers(activeScorersCode);
   if (page==='edit') initEditPage();
+  if (page==='schedule') fitSchedNames();   // 非表示中に更新された分を測り直す（英語表示のみ）
 }
 document.querySelectorAll('.pnav').forEach(btn => { btn.onclick = () => showPage(btn.dataset.page); });
 
@@ -2935,6 +3003,13 @@ async function load(showLoader = false) {
     buildCountryFilter();
     renderSchedule();
     markUpdated();
+    // 先の日程は裏で取得し、取れたら表示に足す（初回表示を待たせない）
+    fetchFarDays().then(got => {
+      if (!got) return;
+      allMatches = assembleMatches();
+      buildCountryFilter();
+      renderSchedule();
+    }).catch(() => {});
   } catch(e) {
     document.getElementById('scheduleWrap').innerHTML = `<div class="state"><span class="ico">⚠️</span>${T.failed}: ${esc(e.message)}</div>`;
   } finally {
