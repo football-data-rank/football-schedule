@@ -56,8 +56,8 @@
       justify-content: space-between;
       padding: 0 20px;
       height: var(--hdr);
-      position: sticky;
-      top: 0;
+      /* 固定しない：スクロールしたらページと一緒に普通に流れる（ユーザー指定） */
+      position: static;
       z-index: 30;
     }
     .site-title {
@@ -90,8 +90,7 @@
       display: flex;
       padding: 0 20px;
       border-top: 1px solid #1e293b;
-      position: sticky;
-      top: var(--hdr);
+      position: static;
       z-index: 29;
       height: var(--nav);
     }
@@ -241,6 +240,7 @@
     .stnd-rank { width: 28px; text-align: center; font-size: 13px; font-weight: 700; color: var(--muted); }
     .stnd-team { font-size: 13px; font-weight: 500; white-space: nowrap; }
     .stnd-team-inner { display: flex; align-items: center; gap: 6px; }
+    .scorer-name-inner { display: flex; align-items: center; gap: 7px; }   /* 得点ランキング：クラブのマーク＋選手名 */
     .stnd-badge { width: 20px; height: 20px; object-fit: contain; flex-shrink: 0; }
     .stnd-num { width: 30px; text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; }
     .scorer-sub-row { display: flex; gap: 8px; margin-bottom: 10px; }
@@ -443,7 +443,7 @@
       text-align: left; padding: 7px 10px;
       background: var(--row-alt); border-bottom: 2px solid var(--border);
       font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: .4px;
-      position: sticky; top: calc(var(--hdr) + var(--nav));
+      position: sticky; top: 0;   /* ヘッダーが固定でなくなったので画面上端に合わせる（管理者の名前編集ページ） */
     }
     .edit-tbl td { padding: 4px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
     .edit-tbl td:first-child { color: var(--muted); font-size: 12px; width: 50%; }
@@ -470,14 +470,8 @@
     /* ─── Responsive ─── */
     @media (max-width: 640px) {
       .hide-sm { display: none; }
-      /* ヘッダーを画面幅に固定（テーブルが広くても崩れない） */
-      #topbar  { position: fixed; top: 0; left: 0; right: 0; transition: transform .3s ease; }
-      #pageNav { position: fixed; top: var(--hdr); left: 0; right: 0; transition: transform .3s ease; }
-      body.header-hidden #topbar  { transform: translateY(calc(-1 * var(--hdr))); }
-      body.header-hidden #pageNav { transform: translateY(calc(-1 * (var(--hdr) + var(--nav)))); }
-      #schedulePage, #standingsPage, #scorersPage, #editPage {
-        padding-top: calc(var(--hdr) + var(--nav));
-      }
+      /* ヘッダーは固定しない（以前は画面上部に固定し、スクロールでゆっくり引っ込む演出だったが廃止）。
+         固定をやめたので、ヘッダーの高さぶんの余白(padding-top)も不要 */
       /* 試合日程 */
       #scheduleWrap { padding-left: 2px; padding-right: 2px; }
       .tbl.sched td { padding: 4px 0; }
@@ -2523,10 +2517,10 @@ function scorerTable(players, colLabel) {
     const nameCell = adminMode && p.nameEn
       ? `<span class="admin-name" data-en="${attr(p.nameEn)}" title="クリックで編集">${esc(p.name)}</span>`
       : esc(p.name);
+    // 所属クラブのマークは名前のすぐ左に表示（以前は別の列にあり、スマホでは列ごと非表示で見えなかった）
     return `<tr>
       <td class="stnd-rank" style="${rankStyle(p.rank)}">${p.rank}</td>
-      <td style="${nameStyle(p.rank)};padding:8px 10px">${nameCell}</td>
-      <td class="stnd-num hide-sm">${tl}</td>
+      <td style="${nameStyle(p.rank)};padding:8px 10px"><span class="scorer-name-inner">${tl}${nameCell}</span></td>
       <td class="stnd-num hide-sm">${p.matches}</td>
       <td class="stat-val">${p.value}</td>
     </tr>`;
@@ -2535,7 +2529,6 @@ function scorerTable(players, colLabel) {
     <thead><tr>
       <th class="c" style="width:28px"></th>
       <th class="l">${T.player}</th>
-      <th class="c hide-sm" style="width:36px">${T.team}</th>
       <th class="c hide-sm" style="width:36px">${T.pCol}</th>
       <th class="c" style="width:52px">${esc(colLabel)}</th>
     </tr></thead>
@@ -3081,25 +3074,6 @@ load(true);
 startAutoRefresh();
 tick();
 setInterval(tick, 30_000);
-
-/* スクロールで上バナーを隠す（モバイルのみ） */
-(function() {
-  let lastY = 0, ticking = false;
-  window.addEventListener('scroll', () => {
-    if (ticking) return;
-    ticking = true;
-    requestAnimationFrame(() => {
-      const y = window.scrollY;
-      if (y > lastY && y > 60) {
-        document.body.classList.add('header-hidden');
-      } else if (y <= 10) {
-        document.body.classList.remove('header-hidden');
-      }
-      lastY = y;
-      ticking = false;
-    });
-  }, { passive: true });
-})();
 
 /* ── 泡アニメーション生成 ── */
 (function() {
