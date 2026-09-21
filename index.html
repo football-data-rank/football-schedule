@@ -754,6 +754,11 @@ const SCHEDULE_LEAGUES = [
   { code: 'uefa.champions',      label: LANG==='ja'?'チャンピオンズリーグ':'Champions League',short: 'CL',        country: 'europe',  color: '#1e40af' },
   { code: 'uefa.europa',         label: LANG==='ja'?'ヨーロッパリーグ':'Europa League',       short: 'EL',        country: 'europe',  color: '#ea580c' },
   { code: 'uefa.europa.conf',    label: LANG==='ja'?'カンファレンスリーグ':'Conference League',short: 'UECL',     country: 'europe',  color: '#0891b2' },
+  // ── 代表戦（試合日程のみ。順位・得点ランキングには出さない） ──
+  // UEFAネーションズリーグは全試合。国際親善試合は小国同士の試合が大量にあるので、
+  // nationFilter:true ＝「日本・欧州・南米の国がどちらか片方でも出る試合」だけ表示する
+  { code: 'uefa.nations',        label: LANG==='ja'?'UEFAネーションズリーグ':'UEFA Nations League', short: 'Nations', country: 'intl', color: '#0f766e' },
+  { code: 'fifa.friendly',       label: LANG==='ja'?'国際親善試合':'International Friendly',        short: 'Friendly', country: 'intl', color: '#0f766e', nationFilter: true },
 ];
 
 const COUNTRY_FILTERS = [
@@ -765,6 +770,7 @@ const COUNTRY_FILTERS = [
   { id: 'italy',   label: LANG==='ja'?'イタリア':'Italy'       },
   { id: 'france',  label: LANG==='ja'?'フランス':'France'      },
   { id: 'europe',  label: LANG==='ja'?'欧州カップ':'Euro Cups' },
+  { id: 'intl',    label: LANG==='ja'?'代表戦':'National Teams' },
 ];
 
 const STANDINGS_LEAGUES = [
@@ -990,6 +996,71 @@ const TEAM_NAMES_JA = {
 /* ────────────────────────────────────────
    選手名 日本語マップ
 ──────────────────────────────────────── */
+/* ── 代表チーム名（日本語表記）。TEAM_NAMES_JA に無いものだけ追加する ── */
+const NATIONAL_TEAMS_JA = {
+  // 日本
+  'Japan':'日本',
+  // 欧州(UEFA)
+  'Albania':'アルバニア','Andorra':'アンドラ','Armenia':'アルメニア','Austria':'オーストリア','Azerbaijan':'アゼルバイジャン',
+  'Belarus':'ベラルーシ','Belgium':'ベルギー','Bosnia-Herzegovina':'ボスニア・ヘルツェゴビナ','Bosnia and Herzegovina':'ボスニア・ヘルツェゴビナ',
+  'Bulgaria':'ブルガリア','Croatia':'クロアチア','Cyprus':'キプロス','Czechia':'チェコ','Czech Republic':'チェコ','Denmark':'デンマーク',
+  'England':'イングランド','Estonia':'エストニア','Faroe Islands':'フェロー諸島','Finland':'フィンランド','France':'フランス',
+  'Georgia':'ジョージア','Germany':'ドイツ','Gibraltar':'ジブラルタル','Greece':'ギリシャ','Hungary':'ハンガリー','Iceland':'アイスランド',
+  'Israel':'イスラエル','Italy':'イタリア','Kazakhstan':'カザフスタン','Kosovo':'コソボ','Latvia':'ラトビア','Liechtenstein':'リヒテンシュタイン',
+  'Lithuania':'リトアニア','Luxembourg':'ルクセンブルク','Malta':'マルタ','Moldova':'モルドバ','Montenegro':'モンテネグロ',
+  'Netherlands':'オランダ','North Macedonia':'北マケドニア','Northern Ireland':'北アイルランド','Norway':'ノルウェー','Poland':'ポーランド',
+  'Portugal':'ポルトガル','Republic of Ireland':'アイルランド','Ireland':'アイルランド','Romania':'ルーマニア','Russia':'ロシア',
+  'San Marino':'サンマリノ','Scotland':'スコットランド','Serbia':'セルビア','Slovakia':'スロバキア','Slovenia':'スロベニア','Spain':'スペイン',
+  'Sweden':'スウェーデン','Switzerland':'スイス','Türkiye':'トルコ','Turkiye':'トルコ','Turkey':'トルコ','Ukraine':'ウクライナ','Wales':'ウェールズ',
+  // 南米(CONMEBOL)
+  'Argentina':'アルゼンチン','Bolivia':'ボリビア','Brazil':'ブラジル','Chile':'チリ','Colombia':'コロンビア','Ecuador':'エクアドル',
+  'Paraguay':'パラグアイ','Peru':'ペルー','Uruguay':'ウルグアイ','Venezuela':'ベネズエラ',
+  // アジア(AFC)
+  'South Korea':'韓国','Korea Republic':'韓国','Republic of Korea':'韓国','North Korea':'北朝鮮','Korea DPR':'北朝鮮',
+  'Australia':'オーストラリア','Iran':'イラン','IR Iran':'イラン','Saudi Arabia':'サウジアラビア','Qatar':'カタール','Iraq':'イラク',
+  'United Arab Emirates':'UAE','UAE':'UAE','Uzbekistan':'ウズベキスタン','Jordan':'ヨルダン','Oman':'オマーン','Bahrain':'バーレーン',
+  'Kuwait':'クウェート','Syria':'シリア','Lebanon':'レバノン','Palestine':'パレスチナ','Yemen':'イエメン','China':'中国','China PR':'中国',
+  'Hong Kong':'香港','Chinese Taipei':'チャイニーズ・タイペイ','Taiwan':'台湾','Thailand':'タイ','Vietnam':'ベトナム','Indonesia':'インドネシア',
+  'Malaysia':'マレーシア','Singapore':'シンガポール','Philippines':'フィリピン','Myanmar':'ミャンマー','Cambodia':'カンボジア','Laos':'ラオス',
+  'India':'インド','Bangladesh':'バングラデシュ','Nepal':'ネパール','Sri Lanka':'スリランカ','Maldives':'モルディブ','Pakistan':'パキスタン',
+  'Afghanistan':'アフガニスタン','Tajikistan':'タジキスタン','Kyrgyzstan':'キルギス','Kyrgyz Republic':'キルギス','Turkmenistan':'トルクメニスタン',
+  'Mongolia':'モンゴル','Bhutan':'ブータン','Brunei':'ブルネイ','Brunei Darussalam':'ブルネイ','Timor-Leste':'東ティモール','Guam':'グアム','Macau':'マカオ',
+  // アフリカ(CAF)
+  'Morocco':'モロッコ','Senegal':'セネガル','Egypt':'エジプト','Nigeria':'ナイジェリア','Algeria':'アルジェリア','Tunisia':'チュニジア',
+  'Cameroon':'カメルーン','Ghana':'ガーナ','Ivory Coast':'コートジボワール',"Côte d'Ivoire":'コートジボワール',"Cote d'Ivoire":'コートジボワール',
+  'Mali':'マリ','South Africa':'南アフリカ','Congo DR':'コンゴ民主共和国','DR Congo':'コンゴ民主共和国','Congo':'コンゴ共和国',
+  'Burkina Faso':'ブルキナファソ','Guinea':'ギニア','Cape Verde':'カーボベルデ','Cape Verde Islands':'カーボベルデ','Zambia':'ザンビア',
+  'Angola':'アンゴラ','Gabon':'ガボン','Uganda':'ウガンダ','Kenya':'ケニア','Tanzania':'タンザニア','Ethiopia':'エチオピア','Sudan':'スーダン',
+  'Libya':'リビア','Mauritania':'モーリタニア','Benin':'ベナン','Togo':'トーゴ','Niger':'ニジェール','Mozambique':'モザンビーク',
+  'Zimbabwe':'ジンバブエ','Namibia':'ナミビア','Botswana':'ボツワナ','Madagascar':'マダガスカル','Equatorial Guinea':'赤道ギニア',
+  'Guinea-Bissau':'ギニアビサウ','Sierra Leone':'シエラレオネ','Liberia':'リベリア','Gambia':'ガンビア','The Gambia':'ガンビア','Rwanda':'ルワンダ',
+  'Burundi':'ブルンジ','Malawi':'マラウイ','Comoros':'コモロ','Central African Republic':'中央アフリカ','Chad':'チャド','Lesotho':'レソト',
+  'Eswatini':'エスワティニ','Mauritius':'モーリシャス','Seychelles':'セーシェル','Djibouti':'ジブチ','Somalia':'ソマリア','Eritrea':'エリトリア',
+  'South Sudan':'南スーダン','Sao Tome and Principe':'サントメ・プリンシペ','São Tomé and Príncipe':'サントメ・プリンシペ',
+  // 北中米カリブ(CONCACAF)
+  'United States':'アメリカ','USA':'アメリカ','Mexico':'メキシコ','Canada':'カナダ','Costa Rica':'コスタリカ','Panama':'パナマ',
+  'Honduras':'ホンジュラス','Jamaica':'ジャマイカ','El Salvador':'エルサルバドル','Guatemala':'グアテマラ','Haiti':'ハイチ',
+  'Trinidad and Tobago':'トリニダード・トバゴ','Curaçao':'キュラソー','Curacao':'キュラソー','Nicaragua':'ニカラグア','Cuba':'キューバ',
+  'Dominican Republic':'ドミニカ共和国','Suriname':'スリナム','Guyana':'ガイアナ','Bermuda':'バミューダ','Puerto Rico':'プエルトリコ','Belize':'ベリーズ',
+  // オセアニア(OFC)
+  'New Zealand':'ニュージーランド','New Caledonia':'ニューカレドニア','Fiji':'フィジー','Tahiti':'タヒチ','Solomon Islands':'ソロモン諸島',
+  'Vanuatu':'バヌアツ','Papua New Guinea':'パプアニューギニア','Samoa':'サモア','Tonga':'トンガ',
+};
+for (const [k, v] of Object.entries(NATIONAL_TEAMS_JA)) if (!TEAM_NAMES_JA[k]) TEAM_NAMES_JA[k] = v;
+
+// 国際親善試合の表示条件：「日本・欧州(UEFA)・南米(CONMEBOL)の国」がどちらか片方でも出る試合だけ表示する
+const _normNation = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/&/g, 'and').replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim();
+const MAJOR_NATIONS = new Set([
+  'Japan',
+  'Albania','Andorra','Armenia','Austria','Azerbaijan','Belarus','Belgium','Bosnia-Herzegovina','Bosnia and Herzegovina','Bulgaria','Croatia',
+  'Cyprus','Czechia','Czech Republic','Denmark','England','Estonia','Faroe Islands','Finland','France','Georgia','Germany','Gibraltar','Greece',
+  'Hungary','Iceland','Israel','Italy','Kazakhstan','Kosovo','Latvia','Liechtenstein','Lithuania','Luxembourg','Malta','Moldova','Montenegro',
+  'Netherlands','North Macedonia','Northern Ireland','Norway','Poland','Portugal','Republic of Ireland','Ireland','Romania','Russia','San Marino',
+  'Scotland','Serbia','Slovakia','Slovenia','Spain','Sweden','Switzerland','Türkiye','Turkey','Ukraine','Wales',
+  'Argentina','Bolivia','Brazil','Chile','Colombia','Ecuador','Paraguay','Peru','Uruguay','Venezuela',
+].map(_normNation));
+function isMajorNation(nameEn) { return MAJOR_NATIONS.has(_normNation(nameEn)); }
+
 const PLAYER_NAMES_JA = {
   // Premier League
   'Mohamed Salah':'モハメド・サラー','Erling Haaland':'アーリング・ハーランド',
@@ -1657,6 +1728,11 @@ function parseEvent(ev, lg) {
   const home = comp.competitors?.find(c => c.homeAway === 'home');
   const away = comp.competitors?.find(c => c.homeAway === 'away');
   if (!home || !away) return null;
+  // 国際親善試合など(nationFilter)：日本・欧州・南米の国がどちらも出ない試合は一覧に出さない
+  if (lg.nationFilter) {
+    const hEn = home.team?.displayName || home.team?.name, aEn = away.team?.displayName || away.team?.name;
+    if (!isMajorNation(hEn) && !isMajorNation(aEn)) return null;
+  }
   const stType = comp.status?.type ?? ev.status?.type ?? {};
   let state  = stType.state ?? 'pre';
   // 完了フラグが最も信頼できる「終了」シグナル。stateが古くても終了済みならpostに。
@@ -1717,14 +1793,17 @@ async function fetchSchedule() {
 const NEAR_CONCURRENCY = 12;
 function schedUrl(lg, q) { return `${ESPN_SCHED}/${lg.code}/scoreboard?${q}limit=100&lang=ja&region=jp`; }
 
-// 先の日程(+2〜+6日)。予定は変わりにくいので10分に1回だけ、裏で取得する。取得したら true
+// 先の日程(UTCで+2〜+8日)と、おととい(-2日)。変わりにくいので10分に1回だけ、裏で取得する。取得したら true
+// ※表示範囲は「見る人の時刻で 昨日0時〜7日後24時」。時差があるので、UTCの日付で切ると両端の日が
+//   途中で切れる（日本時間だと最終日の夜の試合や、昨日の早朝の試合が出ない）。
+//   そのためUTCでは前後1日ずつ広く(-2〜+8)取り、assembleMatches() で現地の日付で切り直す。
 async function fetchFarDays() {
   if (Date.now() - farFetchedAt < 10 * 60 * 1000) return false;
   const dayStr = off => {
     const d = new Date(); d.setUTCDate(d.getUTCDate() + off);
     return d.toISOString().slice(0,10).replace(/-/g,'');
   };
-  const jobs = SCHEDULE_LEAGUES.flatMap(lg => [2, 3, 4, 5, 6].map(o => ({ lg, url: schedUrl(lg, `dates=${dayStr(o)}&`) })));
+  const jobs = SCHEDULE_LEAGUES.flatMap(lg => [-2, 2, 3, 4, 5, 6, 7, 8].map(o => ({ lg, url: schedUrl(lg, `dates=${dayStr(o)}&`) })));
   const results = await mapPool(jobs, FETCH_CONCURRENCY, async ({ lg, url }) => {
     try {
       const d = await fetchJson(url, { fresh: false });   // 未来の予定はキャッシュ利用でよい（速い）
@@ -1752,10 +1831,13 @@ function assembleMatches() {
   }
 
   // 同一試合IDはバッチ内で「最も進んだ状態」に統合し、さらに過去に見た状態より後退した応答は捨てる
-  // 日付なしクエリは「次節」など表示範囲外の試合も返すので、前日〜6日先(UTC)だけに絞る
-  const winStart = new Date(); winStart.setUTCDate(winStart.getUTCDate() - 1); winStart.setUTCHours(0, 0, 0, 0);
-  const winEnd   = new Date(); winEnd.setUTCDate(winEnd.getUTCDate() + 6);     winEnd.setUTCHours(23, 59, 59, 999);
-  const inWindow = e => { const t = new Date(e.utcDate).getTime(); return t >= winStart.getTime() && t <= winEnd.getTime(); };
+  // 表示範囲は「見る人の時刻での日付」で 昨日〜6日後 を丸ごと。UTCで切ると両端の日が途中で切れる
+  // （例：日本時間の6日後は朝8:59までしか入らず、夜の日本代表戦が出ない）。
+  // logicalDate は getMatchTiming() が表示用タイムゾーンで出した日付(YYYY-MM-DD)なので、文字列比較で足りる。
+  const tz = LANG === 'ja' ? 'Asia/Tokyo' : Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const localDay = off => new Date(Date.now() + off * 86400000).toLocaleDateString('sv-SE', { timeZone: tz });
+  const firstDay = localDay(-1), lastDay = localDay(7);   // 昨日〜7日後（来週の同じ曜日まで丸ごと）
+  const inWindow = e => e.logicalDate >= firstDay && e.logicalDate <= lastDay;
 
   const byId = {};
   for (const e of all) {
@@ -1789,7 +1871,14 @@ function renderSchedule() {
   const base = activeCountry === 'all' ? allMatches : allMatches.filter(m => m.country === activeCountry);
   // 終了試合は前日以降のみ表示
   const list = base.filter(m => m.state !== 'post' || m.logicalDate >= yesterdayLocal);
-  if (!list.length) { wrap.innerHTML = `<div class="state"><span class="ico">📋</span>${T.noMatches}</div>`; return; }
+  if (!list.length) {
+    // 試合が無くても絞り込みボタンは必ず残す（消すと「代表戦」等を選んだ後に戻れなくなる）
+    const lbl = COUNTRY_FILTERS.find(f => f.id === activeCountry)?.label ?? 'すべて';
+    wrap.innerHTML = `
+      <div class="sec-head"><button id="countryTriggerBtn" class="sec-title">${esc(lbl)} ▼</button></div>
+      <div class="state"><span class="ico">📋</span>${T.noMatches}</div>`;
+    return;
+  }
 
   const sorted  = list.slice().sort((a,b) => new Date(a.utcDate) - new Date(b.utcDate));
   const dates   = [...new Set(sorted.map(m => m.logicalDate))];
