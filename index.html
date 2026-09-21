@@ -51,6 +51,16 @@
       min-height: 100vh;
     }
 
+    /* iOS 26以降のSafari専用：画面最上部の「もや」対策。
+       新しいSafariは最上部にページ下地色(水色)のぼかしを重ねるため、紺のバナーの上に水色のもやが出る。
+       最上部に固定された要素があるとSafariはその色を最上部に使うので、紺の細い帯を置いて紺色を拾わせる。
+       古いiOSでは不要かつ副作用の恐れがあるので、html.ios26 が付いた時だけ表示する */
+    #iosTopTint { display: none; }
+    html.ios26 #iosTopTint {
+      display: block; position: fixed; top: 0; left: 0; right: 0; height: 6px;
+      background: var(--navy); z-index: 40; pointer-events: none;
+    }
+
     /* ─── Header ─── */
     #topbar {
       background: var(--navy);
@@ -205,13 +215,12 @@
     .tbl tr.drow:first-child td { border-top: none; }
     .th-time { width: 72px; }
     .th-score { width: 66px; }
-    /* 英語表示のみ：クラブ名の長さで表の中心（スコア列）がずれる／表が画面右へはみ出すのを防ぐ。
-       固定レイアウトにするとスコア列以外の2列（ホーム/アウェー）が必ず同じ幅になる。
-       日本語表示は半角カナで収まっており問題が無いので対象外（html.lang-en の時だけ効く） */
-    html.lang-en .tbl.sched { table-layout: fixed; width: 100%; }
-    html.lang-en .tbl.sched .td-home, html.lang-en .tbl.sched .td-away,
-    html.lang-en .tbl.sched th.r, html.lang-en .tbl.sched th.l { width: auto; }
-    html.lang-en .tbl.sched thead th.r, html.lang-en .tbl.sched thead th.l { text-align: center; }
+    /* クラブ名の長さで表の中心（スコア列）がずれる／表が画面より広くなるのを防ぐ（全言語共通）。
+       固定レイアウトにするとスコア列以外の2列（ホーム/アウェー）が必ず同じ幅になり、表は必ず画面幅に収まる。
+       ※日本語表示を対象外にしていた時期、幅320pxのiPhoneで表が画面をはみ出しバナーより広くなった（2026-09-21実機スクショ） */
+    .tbl.sched { table-layout: fixed; width: 100%; }
+    .tbl.sched .td-home, .tbl.sched .td-away, .tbl.sched th.r, .tbl.sched th.l { width: auto; }
+    .tbl.sched thead th.r, .tbl.sched thead th.l { text-align: center; }
     /* 英語表示：列に入らないクラブ名の横幅だけを詰める（fitSchedNamesが倍率を設定） */
     .tn-sq { display: inline-block; white-space: nowrap; transform-origin: left center; }
     .th-comp { max-width: 140px; }
@@ -506,9 +515,16 @@
       .stnd-pts  { width: 30px; }
       .stnd-gd   { width: 30px; }
     }
+    /* 幅の狭い端末（iPhone SE等 320〜360px）：上のメニュー3項目が右端で切れないよう余白を詰める */
+    @media (max-width: 360px) {
+      #topbar  { padding: 0 12px; }
+      #pageNav { padding: 0 6px; }
+      .pnav    { padding: 0 9px; font-size: 12px; }
+    }
   </style>
 </head>
 <body>
+<div id="iosTopTint"></div>
 <div id="bubbles"></div>
 
 <!-- ── PINダイアログ ── -->
@@ -674,8 +690,15 @@
    言語設定
 ════════════════════════════════════════ */
 const LANG = navigator.language.startsWith('ja') ? 'ja' : 'en';
-// 英語表示の時だけ効かせるレイアウト調整用の目印（日本語表示には一切影響させない）
+// 英語表示の目印
 if (LANG !== 'ja') document.documentElement.classList.add('lang-en');
+// iOS 26以降のSafariの目印（最上部のもや対策 #iosTopTint 用）。SafariのUAは "Version/26.0" のように版数が入る
+(function () {
+  const ua = navigator.userAgent;
+  const m = ua.match(/Version\/(\d+)/);
+  const isIOS = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  if (isIOS && m && parseInt(m[1], 10) >= 26) document.documentElement.classList.add('ios26');
+})();
 const WC_START = new Date('2026-06-11T00:00:00Z');
 const WC_END   = new Date('2026-07-20T00:00:00Z');
 const isWorldCup = new Date() >= WC_START && new Date() <= WC_END;
@@ -1361,6 +1384,35 @@ const PLAYER_NAMES_JA = {
   'Scott McTominay':'スコット・マクトミネイ',
 };
 
+// 韓国人選手：姓が先で、日本語Wikipediaの記事名が漢字（例: 李康仁／孫興ミン）のことがあるため、
+// サッカーファンに馴染みのあるカタカナ表記で辞書登録しておく（辞書にある選手はWikipedia自動検索の対象外になる）。
+// 「姓 名」で書けば、ESPNの表記ゆれ4通り（姓名の順・ハイフン後の大文字/小文字）をまとめて登録する。
+const KOREAN_PLAYERS_JA = {
+  'Son Heung-Min':'ソン・フンミン',   'Kim Min-Jae':'キム・ミンジェ',     'Hwang Hee-Chan':'ファン・ヒチャン',
+  'Lee Kang-In':'イ・ガンイン',       'Hwang In-Beom':'ファン・インボム', 'Lee Jae-Sung':'イ・ジェソン',
+  'Hong Hyun-Seok':'ホン・ヒョンソク', 'Jeong Woo-Yeong':'チョン・ウヨン', 'Jung Woo-Young':'チョン・ウヨン',
+  'Yang Hyun-Jun':'ヤン・ヒョンジュン','Oh Hyeon-Gyu':'オ・ヒョンギュ',    'Seol Young-Woo':'ソル・ヨンウ',
+  'Kim Ji-Soo':'キム・ジス',          'Yang Min-Hyeok':'ヤン・ミンヒョク', 'Bae Jun-Ho':'ペ・ジュンホ',
+  'Cho Gue-Sung':'チョ・ギュソン',    'Lee Han-Beom':'イ・ハンボム',      'Park Seung-Soo':'パク・スンス',
+  'Yoon Do-Young':'ユン・ドヨン',     'Kwon Hyeok-Kyu':'クォン・ヒョッキュ','Eom Ji-Sung':'オム・ジソン',
+  'Lee Hyun-Ju':'イ・ヒョンジュ',     'Lee Tae-Seok':'イ・テソク',        'Paik Seung-Ho':'ペク・スンホ',
+  'Hwang Ui-Jo':'ファン・ウィジョ',
+};
+const KOREAN_PLAYER_KEYS = [];
+(function () {
+  const lowerAfterHyphen = s => s.replace(/-([A-Za-z])/g, (m, c) => '-' + c.toLowerCase());
+  for (const [k, ja] of Object.entries(KOREAN_PLAYERS_JA)) {
+    const [sur, ...rest] = k.split(' ');
+    const given = rest.join(' ');
+    for (const g of [given, lowerAfterHyphen(given)]) {
+      for (const key of [`${sur} ${g}`, `${g} ${sur}`]) {
+        KOREAN_PLAYER_KEYS.push(key);
+        if (!PLAYER_NAMES_JA[key]) PLAYER_NAMES_JA[key] = ja;   // 既存の登録は上書きしない
+      }
+    }
+  }
+})();
+
 /* ════════════════════════════════════════
    定数・状態
 ════════════════════════════════════════ */
@@ -1428,6 +1480,26 @@ let timer               = null;
 let _bracketConns       = [];
 let nameOverrides = {"teams":{"Liverpool":"リヴァプール","Liverpool FC":"リヴァプール","Aston Villa":"アストン・ヴィラ","Aston Villa FC":"アストン・ヴィラ","Brighton":"ブライトン","Brighton & Hove Albion":"ブライトン","Brighton and Hove Albion":"ブライトン","Wolves":"ウォルヴァーハンプトン","Wolverhampton":"ウォルヴァーハンプトン","Wolverhampton Wanderers":"ウォルヴァーハンプトン","Everton":"エヴァートン","Everton FC":"エヴァートン","Frankfurt":"フランクフルト","Eintracht Frankfurt":"フランクフルト","Ein. Frankfurt":"フランクフルト","Levante":"レバンテ","1. FC Heidenheim 1846":"ハイデンハイム","Hamburg SV":"ハンブルガーSV","FC Cologne":"ケルン","Paris FC":"パリFC"},"players":{"Bryan Mbeumo":"ブライアン・エンベウモ","Kai Havertz":"カイ・ハヴァーツ","Ivan Toney":"アイヴァン・トニー","Kylian Mbappe":"キリアン・エンバペ","Kylian Mbappé":"キリアン・エンバペ","Robert Lewandowski":"ロベルト・レヴァンドフスキ","Vinicius Junior":"ヴィニシウス・ジュニオール","Vinícius Júnior":"ヴィニシウス・ジュニオール","Vinicius Jr.":"ヴィニシウス・ジュニオール","Florian Wirtz":"フロリアン・ヴィルツ","Victor Boniface":"ヴィクター・ボニフェイス","Serhou Guirassy":"セール・ギラシ","Omar Marmoush":"オマル・マーモウシュ","Deniz Undav":"デニズ・ウンダフ","Michael Olise":"マイケル・オリーセ","Alphonso Davies":"アルフォンソ・デイビス","Dusan Vlahovic":"ドゥシャン・ヴラホビッチ","Dušan Vlahović":"ドゥシャン・ヴラホビッチ","Khvicha Kvaratskhelia":"クヴィチャ・クヴァラツヘリア","Tijjani Reijnders":"ティジャニ・ラインデルス","Victor Osimhen":"ヴィクター・オシムヘン","Marc Cucurella":"マルク・ククレジャ","Levi Colwill":"リーヴァイ・コルウィル","Malo Gusto":"マロ・ギュスト","Guglielmo Vicario":"グリエルモ・ヴィカーリオ","Aurelien Tchouameni":"オーレリアン・チュアメニ","Aurélien Tchouaméni":"オーレリアン・チュアメニ","Nahuel Molina":"ナウエル・モリーナ","Sergi Roberto":"セルジ・ロベルト","Xavi Simons":"シャビ・シモンズ","Olivier Giroud":"オリヴィエ・ジルー","Nathan Ake":"ナタン・アケ","Nathan Aké":"ナタン・アケ","Mathys Tel":"マチス・テル","Gabriel Magalhães":"ガブリエル・マガリャンイス","Nwaneri":"ヌワネリ","Ethan Nwaneri":"エタン・ヌワネリ","Alexis Mac Allister":"アレクシス・マクアリスター","Viktor Gyokeres":"ヴィクトル・ギョケレシュ","Viktor Gyökeres":"ヴィクトル・ギョケレシュ","Dominik Livakovic":"ドミニク・リヴァコビッチ","Dominik Livaković":"ドミニク・リヴァコビッチ","João Pedro":"ジョアン・ペドロ","Dominic Calvert-Lewin":"ドミニク・カルヴァート＝ルーウィン","Hugo Ekitike":"ヒューゴ・エキティケ","Harry Wilson":"ハリー・ウィルソン","Morgan Gibbs-White":"モーガン・ギブスホワイト","James Garner":"ジェームズ・ガーナー","Vedat Muriqi":"ベダト・ムリキ","Alexander Sørloth":"アレクサンデル・セルロート","Georges Mikautadze":"ジョージズ・ミカウタゼ","Alberto Moleiro":"アルベルト・モレイロ","Luis Milla":"ルイス・ミジャ","Arda Güler":"アルダ・キュレル","Antony":"アントニー","Edu Expósito":"エドゥ・エスポジト","Giuliano Simeone":"ジュリアーノ・シメオネ","Guela Doué":"ゲラ・ドゥエ","Endrick":"エンドリッキ","Adrien Thomasson":"アドリアン・トマソン","Joaquín Panichelli":"ホアキン・パニチェッリ","Folarin Balogun":"フォラリン・バログン","Florian Thauvin":"フロリアン・トヴァン","Pablo Pagis":"パブロ・パジス","Pierre-Emerick Aubameyang":"ピエールエメリク・オーバメヤン","Donyell Malen":"ドニエル・マレン","Hakan Çalhanoglu":"ハカン・チャルハノール","Nikola Vlasic":"ニコラ・ブラシッチ","Armand Laurienté":"アルマン・ロリアンテ","Jesús Rodriguez":"ヘスス・ロドリゲス","Charles De Ketelaere":"シャルル・デケテラーレ","Antoine Semenyo":"アントワーヌ・セメンヨ","Andrej Kramaric":"アンドレイ・クラマリッチ","Christoph Baumgartner":"クリストフ・バウムガルトナー","Said El Mala":"サイード・エル・マラ","Haris Tabakovic":"ハリス・タバコヴィッチ","Julian Ryerson":"ユリアン・リエルソン","Bazoumana Touré":"バズマナ・トゥーレ","Farès Chaïbi":"ファレス・シャイビ","Vladimír Coufal":"ヴラディミール・ツォウファル","Romano Schmid":"ロマーノ・シュミット","Jamie Leweling":"ジェイミー・レヴェリング","Giovane":"ジオヴァーニ","Matìas Soulè":"マティアス・スーレ","Maxence Caqueret":"マクサンス・カケレ","Anastasios Douvikas":"アナスタシオス・バカセタス","Nikola Krstovic":"ニコラ・クルストヴィッチ","Yan Diomande":"ヤン・ディオマンデ","Andrej Ilic":"アンドレイ・イリッチ","Christian Eriksen":"クリスティアン・エリクセン","Sebastiano Esposito":"セバスティアーノ・エスポジト","Pavel Sulc":"パヴェル・シュルツ","Sergi Darder":"セルジ・ダルデル","Santi Comesaña":"サンティ・コメサーニャ","Lucas Boyé":"ルーカス・ボジェ","Jorge de Frutos":"ホルヘ・デ・フルートス","Cucho Hernández":"クチョ・エルナンデス","André Silva":"アンドレ・シルヴァ","Hugo Duro":"ウーゴ・ドゥロ","Gorka Guruzeta":"ゴルカ・グルセタ","Federico Viñas":"フェデリコ・ビニャス","Vladyslav Vanat":"ヴラディスラフ・ヴァナト","Álvaro Rodríguez":"アルバロ・ロドリゲス","Yuri Berchiche":"ユーリ・ベルチチェ","Rubén García":"ルベン・ガルシア","Javier Guerra":"ハビエル・ゲラ","Luis Rioja":"ルイス・リオハ","Ander Barrenetxea":"アンデル・バレネチェア","Rômulo":"ホムル","Maximilian Beier":"マクシミリアン・バイアー","Jens Stage":"イェンス・ステーイ","Jakub Kaminski":"ヤクブ・カミンスキ","Tim Lemperle":"ティム・レンペール","Grischa Prömel":"グリシャ・プレメル","Igor Matanovic":"イゴール・マタノヴィッチ","Nadiem Amiri":"ナディーム・アミリ","Chris Führich":"クリス・ヒューリッヒ","Fisnik Asllani":"フィスニク・アスラニ","Franck Honorat":"フランク・オノラ","Fábio Silva":"ファビオ・シルヴァ","Angelo Stiller":"アンジェロ・スティラー","Aleix García":"アレイクス・ガルシア","Riccardo Orsolini":"リッカルド・オルソリーニ","Moise Kean":"モイーズ・キーン","Domenico Berardi":"ドメニコ・ベラルディ","Lorenzo Colombo":"ロレンツォ・コロンボ","Santiago Castro":"サンティアゴ・カストロ","Marco Palestra":"マルコ・パレストラ","Antonino Gallo":"アントニーノ・ガッロ","Máximo Perrone":"マクシモ・ペローネ","Jonathan David":"ジョナサン・デイヴィッド","Nicola Zalewski":"ニコラ・ザレフスキ","Esteban Lepaul":"エステバン・ルポール","Maghnes Akliouche":"マグネス・アクリウシェ","Ludovic Ajorque":"ルドヴィク・アジョルク","Felix Correia":"フェリックス・コレイア","Igor Paixão":"イゴール・パイシャオン","Aleksandr Golovin":"アレクサンドル・ゴロヴィン"}};
 (function(){ try { const s=localStorage.getItem('nameOverrides'); if(s){ const o=JSON.parse(s); nameOverrides.teams=Object.assign({},nameOverrides.teams,o.teams||{}); nameOverrides.players=Object.assign({},nameOverrides.players,o.players||{}); } } catch{} })();
+// 韓国人選手：過去の自動検索で端末に保存された漢字表記（李康仁 等）があると辞書のカタカナより優先されてしまうので、
+// 辞書登録済みの選手に限り、漢字を含む保存値だけ捨てる（管理者が手動で入れたカタカナ表記は残す）
+(function () {
+  let changed = false;
+  for (const key of KOREAN_PLAYER_KEYS) {
+    const v = nameOverrides.players[key];
+    if (v && /[一-鿿]/.test(v)) { delete nameOverrides.players[key]; changed = true; }
+  }
+  if (changed) { try { localStorage.setItem('nameOverrides', JSON.stringify(nameOverrides)); } catch {} }
+})();
+// 得点ランキング：Wikipediaで「日本語名なし」と確定した選手の記録（再検索しないため。localStorageに保存）
+let resolvedMiss = {};   // 選手の英語名 → 「該当なし」と判定した時刻(ms)
+(function(){ try { resolvedMiss = JSON.parse(localStorage.getItem('scorerNameMiss') || '{}') || {}; } catch { resolvedMiss = {}; } })();
+// 「該当なし」は14日で期限切れ→自動で再検索する。永久に固定しないのは、
+//  ①照合の不具合で誤判定していた場合に自然に直る ②後からWikipediaに日本語ページができた選手を拾える ため
+const MISS_TTL = 14 * 24 * 60 * 60 * 1000;
+function isMissFresh(nameEn) {
+  const t = resolvedMiss[nameEn];
+  return typeof t === 'number' && t > 1e12 && Date.now() - t < MISS_TTL;
+}
 
 /* ════════════════════════════════════════
    ユーティリティ
@@ -1530,10 +1602,17 @@ function teamNameJa(name) {
       || nameToKatakana(name);
 }
 
+// Wikipedia由来の名前に付く曖昧さ回避注記「(1974年生のサッカー選手)」等の末尾括弧を除去
+function cleanJaName(s) {
+  if (!s) return s;
+  return String(s).replace(/\s*[（(][^（()）]*[)）]\s*$/, '').trim();
+}
 function playerNameJa(name) {
   if (!name) return name;
   if (LANG !== 'ja') return name;
-  return nameOverrides.players[name] || PLAYER_NAMES_JA[name] || nameToKatakana(name);
+  // 手動登録 or Wikipediaで確定した日本語名があればそれを使う。
+  // 無ければ（カタカナ自動変換はせず）英語表記のまま表示する（2026-07のユーザー指示）。
+  return cleanJaName(nameOverrides.players[name] || PLAYER_NAMES_JA[name] || name);
 }
 
 function getLogo(team) {
@@ -1738,7 +1817,7 @@ function renderSchedule() {
       <tbody>${rows.join('')}</tbody>
     </table>
     </div>`;
-  fitSchedNames();   // 英語表示：入らないクラブ名を実測で縮める（日本語表示では何もしない）
+  fitSchedNames();   // 列に入らないクラブ名を実測して詰める（全言語）
 }
 
 const HALF_KANA_MAP = {
@@ -1779,10 +1858,13 @@ function scheduleRow(m) {
   const hn = fitTeamName(m.homeTeam);
   const an = fitTeamName(m.awayTeam);
   // 英語表示用：実測フィット(fitSchedNames)が使う候補（正式名→公式短縮名→公式略号）
-  const fitAttrs = (full, short, abbr) => LANG === 'ja' ? '' :
-    ` data-full="${attr(full)}"${short ? ` data-short="${attr(short)}"` : ''}${abbr ? ` data-abbr="${attr(abbr)}"` : ''}`;
-  const hAttrs = fitAttrs(m.homeTeam, m.homeShort, m.homeAbbr);
-  const aAttrs = fitAttrs(m.awayTeam, m.awayShort, m.awayAbbr);
+  // 日本語は従来どおり fitTeamName の結果（長い名前は半角カナ）を基準にし、それでも入らない時だけ横幅を詰める。
+  // 英語は 正式名→公式短縮名→横幅を詰める。
+  const fitAttrs = (shown, short) => LANG === 'ja'
+    ? ` data-full="${attr(shown)}"`
+    : ` data-full="${attr(shown)}"${short ? ` data-short="${attr(short)}"` : ''}`;
+  const hAttrs = fitAttrs(hn, m.homeShort);
+  const aAttrs = fitAttrs(an, m.awayShort);
   let timeEl;
   if (m.state === 'post') timeEl = `<span class="t-fin">${LANG==='ja'?'終了':'FT'}</span>`;
   else if (m.state === 'in') timeEl = `<span class="t-live"><span class="live-dot"></span>${esc(m.clock.replace(':00',"'"))}</span>`;
@@ -1799,7 +1881,6 @@ function scheduleRow(m) {
 //   正式名 → 公式短縮名 → 横幅を詰める（英字の「半角化」＝日本語の半角カナと同じ発想）
 //   「…」で切らない。"MUN" のような略号は誰のことか分からないので使わない
 function fitSchedNames() {
-  if (LANG === 'ja') return;
   const over = el => el.scrollWidth > el.clientWidth + 1;
   // 文字の横幅だけを圧縮して列にぴったり収める。minRatio より細くなる場合は false（次の手へ）
   const squeeze = (el, minRatio) => {
@@ -2447,7 +2528,7 @@ async function loadScorers(code, showLoader = true) {
     const unregistered = all.filter(p => {
       if (!p.nameEn || seen.has(p.nameEn)) return false;
       seen.add(p.nameEn);
-      return !nameOverrides.players[p.nameEn] && !PLAYER_NAMES_JA[p.nameEn];
+      return !nameOverrides.players[p.nameEn] && !PLAYER_NAMES_JA[p.nameEn] && !isMissFresh(p.nameEn);
     });
     if (unregistered.length) autoLookupPlayers(unregistered, code);
   } catch(e) {
@@ -2455,34 +2536,52 @@ async function loadScorers(code, showLoader = true) {
   }
 }
 
-// 未登録選手を1人ずつWikipedia検索してキャッシュに保存・再描画
+// 未登録選手をWikipediaで日本語名検索（2026-07にユーザー指示で作った完成版を復元）
+//  - 並列で検索（1人ずつ800ms間隔だと数百人で数分かかり、終わる前に離脱すると何も残らなかった）
+//  - 1人見つかるごとに即保存（＝一度変換した選手は二度と再検索しない）
+//  - Wikipediaに日本語名が無い選手は「該当なし」と記録し、英語表記のまま確定（再検索しない）
+const LOOKUP_CONCURRENCY = 3;
+function persistNameOverrides() { try { localStorage.setItem('nameOverrides', JSON.stringify(nameOverrides)); } catch {} }
+function persistResolvedMiss()  { try { localStorage.setItem('scorerNameMiss', JSON.stringify(resolvedMiss)); } catch {} }
+
+// 並列で次々に解決するので、都度描画せず400ms間隔にまとめて再描画
+let _scorerRerenderT = null;
+function scheduleScorerRerender(code) {
+  clearTimeout(_scorerRerenderT);
+  _scorerRerenderT = setTimeout(() => {
+    if (activePage === 'scorers' && activeScorersCode === code && scorersCache[code]) renderScorers(scorersCache[code], code);
+  }, 400);
+}
+
 async function autoLookupPlayers(players, code) {
   if (LANG !== 'ja') return;
-  let updated = false;
-  for (const p of players) {
-    if (nameOverrides.players[p.nameEn] || PLAYER_NAMES_JA[p.nameEn]) continue;
+  const seen = new Set();
+  const targets = players.filter(p => {
+    if (!p.nameEn || seen.has(p.nameEn)) return false;
+    seen.add(p.nameEn);
+    return !nameOverrides.players[p.nameEn] && !PLAYER_NAMES_JA[p.nameEn] && !isMissFresh(p.nameEn);
+  });
+  await mapPool(targets, LOOKUP_CONCURRENCY, async p => {
     try {
-      const ja = await lookupWikipediaJa(p.nameEn);
+      const { ja: raw, reached } = await lookupWikipediaJaEx(p.nameEn);
+      const ja = cleanJaName(raw);
       if (ja) {
         nameOverrides.players[p.nameEn] = ja;
-        updated = true;
-        // キャッシュの選手名を更新
+        persistNameOverrides();   // 1人見つかるごとに即保存（途中で離脱しても消えない）
         if (scorersCache[code]) {
           for (const list of [scorersCache[code].goals, scorersCache[code].assists]) {
             list.forEach(pl => { if (pl.nameEn === p.nameEn) pl.name = ja; });
           }
         }
-        // 表示中なら再描画
-        if (activePage === 'scorers' && activeScorersCode === code) {
-          renderScorers(scorersCache[code], code);
-        }
+        scheduleScorerRerender(code);
+      } else if (reached) {
+        // Wikipediaに到達したが日本語名が無い → 該当なしと確定（以後は再検索せず英語表記のまま）。
+        // 通信できなかった時(reached=false)は記録せず、次回に再試行する
+        resolvedMiss[p.nameEn] = Date.now();   // 時刻を記録（14日で期限切れ→再検索）
+        persistResolvedMiss();
       }
     } catch {}
-    await new Promise(r => setTimeout(r, 800)); // 800ms間隔でリクエスト
-  }
-  if (updated) {
-    try { localStorage.setItem('nameOverrides', JSON.stringify(nameOverrides)); } catch {}
-  }
+  });
 }
 
 function renderScorers(data, code) {
@@ -2628,19 +2727,49 @@ function buildScorersFilter() {
 /* ════════════════════════════════════════
    Wikipedia 日本語名検索
 ════════════════════════════════════════ */
-async function lookupWikipediaJa(name) {
+// 後方互換ラッパー（管理者ページのW検索ボタンが使用）：日本語名の文字列 or null を返す
+async function lookupWikipediaJa(name) { return (await lookupWikipediaJaEx(name)).ja; }
+
+// 本体：{ ja: 見つかった日本語名 or null, reached: Wikipedia/Wikidataに一度でも到達できたか }
+// reached は呼び出しごとのローカル変数なので、並列実行しても混ざらない
+async function lookupWikipediaJaEx(name) {
+  let reached = false;
+  const done = ja => ({ ja, reached });
   const wpApi = 'https://en.wikipedia.org/w/api.php';
   const wdApi = 'https://www.wikidata.org/w/api.php';
   const llq   = '&prop=langlinks&lllang=ja&format=json&origin=*';
 
-  // Unicode escape で発音符号除去（š→s, ö→o, á→a 等）
+  // 発音符号を除去（š→s, ö→o, á→a 等）。さらに分解されない特殊文字も英字に寄せる
+  // （ESPNは "Pascal Gross"、Wikipediaは "Pascal Groß" のように表記が違い、照合に失敗して
+  //   「日本語名なし」と誤判定されていたため）
   function norm(s) {
-    return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+      .replace(/ß/g, 'ss').replace(/ø/g, 'o').replace(/æ/g, 'ae').replace(/œ/g, 'oe')
+      .replace(/đ/g, 'd').replace(/ð/g, 'd').replace(/ł/g, 'l').replace(/ı/g, 'i').replace(/þ/g, 'th');
   }
   const nameParts = norm(name).split(/\s+/).filter(w => w.length > 1);
+  // 綴りの揺れ対策：ESPNとWikipediaで1〜2文字違う表記（Mykhaylo/Mykhailo、Mueller/Muller 等）を同一人物として照合する。
+  // 名前の全パートが一致する必要があるので、別人を拾う危険は小さい。短い語(4文字以下)は完全一致のみ。
+  function lev(a, b) {
+    if (Math.abs(a.length - b.length) > 2) return 3;
+    const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+    for (let j = 1; j <= b.length; j++) d[0][j] = j;
+    for (let i = 1; i <= a.length; i++)
+      for (let j = 1; j <= b.length; j++)
+        d[i][j] = Math.min(d[i-1][j] + 1, d[i][j-1] + 1, d[i-1][j-1] + (a[i-1] === b[j-1] ? 0 : 1));
+    return d[a.length][b.length];
+  }
+  const tol = p => p.length >= 9 ? 2 : p.length >= 5 ? 1 : 0;
   function matches(title) {
     const t = norm(title);
-    return nameParts.every(p => t.includes(p));
+    const words = t.split(/[^a-z0-9]+/).filter(Boolean);
+    return nameParts.every(p => {
+      if (t.includes(p)) return true;
+      const k = tol(p);
+      if (!k) return false;
+      // ハイフン入りの名前("heung-min")は語に分けた側とも比べる
+      return words.some(w => lev(p, w) <= k) || p.split('-').every(q => words.some(w => lev(q, w) <= tol(q)));
+    });
   }
 
   function firstJa(pages) {
@@ -2655,28 +2784,30 @@ async function lookupWikipediaJa(name) {
   async function wpFetch(titles) {
     try {
       const r = await fetch(`${wpApi}?action=query&titles=${encodeURIComponent(titles)}${llq}`);
-      return r.ok ? firstJa((await r.json()).query?.pages) : null;
+      if (r.ok) { reached = true; return firstJa((await r.json()).query?.pages); }
+      return null;
     } catch { return null; }
   }
   async function wpSearch(q, n = 5) {
     try {
       const r = await fetch(`${wpApi}?action=query&list=search&srsearch=${encodeURIComponent(q)}&srlimit=${n}&srnamespace=0&format=json&origin=*`);
-      return r.ok ? ((await r.json()).query?.search || []).map(h => h.title).join('|') : '';
+      if (r.ok) { reached = true; return ((await r.json()).query?.search || []).map(h => h.title).join('|'); }
+      return '';
     } catch { return ''; }
   }
 
   // 試み①〜④: 英語Wikipedia → 日本語langlink
   const ja1 = await wpFetch(name);
-  if (ja1) return ja1;
+  if (ja1) return done(ja1);
 
   const t2 = await wpSearch(name, 5);
-  if (t2) { const ja2 = await wpFetch(t2); if (ja2) return ja2; }
+  if (t2) { const ja2 = await wpFetch(t2); if (ja2) return done(ja2); }
 
   const t3 = await wpSearch(name + ' footballer', 3);
-  if (t3) { const ja3 = await wpFetch(t3); if (ja3) return ja3; }
+  if (t3) { const ja3 = await wpFetch(t3); if (ja3) return done(ja3); }
 
   const t4 = await wpSearch(name + ' football club', 3);
-  if (t4) { const ja4 = await wpFetch(t4); if (ja4) return ja4; }
+  if (t4) { const ja4 = await wpFetch(t4); if (ja4) return done(ja4); }
 
   // 試み⑤: Wikidata 日本語ラベル
   // 英語Wikipedia ↔ 日本語Wikipedia の対応がない選手でも
@@ -2686,6 +2817,7 @@ async function lookupWikipediaJa(name) {
       `${wdApi}?action=wbsearchentities&search=${encodeURIComponent(name)}&language=en&type=item&limit=5&format=json&origin=*`
     );
     if (r5.ok) {
+      reached = true;
       const items = (await r5.json()).search || [];
       for (const item of items) {
         if (!matches(item.label || '')) continue;
@@ -2695,14 +2827,14 @@ async function lookupWikipediaJa(name) {
         if (!r6.ok) continue;
         const ent = (await r6.json()).entities?.[item.id];
         const jaTitle = ent?.sitelinks?.jawiki?.title;
-        if (jaTitle) return jaTitle;
+        if (jaTitle) return done(jaTitle);
         const jaLabel = ent?.labels?.ja?.value;
-        if (jaLabel) return jaLabel;
+        if (jaLabel) return done(jaLabel);
       }
     }
   } catch {}
 
-  return null;
+  return done(null);
 }
 
 /* ════════════════════════════════════════
