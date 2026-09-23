@@ -252,6 +252,10 @@
     /* 順位表：順位・クラブ名は左に固定し、勝点から右の数字だけ横スライドする（5/16版の仕様を復元）。
        固定した列には背景色が必要（無いと、下を流れる数字が透けて見える）。left の値は pinStandingsCols() が実測して入れる */
     .stnd-scroll .tbl.stnd { overflow: visible; }
+    /* 長いクラブ名：列幅に合わせて横幅だけ詰める（pinStandingsCols が幅と倍率を設定） */
+    .st-nm-fit { display: inline-block; overflow: hidden; white-space: nowrap; vertical-align: middle; }
+    /* 端でスライドを引っ張った時に表全体（固定した左側ごと）がビヨンと動くのを止める */
+    .stnd-scroll { overscroll-behavior-x: none; }
     .stnd-scroll .tbl.stnd .zone-bar,
     .stnd-scroll .tbl.stnd .stnd-rank,
     .stnd-scroll .tbl.stnd .stnd-team { position: sticky; z-index: 2; background: var(--white); }
@@ -261,7 +265,6 @@
     .stnd-scroll .tbl.stnd thead .zone-bar,
     .stnd-scroll .tbl.stnd thead .stnd-rank,
     .stnd-scroll .tbl.stnd thead .stnd-team { background: #e8eaf6; z-index: 3; }
-    .stnd-scroll .tbl.stnd .stnd-team { box-shadow: 2px 0 4px rgba(0,0,0,.06); }
     .zone-bar { width: 4px !important; padding: 0 !important; }
     .stnd-rank { width: 28px; text-align: center; font-size: 13px; font-weight: 700; color: var(--muted); }
     .stnd-team { font-size: 13px; font-weight: 500; white-space: nowrap; }
@@ -523,6 +526,9 @@
       #lastUpdated { display: none; }
       /* 順位表: overflow は buildStandingsHtml の div wrapper で対応済み */
       .tbl.stnd td { font-size: 12px; padding: 5px 4px; }
+      /* 順位表は画面の左右端まで広げる（周りの水色の背景が見えないように） */
+      .stnd-scroll { margin-left: -16px; margin-right: -16px; }
+      .stnd-scroll .tbl.stnd { border-radius: 0; margin-bottom: 20px; }
       .stnd-rank { width: 20px; }
       .stnd-num  { width: 24px; }
       .stnd-pts  { width: 30px; }
@@ -2267,10 +2273,38 @@ function buildKnockoutHtml(rounds) {
 
 // 順位表の固定列（色帯・順位・クラブ名）の left を実測で設定する。
 // 列幅は画面幅・見出しの余白で変わるので決め打ちせず、描画後に測る
+const STND_MIN_VISIBLE_COLS = 5;   // スライドしなくても見える数字の列数（勝点・試・勝・分・負）
 function pinStandingsCols() {
   document.querySelectorAll('.stnd-scroll .tbl.stnd').forEach(t => {
     const zone = t.querySelector('thead .zone-bar'), rank = t.querySelector('thead .stnd-rank');
     if (!zone || !rank || !t.offsetWidth) return;   // 非表示中は測れない（色帯の列は幅0のことがあるので表全体で判定）
+
+    // ① 長いクラブ名の横幅を詰めて、数字の列が最低5列スライドなしで見えるようにする（「…」では切らない）
+    const names = [...t.querySelectorAll('tbody .st-nm')];
+    names.forEach(n => {   // いったん元に戻してから測る（画面回転などで測り直すため）
+      n.style.width = ''; n.classList.remove('st-nm-fit');
+      const sq = n.querySelector(':scope > .tn-sq'); if (sq) { while (sq.firstChild) n.insertBefore(sq.firstChild, sq); sq.remove(); }
+    });
+    const heads = [...t.querySelectorAll('thead th')];
+    const need = heads.slice(3, 3 + STND_MIN_VISIBLE_COLS).reduce((s, h) => s + h.getBoundingClientRect().width, 0);
+    const box = t.parentElement.clientWidth;
+    const teamW = heads[2].getBoundingClientRect().width;
+    const maxTeam = Math.floor(box - zone.getBoundingClientRect().width - rank.getBoundingClientRect().width - need);
+    if (names.length && teamW > maxTeam) {
+      const widths = names.map(n => n.getBoundingClientRect().width);
+      const cap = Math.max(40, Math.floor(maxTeam - (teamW - Math.max(...widths))));   // 名前に使える幅
+      names.forEach((n, i) => {
+        if (widths[i] <= cap) return;
+        const sq = document.createElement('span');
+        sq.className = 'tn-sq';
+        while (n.firstChild) sq.appendChild(n.firstChild);
+        n.appendChild(sq);
+        n.classList.add('st-nm-fit');
+        n.style.width = cap + 'px';
+        sq.style.transform = `scaleX(${(cap / widths[i] * 0.99).toFixed(3)})`;
+      });
+    }
+
     const zw = zone.getBoundingClientRect().width, rw = rank.getBoundingClientRect().width;
     t.querySelectorAll('.stnd-rank').forEach(c => { c.style.left = zw + 'px'; });
     t.querySelectorAll('.stnd-team').forEach(c => { c.style.left = (zw + rw) + 'px'; });
@@ -2291,9 +2325,9 @@ function buildStandingsHtml(entries, lname, subtitle) {
     const gdNum    = e.gd > 0 ? `+${e.gd}` : String(e.gd);
     const gdColor  = e.gd > 0 ? '#16a34a' : e.gd < 0 ? '#ef4444' : '#94a3b8';
     const displayName = fitTeamName(e.team);
-    const teamName = (adminMode && e.teamEn)
+    const teamName = `<span class="st-nm">` + ((adminMode && e.teamEn)
       ? `<span class="admin-name" data-en="${attr(e.teamEn)}" data-type="team" title="クリックで編集">${esc(displayName)}</span>`
-      : esc(displayName);
+      : esc(displayName)) + `</span>`;
     // 列の並び: 勝ち点 → 試合数 → 勝 → 分 → 敗 → 得点 → 失点 → 得失点
     return `<tr>${zbar}<td class="stnd-rank">${e.rank}</td><td class="stnd-team"><span class="stnd-team-inner">${logo}${teamName}</span></td><td class="stnd-pts">${e.pts}</td><td class="stnd-num">${e.gp}</td><td class="stnd-num stnd-w">${e.w}</td><td class="stnd-num stnd-d">${e.d}</td><td class="stnd-num stnd-l">${e.l}</td><td class="stnd-num">${e.gf}</td><td class="stnd-num">${e.ga}</td><td class="stnd-gd" style="color:${gdColor};font-weight:700">${gdNum}</td></tr>`;
   }).join('');
