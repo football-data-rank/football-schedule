@@ -249,6 +249,19 @@
 
     /* ─── Standings ─── */
     .tbl.stnd td { padding: 6px 8px; vertical-align: middle; }
+    /* 順位表：順位・クラブ名は左に固定し、勝点から右の数字だけ横スライドする（5/16版の仕様を復元）。
+       固定した列には背景色が必要（無いと、下を流れる数字が透けて見える）。left の値は pinStandingsCols() が実測して入れる */
+    .stnd-scroll .tbl.stnd { overflow: visible; }
+    .stnd-scroll .tbl.stnd .zone-bar,
+    .stnd-scroll .tbl.stnd .stnd-rank,
+    .stnd-scroll .tbl.stnd .stnd-team { position: sticky; z-index: 2; background: var(--white); }
+    .stnd-scroll .tbl.stnd .zone-bar { left: 0; }
+    .stnd-scroll .tbl.stnd tbody tr:nth-child(even) .stnd-rank,
+    .stnd-scroll .tbl.stnd tbody tr:nth-child(even) .stnd-team { background: var(--row-alt); }
+    .stnd-scroll .tbl.stnd thead .zone-bar,
+    .stnd-scroll .tbl.stnd thead .stnd-rank,
+    .stnd-scroll .tbl.stnd thead .stnd-team { background: #e8eaf6; z-index: 3; }
+    .stnd-scroll .tbl.stnd .stnd-team { box-shadow: 2px 0 4px rgba(0,0,0,.06); }
     .zone-bar { width: 4px !important; padding: 0 !important; }
     .stnd-rank { width: 28px; text-align: center; font-size: 13px; font-weight: 700; color: var(--muted); }
     .stnd-team { font-size: 13px; font-weight: 500; white-space: nowrap; }
@@ -2252,6 +2265,19 @@ function buildKnockoutHtml(rounds) {
   return html;
 }
 
+// 順位表の固定列（色帯・順位・クラブ名）の left を実測で設定する。
+// 列幅は画面幅・見出しの余白で変わるので決め打ちせず、描画後に測る
+function pinStandingsCols() {
+  document.querySelectorAll('.stnd-scroll .tbl.stnd').forEach(t => {
+    const zone = t.querySelector('thead .zone-bar'), rank = t.querySelector('thead .stnd-rank');
+    if (!zone || !rank || !t.offsetWidth) return;   // 非表示中は測れない（色帯の列は幅0のことがあるので表全体で判定）
+    const zw = zone.getBoundingClientRect().width, rw = rank.getBoundingClientRect().width;
+    t.querySelectorAll('.stnd-rank').forEach(c => { c.style.left = zw + 'px'; });
+    t.querySelectorAll('.stnd-team').forEach(c => { c.style.left = (zw + rw) + 'px'; });
+  });
+}
+window.addEventListener('resize', () => requestAnimationFrame(pinStandingsCols));
+
 /* ── 順位表 HTML 生成（文字列を返す） ── */
 function buildStandingsHtml(entries, lname, subtitle) {
   if (!entries.length) return '';
@@ -2274,11 +2300,11 @@ function buildStandingsHtml(entries, lname, subtitle) {
   return `
     <div class="sec-head"><button id="leagueTriggerBtn" class="sec-title">${esc(lname)} ▼</button>${cntHtml}</div>
     ${legend}
-    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+    <div class="stnd-scroll" style="overflow-x:auto;-webkit-overflow-scrolling:touch">
     <table class="tbl stnd">
       <thead><tr>
-        <th style="width:4px;padding:0"></th>
-        <th class="stnd-rank c"></th><th class="l">${T.clubHdr}</th>
+        <th class="zone-bar" style="width:4px;padding:0"></th>
+        <th class="stnd-rank c"></th><th class="l stnd-team">${T.clubHdr}</th>
         <th class="c">${T.pts}</th>
         <th class="c">${T.pCol}</th><th class="c">${T.wCol}</th><th class="c">${T.dCol}</th><th class="c">${T.lCol}</th>
         <th class="c">${T.gfCol}</th><th class="c">${T.gaCol}</th>
@@ -2495,6 +2521,7 @@ function renderCupPage(entries, koRounds, lname) {
   if (activeCupSub === 'league') {
     const html = buildStandingsHtml(entries, lname, 'リーグフェーズ');
     wrap.innerHTML = html || `<div class="state"><span class="ico">📋</span>${LANG==='ja'?'リーグフェーズのデータがありません':'No league phase data'}</div>`;
+    pinStandingsCols();
   } else {
     const html = buildKnockoutHtml(koRounds);
     wrap.innerHTML = html || `<div class="state"><span class="ico">🏆</span>${LANG==='ja'?'ノックアウトステージのデータがありません':'No knockout data'}</div>`;
@@ -2541,6 +2568,7 @@ function renderStandings(entries, code) {
   const lname = STANDINGS_LEAGUES.find(l => l.code === code)?.label ?? '';
   if (!entries.length) { wrap.innerHTML = `<div class="state"><span class="ico">📋</span>${LANG==='ja'?'データがありません':'No data available'}</div>`; return; }
   wrap.innerHTML = buildStandingsHtml(entries, lname);
+  pinStandingsCols();
 }
 
 /* ════════════════════════════════════════
@@ -2698,9 +2726,10 @@ function rankStyle(rank) {
 
 function nameStyle(rank) {
   if (rank === 1) return 'color:#d97706;font-weight:700;font-size:14px';
-  if (rank === 2) return 'color:#64748b;font-weight:600;font-size:13px';
+  // 2位と4位以降の書体（色・太さ）を入れ替え。2位の大きさは1位(14px)と3位(13px)の間
+  if (rank === 2) return 'color:var(--text);font-weight:500;font-size:13.5px';
   if (rank === 3) return 'color:#92400e;font-weight:600;font-size:13px';
-  return 'color:var(--text);font-weight:500;font-size:13px';
+  return 'color:#64748b;font-weight:600;font-size:13px';
 }
 
 function scorerTable(players, colLabel) {
@@ -3184,7 +3213,8 @@ function showPage(page) {
   if (page==='standings' && !standingsCache[activeStandCode])   loadStandings(activeStandCode);
   if (page==='scorers'   && !scorersCache[activeScorersCode])   loadScorers(activeScorersCode);
   if (page==='edit') initEditPage();
-  if (page==='schedule') fitSchedNames();   // 非表示中に更新された分を測り直す（英語表示のみ）
+  if (page==='schedule') fitSchedNames();   // 非表示中に更新された分を測り直す
+  if (page==='standings') pinStandingsCols();
 }
 document.querySelectorAll('.pnav').forEach(btn => { btn.onclick = () => showPage(btn.dataset.page); });
 
