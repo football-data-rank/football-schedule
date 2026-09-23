@@ -2759,11 +2759,11 @@ function rankStyle(rank) {
 }
 
 function nameStyle(rank) {
-  if (rank === 1) return 'color:#d97706;font-weight:700;font-size:14px';
-  // 2位と4位以降の書体（色・太さ）を入れ替え。2位の大きさは1位(14px)と3位(13px)の間
-  if (rank === 2) return 'color:var(--text);font-weight:500;font-size:13.5px';
+  if (rank === 1) return 'color:#d97706;font-weight:700;font-size:15px';
+  // 2位と4位以降は書体（太さ）だけ入れ替え、色はそれぞれ元のまま。2位の大きさは1位(15px)と3位(13px)の間
+  if (rank === 2) return 'color:#64748b;font-weight:500;font-size:14px';
   if (rank === 3) return 'color:#92400e;font-weight:600;font-size:13px';
-  return 'color:#64748b;font-weight:600;font-size:13px';
+  return 'color:var(--text);font-weight:600;font-size:13px';
 }
 
 function scorerTable(players, colLabel) {
