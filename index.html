@@ -9,7 +9,9 @@
   <meta name="keywords" content="欧州サッカー,試合日程,順位表,得点ランキング,プレミアリーグ,ラ・リーガ,セリエA,ブンデスリーガ,チャンピオンズリーグ,soccer schedule,Premier League,La Liga,Serie A,Bundesliga,Champions League,football schedule">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+1p:wght@400;700;800&family=BIZ+UDPGothic:wght@400;700&family=BIZ+UDPMincho:wght@400;700&display=swap" rel="stylesheet">
+  <!-- 文字(Webフォント)の読み込みで画面表示が止まらないよう、後から当てる（表示は即、文字は届き次第差し替え） -->
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=M+PLUS+1p:wght@400;700;800&family=BIZ+UDPGothic:wght@400;700&family=BIZ+UDPMincho:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link href="https://fonts.googleapis.com/css2?family=M+PLUS+1p:wght@400;700;800&family=BIZ+UDPGothic:wght@400;700&family=BIZ+UDPMincho:wght@400;700&display=swap" rel="stylesheet"></noscript>
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-EK4ZTELMME"></script>
   <script>
@@ -1768,6 +1770,7 @@ function parseEvent(ev, lg) {
     homeScore: (state !== 'pre') ? home.score : null,
     awayScore: (state !== 'pre') ? away.score : null,
     state, clock: comp.status?.displayClock || '',
+    period: comp.status?.period ?? null, fetchedAt: Date.now(),   // ライブの経過時間を取得後も進めるため
     // 英語表示のスマホ幅で長い名前を収めるためのESPN公式短縮名・略号（日本語表示では未使用）
     homeShort: home.team?.shortDisplayName || null, awayShort: away.team?.shortDisplayName || null,
     homeAbbr: home.team?.abbreviation || null, awayAbbr: away.team?.abbreviation || null,
@@ -1842,6 +1845,35 @@ async function fetchFarDays() {
   return true;
 }
 
+/* ── 日程の端末保存（開いた瞬間に前回の日程を出し、裏で最新に差し替えるため） ── */
+const SCHED_CACHE_KEY = 'schedCacheV1';
+const SCHED_CACHE_MAX_AGE = 12 * 60 * 60 * 1000;   // 12時間より古い保存は使わない
+function schedWindowDays() {
+  const tz = LANG === 'ja' ? 'Asia/Tokyo' : Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const localDay = off => new Date(Date.now() + off * 86400000).toLocaleDateString('sv-SE', { timeZone: tz });
+  return { firstDay: localDay(-1), lastDay: localDay(7) };
+}
+function saveSchedCache() {
+  try {
+    localStorage.setItem(SCHED_CACHE_KEY, JSON.stringify({
+      v: 1, savedAt: Date.now(), lang: LANG, allMatches, lastSchedByLeague, farByLeague, farFetchedAt,
+    }));
+  } catch {}
+}
+// 保存があれば復元して true（表示範囲外の日は落とす）。言語が違う・古すぎる保存は使わない
+function restoreSchedCache() {
+  try {
+    const c = JSON.parse(localStorage.getItem(SCHED_CACHE_KEY) || 'null');
+    if (!c || c.v !== 1 || c.lang !== LANG || !(Date.now() - c.savedAt < SCHED_CACHE_MAX_AGE)) return false;
+    const { firstDay, lastDay } = schedWindowDays();
+    allMatches = (c.allMatches || []).filter(m => m.logicalDate >= firstDay && m.logicalDate <= lastDay);
+    lastSchedByLeague = c.lastSchedByLeague || {};
+    farByLeague = c.farByLeague || {};
+    farFetchedAt = c.farFetchedAt || 0;
+    return allMatches.length > 0;
+  } catch { return false; }
+}
+
 // 近い日(lastSchedByLeague)＋先の日程(farByLeague)から表示用の試合一覧を組み立てる
 function assembleMatches() {
   const all = [];
@@ -1878,6 +1910,12 @@ function moreAdvanced(a, b) {
 function applyMonotonic(e) {
   const prev = matchBest[e.id];
   if (prev && !moreAdvanced(e, prev)) return prev;
+  // ライブ中：新しい応答の分数が、前回の値から進めた分数より遅れている（ESPN側の遅れ）なら、
+  // スコア等は新しい応答を使いつつ、分数の表示だけ前回から引き継ぐ（表示の分数が巻き戻らないように）
+  if (prev && e.state === 'in' && prev.state === 'in' && e.period === prev.period) {
+    const a = liveMinute(e), b = liveMinute(prev);
+    if (a != null && b != null && a < b) { e.clock = prev.clock; e.fetchedAt = prev.fetchedAt; }
+  }
   matchBest[e.id] = e;
   return e;
 }
@@ -1926,6 +1964,7 @@ function renderSchedule() {
     </table>
     </div>`;
   fitSchedNames();   // 列に入らないクラブ名を実測して詰める（全言語）
+  refitSoon();       // 文字の読み込みが遅れて幅が変わった場合に備えて少し後にも測り直す
 }
 
 const HALF_KANA_MAP = {
@@ -1959,6 +1998,36 @@ function fitTeamName(name) {
   return fw >= 8 ? toHalfKana(name) : name;
 }
 
+// ライブの経過時間：ESPNの値は取得した瞬間のもの（自動更新は60秒おき＋ESPN側の遅れ）なので、
+// 取得してからの経過分を足して表示する。前半は45'、後半は90'を超えたら「45'+2'」の形にする。
+// 「HT」や「45'+2'」などESPNが分数以外を返している時、延長戦（period 3以降）は、ESPNの表示をそのまま出す。
+// 今の推定分数（分数で表せない時は null）
+function liveMinute(m) {
+  const mm = String(m.clock || '').match(/^(\d+)'?$/);
+  if (!mm || !(m.period === 1 || m.period === 2) || !m.fetchedAt) return null;
+  const add = Math.min(15, Math.max(0, Math.floor((Date.now() - m.fetchedAt) / 60000)));   // 通信が止まっても暴走しないよう最大15分
+  return parseInt(mm[1], 10) + add;
+}
+function liveClockText(m) {
+  const minute = liveMinute(m);
+  if (minute == null) return String(m.clock || '').replace(':00', "'");
+  const base = parseInt(String(m.clock).match(/^(\d+)/)[1], 10);
+  const cap = m.period === 1 ? 45 : 90;
+  if (base <= cap && minute > cap) return `${cap}'+${minute - cap}'`;
+  return `${minute}'`;
+}
+// 表示中のライブの経過時間だけを書き換える（表全体は作り直さない）
+function updateLiveClocks() {
+  const live = allMatches.filter(m => m.state === 'in');
+  if (!live.length) return;
+  const byId = Object.fromEntries(live.map(m => [String(m.id), m]));
+  document.querySelectorAll('.t-live[data-mid]').forEach(el => {
+    const m = byId[el.dataset.mid], s = el.querySelector('.live-min');
+    if (m && s) s.textContent = liveClockText(m);
+  });
+}
+setInterval(updateLiveClocks, 10_000);
+
 function scheduleRow(m) {
   const cl = toHalfKana(m.shortLabel);
   const hb = m.homeLogo ? `<img class="badge" src="${attr(m.homeLogo)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '';
@@ -1975,7 +2044,7 @@ function scheduleRow(m) {
   const aAttrs = fitAttrs(an, m.awayShort);
   let timeEl;
   if (m.state === 'post') timeEl = `<span class="t-fin">${LANG==='ja'?'終了':'FT'}</span>`;
-  else if (m.state === 'in') timeEl = `<span class="t-live"><span class="live-dot"></span>${esc(m.clock.replace(':00',"'"))}</span>`;
+  else if (m.state === 'in') timeEl = `<span class="t-live" data-mid="${attr(m.id)}"><span class="live-dot"></span><span class="live-min">${esc(liveClockText(m))}</span></span>`;
   else timeEl = `<span class="t-pre${m.isLate?' late':''}">${m.displayTime}</span>`;
   const scoreEl = m.homeScore != null
     ? `<span class="score-num">${esc(m.homeScore)}-${esc(m.awayScore)}</span>`
@@ -2024,10 +2093,32 @@ function fitSchedNames() {
     squeeze(el, 0);
   });
 }
-// Webフォントの読み込み完了・画面回転/リサイズで文字幅が変わるので測り直す
+// Webフォントの読み込み完了・画面回転/リサイズで文字幅が変わるので測り直す。
+// ⚠️ 日程の文字(BIZ UDP明朝)は表が表示されてから読み込まれるので、fonts.ready（ページを開いた時点の読み込み）
+//    だけでは間に合わない。スマホで初めて開いた時、代わりの細い文字で「入る」と判定されたまま、
+//    本物の文字に替わって「…」になっていた。→ 文字の読み込みが終わるたび＋表示の少し後にも測り直す
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => fitSchedNames());
+if (document.fonts && document.fonts.addEventListener) {
+  document.fonts.addEventListener('loadingdone', () => { fitSchedNames(); pinStandingsCols(); });
+}
+function refitSoon() { [300, 1200, 3000].forEach(ms => setTimeout(() => { fitSchedNames(); pinStandingsCols(); }, ms)); }
+// 試合日程ページだけの縮尺（英語表示）：2026-08-28〜09-19の版は、英語の長いクラブ名で表が約510pxに広がり、
+// iPhoneのSafariがページ全体を自動で縮小していた（幅320pxで約63%・1画面約12試合）。その見た目を意図的に再現する。
+// 日程ページの中身を「幅510px」で組み立て、実際の画面幅まで縮小する（CSSのzoom）。ヘッダー・順位表・得点ランキングは対象外。
+// 画面幅は毎回実測するので、iPhoneの機種・画面表示（標準/拡大）・Safariのページ拡大率に関係なく同じ見た目になる。
+// 横向きと510px以上の画面は縮小しない。日本語表示は当時も94%でほぼ縮小されていなかったので対象外。
+const SCHED_DESIGN_W = 510;
+function applySchedScale() {
+  const page = document.getElementById('schedulePage');
+  if (!page) return;
+  const w = document.documentElement.clientWidth;
+  const landscape = window.matchMedia && window.matchMedia('(orientation: landscape)').matches;
+  const z = (LANG !== 'ja' && !landscape && w < SCHED_DESIGN_W) ? w / SCHED_DESIGN_W : 1;
+  page.style.zoom = z === 1 ? '' : z.toFixed(4);
+}
+applySchedScale();
 let _fitT = null;
-window.addEventListener('resize', () => { clearTimeout(_fitT); _fitT = setTimeout(fitSchedNames, 150); });
+window.addEventListener('resize', () => { applySchedScale(); clearTimeout(_fitT); _fitT = setTimeout(fitSchedNames, 150); });
 
 /* ════════════════════════════════════════
    ② 各リーグ順位 — 取得・描画
@@ -2603,6 +2694,7 @@ function renderStandings(entries, code) {
   if (!entries.length) { wrap.innerHTML = `<div class="state"><span class="ico">📋</span>${LANG==='ja'?'データがありません':'No data available'}</div>`; return; }
   wrap.innerHTML = buildStandingsHtml(entries, lname);
   pinStandingsCols();
+  refitSoon();
 }
 
 /* ════════════════════════════════════════
@@ -3286,12 +3378,14 @@ async function load(showLoader = false) {
     buildCountryFilter();
     renderSchedule();
     markUpdated();
+    saveSchedCache();   // 次に開いた時に即表示できるよう保存
     // 先の日程は裏で取得し、取れたら表示に足す（初回表示を待たせない）
     fetchFarDays().then(got => {
       if (!got) return;
       allMatches = assembleMatches();
       buildCountryFilter();
       renderSchedule();
+      saveSchedCache();
     }).catch(() => {});
   } catch(e) {
     document.getElementById('scheduleWrap').innerHTML = `<div class="state"><span class="ico">⚠️</span>${T.failed}: ${esc(e.message)}</div>`;
@@ -3360,7 +3454,9 @@ if (LANG !== 'ja') {
 buildCountryFilter();
 buildLeagueFilter();
 buildScorersFilter();
-load(true);
+// 前回の日程が端末に保存されていれば、通信を待たずに即表示し、裏で最新に差し替える（開いた瞬間に出す）
+if (restoreSchedCache()) { renderSchedule(); load(false); }
+else load(true);
 startAutoRefresh();
 tick();
 setInterval(tick, 30_000);
