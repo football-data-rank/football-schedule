@@ -223,6 +223,9 @@
     .tbl.sched { table-layout: fixed; width: 100%; }
     .tbl.sched .td-home, .tbl.sched .td-away, .tbl.sched th.r, .tbl.sched th.l { width: auto; }
     .tbl.sched thead th.r, .tbl.sched thead th.l { text-align: center; }
+    /* 見出し「SCORE」は列幅より広く、はみ出しが右側にだけ伸びて下のスコアより右にずれていた → 列の中心に文字の中心を合わせる */
+    .tbl.sched thead th.th-score { padding-left: 0; padding-right: 0; overflow: visible; }
+    .th-sc { display: block; width: max-content; margin-left: 50%; transform: translateX(-50%); }
     /* 英語表示：列に入らないクラブ名の横幅だけを詰める（fitSchedNamesが倍率を設定） */
     .tn-sq { display: inline-block; white-space: nowrap; transform-origin: left center; }
     .th-comp { max-width: 140px; }
@@ -1957,7 +1960,7 @@ function renderSchedule() {
     <div class="sched-scroll">
     <table class="tbl sched">
       <thead><tr>
-        <th class="r">${T.home}</th><th class="c th-score">Score</th>
+        <th class="r">${T.home}</th><th class="c th-score"><span class="th-sc">Score</span></th>
         <th class="l">${T.away}</th>
       </tr></thead>
       <tbody>${rows.join('')}</tbody>
@@ -2107,7 +2110,7 @@ function refitSoon() { [300, 1200, 3000].forEach(ms => setTimeout(() => { fitSch
 // 日程ページの中身を「幅510px」で組み立て、実際の画面幅まで縮小する（CSSのzoom）。ヘッダー・順位表・得点ランキングは対象外。
 // 画面幅は毎回実測するので、iPhoneの機種・画面表示（標準/拡大）・Safariのページ拡大率に関係なく同じ見た目になる。
 // 横向きと510px以上の画面は縮小しない。日本語表示は当時も94%でほぼ縮小されていなかったので対象外。
-const SCHED_DESIGN_W = 510;
+const SCHED_DESIGN_W = 460;   // 510(旧版の約63%)では小さすぎたので少し大きめに（幅320pxで約70%）
 function applySchedScale() {
   const page = document.getElementById('schedulePage');
   if (!page) return;
