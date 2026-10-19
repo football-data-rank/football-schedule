@@ -232,10 +232,6 @@
     .td-time { width: 72px; text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap; }
     .t-pre  { display: inline-block; font-size: 14px; font-weight: 700; color: #fff; font-family: 'BIZ UDPMincho', serif; background: rgba(10,40,80,0.55); border-radius: 6px; padding: 2px 7px; text-shadow: none; }
     .t-pre.late { color: #fff; background: rgba(4,120,87,0.75); }
-    /* 英語表示：前日の欄に入れた深夜の試合（実際は翌日）の時刻に添える「+1」 */
-    .t-p1 { font-size: 0.55em; font-weight: 700; line-height: 0; vertical-align: super; letter-spacing: -0.3px; }
-    /* 「+1」付きは左右の余白を詰めて、普通の時刻バッジと幅をそろえる（広がると隣のエンブレムに重なる） */
-    .t-pre.nd, .score-inner .t-pre.nd { padding-left: 2px; padding-right: 1px; }
     .t-fin  { font-size: 12px; font-weight: 500; color: var(--fin); }
     .t-live { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 800; color: var(--live); }
     .live-dot { width: 12px; height: 12px; background: var(--live); border-radius: 50%; animation: blink 1s ease-in-out infinite; flex-shrink: 0; }
@@ -1738,21 +1734,8 @@ function getMatchTiming(utcStr) {
   const m = get('minute');
   if (h === 24) h = 0;
   const localDate = `${get('year')}-${get('month')}-${get('day')}`;
-  const displayTime = `${String(h).padStart(2,'0')}:${m}`;
-  // 日本など欧州より大きく進んだ時間帯では、欧州の夜の試合が日付をまたいだ深夜〜早朝になる。
-  // 0:00〜8:59開始の試合は「前日の夜の試合」として前日の欄に入れる（テレビ欄の25時・27時と同じ考え方）。
-  // そうしないと、同じ日の欄に「前夜の深夜の試合」と「その日の夜の試合」が両方入り、結果を残す日が二晩分になって多すぎる。
-  // 米国などでは欧州の試合は朝〜昼なので、ずらさない（時差+7時間以上の地域だけ）。
-  const offsetMin = (Date.UTC(+get('year'), +get('month') - 1, +get('day'), h, +m) - Math.floor(d.getTime() / 60000) * 60000) / 60000;
-  if (offsetMin >= 7 * 60 && h < LATE_NIGHT_CUTOFF_H) {
-    const prev = new Date(Date.UTC(+get('year'), +get('month') - 1, +get('day') - 1)).toISOString().slice(0, 10);
-    // 日本語は日本のテレビ欄と同じ「25:45」表記。英語は24時超えの表記が通じないので実時刻＋小さな「+1」（scheduleRowで付ける）
-    const shown = LANG === 'ja' ? `${h + 24}:${m}` : displayTime;
-    return { logicalDate: prev, displayTime: shown, isLate: false, nextDay: true };   // 時刻バッジの色は変えない（isLate は緑色になる）
-  }
-  return { logicalDate: localDate, displayTime, isLate: false };
+  return { logicalDate: localDate, displayTime: `${String(h).padStart(2,'0')}:${m}`, isLate: false };
 }
-const LATE_NIGHT_CUTOFF_H = 9;
 
 function dayLabel(dateStr) {
   const tz = LANG === 'ja' ? 'Asia/Tokyo' : Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -1783,7 +1766,7 @@ function parseEvent(ev, lg) {
   const timing = getMatchTiming(ev.date);
   return {
     id: ev.id, utcDate: ev.date,
-    logicalDate: timing.logicalDate, displayTime: timing.displayTime, isLate: timing.isLate, nextDay: !!timing.nextDay,
+    logicalDate: timing.logicalDate, displayTime: timing.displayTime, isLate: timing.isLate,
     homeTeam: teamNameJa(home.team.displayName || home.team.shortDisplayName || home.team.name),
     awayTeam: teamNameJa(away.team.displayName || away.team.shortDisplayName || away.team.name),
     homeLogo: getLogo(home.team), awayLogo: getLogo(away.team),
@@ -1791,6 +1774,7 @@ function parseEvent(ev, lg) {
     awayScore: (state !== 'pre') ? away.score : null,
     state, clock: comp.status?.displayClock || '',
     period: comp.status?.period ?? null, fetchedAt: Date.now(),   // ライブの経過時間を取得後も進めるため
+    lgCode: lg.code, homeId: home.id ?? null, awayId: away.id ?? null,   // ライブ照合(verifyStaleLive)用
     // 英語表示のスマホ幅で長い名前を収めるためのESPN公式短縮名・略号（日本語表示では未使用）
     homeShort: home.team?.shortDisplayName || null, awayShort: away.team?.shortDisplayName || null,
     homeAbbr: home.team?.abbreviation || null, awayAbbr: away.team?.abbreviation || null,
@@ -1866,7 +1850,7 @@ async function fetchFarDays() {
 }
 
 /* ── 日程の端末保存（開いた瞬間に前回の日程を出し、裏で最新に差し替えるため） ── */
-const SCHED_CACHE_KEY = 'schedCacheV3';   // V2: 深夜の試合を前日扱い(10/19) / V3: その時刻を25:45・+1表記に。古い保存は使わない
+const SCHED_CACHE_KEY = 'schedCacheV4';   // V2〜V3は深夜の試合を前日扱いにしていた版(10/19、10/20に元へ戻した)。それらの保存は使わない
 const SCHED_CACHE_MAX_AGE = 12 * 60 * 60 * 1000;   // 12時間より古い保存は使わない
 function schedWindowDays() {
   const tz = LANG === 'ja' ? 'Asia/Tokyo' : Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -1940,14 +1924,16 @@ function applyMonotonic(e) {
   return e;
 }
 
+const FINISHED_KEEP_MS = 12 * 60 * 60 * 1000;
 function renderSchedule() {
   const wrap = document.getElementById('scheduleWrap');
   const tz = LANG === 'ja' ? 'Asia/Tokyo' : Intl.DateTimeFormat().resolvedOptions().timeZone;
   const todayLocal = new Date().toLocaleDateString('sv-SE', { timeZone: tz });
-  const yesterdayLocal = new Date(Date.now() - 86400000).toLocaleDateString('sv-SE', { timeZone: tz });
   const base = activeCountry === 'all' ? allMatches : allMatches.filter(m => m.country === activeCountry);
-  // 終了試合は前日以降のみ表示
-  const list = base.filter(m => m.state !== 'post' || m.logicalDate >= yesterdayLocal);
+  // 終了試合は開始から12時間で消す（以前は「昨日の日付以降」を残していたが、日本時間だと前夜の深夜分と
+  // その日の夜の分が両方残って多すぎた）
+  const nowMs = Date.now();
+  const list = base.filter(m => m.state !== 'post' || nowMs - new Date(m.utcDate).getTime() < FINISHED_KEEP_MS);
   if (!list.length) {
     // 試合が無くても絞り込みボタンは必ず残す（消すと「代表戦」等を選んだ後に戻れなくなる）
     const lbl = COUNTRY_FILTERS.find(f => f.id === activeCountry)?.label ?? 'すべて';
@@ -2022,6 +2008,39 @@ function fitTeamName(name) {
 // 取得してからの経過分を足して表示する。前半は45'、後半は90'を超えたら「45'+2'」の形にする。
 // 「HT」や「45'+2'」などESPNが分数以外を返している時、延長戦（period 3以降）は、ESPNの表示をそのまま出す。
 // 今の推定分数（分数で表せない時は null）
+// ── ライブ照合 ──
+// 日程(scoreboard)の応答は試合ごとに古いまま固まることがあり、他の試合はライブで動いているのに
+// 2時間前に始まった試合が「ライブ」のまま残った（2026-10-20 実機）。
+// 開始から STALE_LIVE_MIN 分以上たっても試合中の試合だけ、試合単位の状態・スコア（数百バイトの小さなデータ）を
+// 別の取得口(sports.core)から取り直して照合する。端末の時計は「照合するかどうか」にだけ使い、状態は決めつけない
+// （延長戦などで本当に続いていれば、照合結果も試合中のまま）。
+const STALE_LIVE_MIN = 115;   // 90分＋ハーフタイム15分＋追加時間の目安
+const liveCheckedAt = {};
+async function verifyStaleLive() {
+  const now = Date.now();
+  const sus = allMatches.filter(m => m.state === 'in' && m.lgCode
+    && now - new Date(m.utcDate).getTime() > STALE_LIVE_MIN * 60000
+    && now - (liveCheckedAt[m.id] || 0) > 50_000);
+  if (!sus.length) return false;
+  let changed = false;
+  await mapPool(sus, 6, async m => {
+    liveCheckedAt[m.id] = Date.now();
+    try {
+      const base = `${ESPN_CORE}/${m.lgCode}/events/${m.id}/competitions/${m.id}`;
+      const score = id => id ? fetchJson(`${base}/competitors/${id}/score`, { retries: 1 }).catch(() => null) : null;
+      const [st, hs, as] = await Promise.all([fetchJson(`${base}/status`, { retries: 1 }), score(m.homeId), score(m.awayId)]);
+      const type = st.type || {};
+      const upd = { ...m, state: type.completed === true ? 'post' : (type.state || m.state),
+                    clock: st.displayClock || m.clock, period: st.period ?? m.period, fetchedAt: Date.now() };
+      if (hs?.displayValue != null && as?.displayValue != null) { upd.homeScore = hs.displayValue; upd.awayScore = as.displayValue; }
+      if (applyMonotonic(upd) === upd &&
+          (upd.state !== m.state || upd.homeScore !== m.homeScore || upd.awayScore !== m.awayScore || upd.clock !== m.clock)) changed = true;
+    } catch {}
+  });
+  if (changed) allMatches = allMatches.map(m => matchBest[m.id] || m);
+  return changed;
+}
+
 function liveMinute(m) {
   const mm = String(m.clock || '').match(/^(\d+)'?$/);
   if (!mm || !(m.period === 1 || m.period === 2) || !m.fetchedAt) return null;
@@ -2065,7 +2084,7 @@ function scheduleRow(m) {
   let timeEl;
   if (m.state === 'post') timeEl = `<span class="t-fin">${LANG==='ja'?'終了':'FT'}</span>`;
   else if (m.state === 'in') timeEl = `<span class="t-live" data-mid="${attr(m.id)}"><span class="live-dot"></span><span class="live-min">${esc(liveClockText(m))}</span></span>`;
-  else timeEl = `<span class="t-pre${m.isLate?' late':''}${m.nextDay && LANG !== 'ja' ? ' nd' : ''}">${m.displayTime}${m.nextDay && LANG !== 'ja' ? '<sup class="t-p1">+1</sup>' : ''}</span>`;
+  else timeEl = `<span class="t-pre${m.isLate?' late':''}">${m.displayTime}</span>`;
   const scoreEl = m.homeScore != null
     ? `<span class="score-num">${esc(m.homeScore)}-${esc(m.awayScore)}</span>`
     : `<span class="score-vs">vs</span>`;
@@ -3399,6 +3418,8 @@ async function load(showLoader = false) {
     renderSchedule();
     markUpdated();
     saveSchedCache();   // 次に開いた時に即表示できるよう保存
+    // 終わっているはずの時間なのに「ライブ」のままの試合は、試合単位のデータで照合して直す
+    verifyStaleLive().then(ch => { if (!ch) return; renderSchedule(); saveSchedCache(); }).catch(() => {});
     // 先の日程は裏で取得し、取れたら表示に足す（初回表示を待たせない）
     fetchFarDays().then(got => {
       if (!got) return;
