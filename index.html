@@ -232,6 +232,10 @@
     .td-time { width: 72px; text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap; }
     .t-pre  { display: inline-block; font-size: 14px; font-weight: 700; color: #fff; font-family: 'BIZ UDPMincho', serif; background: rgba(10,40,80,0.55); border-radius: 6px; padding: 2px 7px; text-shadow: none; }
     .t-pre.late { color: #fff; background: rgba(4,120,87,0.75); }
+    /* 英語表示：前日の欄に入れた深夜の試合（実際は翌日）の時刻に添える「+1」 */
+    .t-p1 { font-size: 0.55em; font-weight: 700; line-height: 0; vertical-align: super; letter-spacing: -0.3px; }
+    /* 「+1」付きは左右の余白を詰めて、普通の時刻バッジと幅をそろえる（広がると隣のエンブレムに重なる） */
+    .t-pre.nd, .score-inner .t-pre.nd { padding-left: 2px; padding-right: 1px; }
     .t-fin  { font-size: 12px; font-weight: 500; color: var(--fin); }
     .t-live { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 800; color: var(--live); }
     .live-dot { width: 12px; height: 12px; background: var(--live); border-radius: 50%; animation: blink 1s ease-in-out infinite; flex-shrink: 0; }
@@ -1734,8 +1738,21 @@ function getMatchTiming(utcStr) {
   const m = get('minute');
   if (h === 24) h = 0;
   const localDate = `${get('year')}-${get('month')}-${get('day')}`;
-  return { logicalDate: localDate, displayTime: `${String(h).padStart(2,'0')}:${m}`, isLate: false };
+  const displayTime = `${String(h).padStart(2,'0')}:${m}`;
+  // 日本など欧州より大きく進んだ時間帯では、欧州の夜の試合が日付をまたいだ深夜〜早朝になる。
+  // 0:00〜8:59開始の試合は「前日の夜の試合」として前日の欄に入れる（テレビ欄の25時・27時と同じ考え方）。
+  // そうしないと、同じ日の欄に「前夜の深夜の試合」と「その日の夜の試合」が両方入り、結果を残す日が二晩分になって多すぎる。
+  // 米国などでは欧州の試合は朝〜昼なので、ずらさない（時差+7時間以上の地域だけ）。
+  const offsetMin = (Date.UTC(+get('year'), +get('month') - 1, +get('day'), h, +m) - Math.floor(d.getTime() / 60000) * 60000) / 60000;
+  if (offsetMin >= 7 * 60 && h < LATE_NIGHT_CUTOFF_H) {
+    const prev = new Date(Date.UTC(+get('year'), +get('month') - 1, +get('day') - 1)).toISOString().slice(0, 10);
+    // 日本語は日本のテレビ欄と同じ「25:45」表記。英語は24時超えの表記が通じないので実時刻＋小さな「+1」（scheduleRowで付ける）
+    const shown = LANG === 'ja' ? `${h + 24}:${m}` : displayTime;
+    return { logicalDate: prev, displayTime: shown, isLate: false, nextDay: true };   // 時刻バッジの色は変えない（isLate は緑色になる）
+  }
+  return { logicalDate: localDate, displayTime, isLate: false };
 }
+const LATE_NIGHT_CUTOFF_H = 9;
 
 function dayLabel(dateStr) {
   const tz = LANG === 'ja' ? 'Asia/Tokyo' : Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -1766,7 +1783,7 @@ function parseEvent(ev, lg) {
   const timing = getMatchTiming(ev.date);
   return {
     id: ev.id, utcDate: ev.date,
-    logicalDate: timing.logicalDate, displayTime: timing.displayTime, isLate: timing.isLate,
+    logicalDate: timing.logicalDate, displayTime: timing.displayTime, isLate: timing.isLate, nextDay: !!timing.nextDay,
     homeTeam: teamNameJa(home.team.displayName || home.team.shortDisplayName || home.team.name),
     awayTeam: teamNameJa(away.team.displayName || away.team.shortDisplayName || away.team.name),
     homeLogo: getLogo(home.team), awayLogo: getLogo(away.team),
@@ -1849,7 +1866,7 @@ async function fetchFarDays() {
 }
 
 /* ── 日程の端末保存（開いた瞬間に前回の日程を出し、裏で最新に差し替えるため） ── */
-const SCHED_CACHE_KEY = 'schedCacheV1';
+const SCHED_CACHE_KEY = 'schedCacheV3';   // V2: 深夜の試合を前日扱い(10/19) / V3: その時刻を25:45・+1表記に。古い保存は使わない
 const SCHED_CACHE_MAX_AGE = 12 * 60 * 60 * 1000;   // 12時間より古い保存は使わない
 function schedWindowDays() {
   const tz = LANG === 'ja' ? 'Asia/Tokyo' : Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -2048,7 +2065,7 @@ function scheduleRow(m) {
   let timeEl;
   if (m.state === 'post') timeEl = `<span class="t-fin">${LANG==='ja'?'終了':'FT'}</span>`;
   else if (m.state === 'in') timeEl = `<span class="t-live" data-mid="${attr(m.id)}"><span class="live-dot"></span><span class="live-min">${esc(liveClockText(m))}</span></span>`;
-  else timeEl = `<span class="t-pre${m.isLate?' late':''}">${m.displayTime}</span>`;
+  else timeEl = `<span class="t-pre${m.isLate?' late':''}${m.nextDay && LANG !== 'ja' ? ' nd' : ''}">${m.displayTime}${m.nextDay && LANG !== 'ja' ? '<sup class="t-p1">+1</sup>' : ''}</span>`;
   const scoreEl = m.homeScore != null
     ? `<span class="score-num">${esc(m.homeScore)}-${esc(m.awayScore)}</span>`
     : `<span class="score-vs">vs</span>`;
@@ -2110,7 +2127,7 @@ function refitSoon() { [300, 1200, 3000].forEach(ms => setTimeout(() => { fitSch
 // 日程ページの中身を「幅510px」で組み立て、実際の画面幅まで縮小する（CSSのzoom）。ヘッダー・順位表・得点ランキングは対象外。
 // 画面幅は毎回実測するので、iPhoneの機種・画面表示（標準/拡大）・Safariのページ拡大率に関係なく同じ見た目になる。
 // 横向きと510px以上の画面は縮小しない。日本語表示は当時も94%でほぼ縮小されていなかったので対象外。
-const SCHED_DESIGN_W = 460;   // 510(旧版の約63%)では小さすぎたので少し大きめに（幅320pxで約70%）
+const SCHED_DESIGN_W = 420;   // 510(約63%)は小さすぎ→460(約70%)→さらに少し大きく（幅320pxで約76%）
 function applySchedScale() {
   const page = document.getElementById('schedulePage');
   if (!page) return;
