@@ -96,8 +96,9 @@ def compute(lg, season):
     with ThreadPoolExecutor(8) as ex:
         rows = [r for r in ex.map(fetch, players) if r[1].get('minutes', 0) >= MIN_MINUTES]
     res = {}
-    for pos in ('GK', 'DF', 'MF', 'FW'):
-        group = [m for p, m in rows if p == pos]
+    # ALL = GKを除く全選手（選手ページは「全選手の平均」と全項目で比べる。GKはGKの平均と）
+    for pos in ('GK', 'DF', 'MF', 'FW', 'ALL'):
+        group = [m for p, m in rows if (p != 'GK' if pos == 'ALL' else p == pos)]
         if len(group) < 5:
             continue
         mins = sum(m.get('minutes', 0) for m in group)

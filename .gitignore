@@ -1,0 +1,8 @@
+# GitHubに送らない手元用のファイル（サイトの公開には不要）
+過去ログ/
+HANDOFF.md
+メモ.md
+.claude/
+__pycache__/
+*.pyc
+_test_*.html
