@@ -259,8 +259,7 @@
     .mt-meta { font-size: 12px; font-weight: 700; opacity: .78; letter-spacing: .04em; }
     .mt-teams { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 6px; margin-top: 14px; }
     .mt-team { display: flex; flex-direction: column; align-items: center; gap: 8px; font-weight: 800; font-size: 14px; line-height: 1.25; min-width: 0; }
-    .mt-logo { width: 68px; height: 68px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
-    .mt-logo img { width: 50px; height: 50px; object-fit: contain; }
+    .mt-logo { width: 64px; height: 64px; object-fit: contain; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.35)); }
     .mt-score { font-size: 42px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; white-space: nowrap; }
     .mt-score small { font-size: 22px; opacity: .6; margin: 0 6px; vertical-align: 6px; }
     .mt-status { display: inline-block; margin-top: 12px; font-size: 12px; font-weight: 800; padding: 3px 12px; border-radius: 999px; background: rgba(255,255,255,0.16); }
@@ -379,7 +378,7 @@
     .pl-res { display: inline-block; font-size: 10px; font-weight: 800; width: 17px; height: 17px; line-height: 17px; border-radius: 4px; color: #fff; margin-right: 4px; vertical-align: 1px; }
     .pl-res-W { background: #16a34a; } .pl-res-L { background: #ef4444; } .pl-res-D { background: #94a3b8; }
     /* 個人成績・試合ごとの表：スポーツナビ再現版(10/22)の作りをそのまま（名前・プロフィールは海外風のまま） */
-    .sn-box { border: 1px solid #b9c7dc; border-radius: 10px; overflow: hidden; }   /* 表を枠で囲む（端で切れたように見えないように） */
+    .sn-box { border: 1px solid #b9c7dc; border-radius: 10px; overflow: hidden; margin: 0 -12px; }   /* 表を枠で囲む。カードの左右ぎりぎり(4px)まで広げる */
     .sn-grid, .sn-log { width: 100%; margin: 0; border-collapse: collapse; }
     .sn-box tr:first-child > *, .sn-box thead + tbody tr:first-child > * { border-top: none; }
     .sn-box tr:last-child > * { border-bottom: none; }
@@ -402,8 +401,8 @@
     .sn-s { display: inline-block; background: #3cc37a; color: #fff; font-size: 11px; font-weight: 700; width: 17px; height: 17px; line-height: 17px; text-align: center; border-radius: 2px; margin-right: 6px; vertical-align: 1px; }
     .sn-in { display: inline-block; color: #22b04b; font-size: 11px; width: 17px; text-align: center; margin-right: 6px; }
     /* 同じポジションの平均との比較（横棒）：棒＝この選手、縦線＝平均。平均以上は緑、未満は橙 */
-    .cmp-toggle { display: flex; justify-content: space-between; align-items: center; width: 100%; margin-top: 12px; padding: 11px 14px; border: 1px solid #b9c7dc; border-radius: 10px; background: #f4f7fc; color: #1e3a8a; font-size: 14px; font-weight: 800; font-family: inherit; cursor: pointer; }
-    .cmp-toggle span { font-size: 11px; }
+    .cmp-toggle { display: flex; justify-content: center; align-items: center; gap: 6px; width: 100%; margin-top: 8px; padding: 10px 0 2px; border: none; background: none; color: #2563eb; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    .cmp-toggle span { font-size: 10px; }
     .cmp-body { margin-top: 10px; }
     .cmp-grp { font-size: 11px; font-weight: 800; color: #2563eb; letter-spacing: .08em; margin: 10px 0 0; }
     .cmp-note { font-size: 11px; color: #94a3b8; line-height: 1.4; margin: 0 0 4px; }
@@ -1906,9 +1905,15 @@ function playerNameJa(name) {
 
 // ESPNのロゴは500×500の大きな画像（1枚8〜43KB、日程だけで160種類・3〜4MB）だったので、
 // 表示の大きさに合わせた縮小版（1〜7KB）をESPNの縮小機能(combiner)で取る。ESPN以外の画像はそのまま
-function logoSm(url, px = 64) {
+function logoSm(url, px = 64, dark = false) {
   const m = String(url || '').match(/^https?:\/\/a\.espncdn\.com(\/i\/teamlogos\/[^?#]+\.png)/i);
-  return m ? `https://a.espncdn.com/combiner/i?img=${m[1]}&w=${px}&h=${px}` : url;
+  if (!m) return url;
+  const path = dark ? m[1].replace('/teamlogos/soccer/500/', '/teamlogos/soccer/500-dark/') : m[1];
+  return `https://a.espncdn.com/combiner/i?img=${path}&w=${px}&h=${px}`;
+}
+// 濃紺の背景に置くロゴ：暗い背景用(500-dark。ユベントスの白いJ、トッテナムの白い鶏など)を使い、無ければ普通のロゴに
+function darkLogoImg(url, px, cls = '') {
+  return `<img${cls ? ` class="${cls}"` : ''} src="${attr(logoSm(url, px, true))}" alt="" onerror="if(!this.dataset.f){this.dataset.f=1;this.src='${attr(logoSm(url, px))}'}else{this.style.display='none'}">`;
 }
 function getLogo(team) {
   if (!team) return null;
@@ -3889,15 +3894,15 @@ const CMP_META = {
   tackles90:   ['タックル', 'Tackles', 'per90', 'totalTackles'],
   intercept90: ['インターセプト', 'Interceptions', 'per90', 'interceptions'],
   clear90:     ['クリア', 'Clearances', 'per90', 'totalClearance'],
-  recov90:     ['ボール回収', 'Recoveries', 'per90', 'recoveries'],
+  recov90:     ['ボール回収', 'Ball recoveries', 'per90', 'recoveries'],
   saves90:     ['セーブ', 'Saves', 'per90', 'saves'],
   conceded90:  ['失点', 'Goals conceded', 'per90', 'goalsConceded', null, true],
-  shotOnPct:   ['枠内シュート率', 'Shot accuracy', 'rate', 'shotsOnTarget', 'totalShots', false, 5],
-  convPct:     ['決定率', 'Conversion', 'rate', 'totalGoals', 'totalShots', false, 5],
-  passPct:     ['パス成功率', 'Pass accuracy', 'rate', 'accuratePasses', 'totalPasses', false, 50],
-  tacklePct:   ['タックル成功率', 'Tackle success', 'rate', 'effectiveTackles', 'totalTackles', false, 5],
-  duelPct:     ['デュエル勝率', 'Duels won', 'rate', 'duelsWon', 'duels', false, 10],
-  savePct:     ['セーブ率', 'Save rate', 'rate', 'saves', ['saves', 'goalsConceded'], false, 10],
+  shotOnPct:   ['枠内シュート率', 'Shots on target (%)', 'rate', 'shotsOnTarget', 'totalShots', false, 5],
+  convPct:     ['決定率', 'Goals per shot (%)', 'rate', 'totalGoals', 'totalShots', false, 5],
+  passPct:     ['パス成功率', 'Pass accuracy (%)', 'rate', 'accuratePasses', 'totalPasses', false, 50],
+  tacklePct:   ['タックル成功率', 'Tackles won (%)', 'rate', 'effectiveTackles', 'totalTackles', false, 5],
+  duelPct:     ['デュエル勝率', 'Duels won (%)', 'rate', 'duelsWon', 'duels', false, 10],
+  savePct:     ['セーブ率', 'Saves (%)', 'rate', 'saves', ['saves', 'goalsConceded'], false, 10],
 };
 // 比べる項目：GK以外は全項目（攻撃・パス・守備）を「GKを除く全選手の平均」と比べる。GKはGKの項目をGKの平均と
 const CMP_GROUPS = [
@@ -3946,7 +3951,7 @@ function cmpHtml(st) {
     ${open ? `<div class="cmp-body">
       <div class="cmp-note">${ja
         ? `${esc(lgName)}の${isGK ? 'GK' : '全選手（GKを除く）'}${grp.n}人の平均・％以外は90分あたり`
-        : `Avg of ${grp.n} ${esc(lgName)} ${isGK ? 'goalkeepers' : 'outfield players'} · per 90 except %`}
+        : `Average of ${grp.n} ${esc(lgName)} ${isGK ? 'goalkeepers' : 'outfield players'} · numbers are per 90 minutes except %`}
         <span class="cmp-legend"><i class="cmp-key"></i>${ja ? 'この選手' : 'Player'}<i class="cmp-key avg"></i>${ja ? '平均' : 'Avg'}</span></div>
       ${few ? `<div class="cmp-note cmp-warn">${ja ? `出場${raw.minutes}分のため参考の数字` : `Only ${raw.minutes} min — indicative`}</div>` : ''}
       ${body}</div>` : ''}`;
@@ -3979,7 +3984,7 @@ function renderPlayerPage(st) {
         <div class="pl-hero-name" id="plNameJa">${esc(name)}</div>
         <div class="pl-hero-num">${prof?.jersey ? `<b>${esc(prof.jersey)}</b>` : ''}${prof?.pos ? `<span>${esc(prof.pos)}</span>` : ''}</div>
       </div>
-      <div class="pl-hero-img">${logo ? `<img src="${attr(logoSm(logo, 200))}" alt="" onerror="this.style.display='none'">` : ''}</div>
+      <div class="pl-hero-img">${logo ? darkLogoImg(logo, 200) : ''}</div>
     </div>`;
 
   // ② プロフィール
@@ -4009,8 +4014,8 @@ function renderPlayerPage(st) {
     const p90 = sv.goals != null && sv.minutes ? (sv.goals / sv.minutes * 90).toFixed(3) : '-';
     const grid = [
       [[ja ? '得点' : 'Goals', f(sv.goals)], ['PK', f(sv.pk)], [ja ? 'アシスト' : 'Assists', f(sv.assists)]],
-      [[ja ? 'シュート' : 'Shots', f(sv.shots)], [ja ? '警告/退場' : 'YC/RC', `${f(sv.yc)}/${f(sv.rc)}`], [ja ? '試合数' : 'Apps', f(sv.apps)]],
-      [[ja ? '出場時間' : 'Minutes', f(sv.minutes)], [ja ? 'シュート決定率' : 'Conversion %', conv], [ja ? '90分平均得点' : 'Goals/90', p90]],
+      [[ja ? 'シュート' : 'Shots', f(sv.shots)], [ja ? '警告/退場' : 'Yellow / Red cards', `${f(sv.yc)}/${f(sv.rc)}`], [ja ? '試合数' : 'Matches played', f(sv.apps)]],
+      [[ja ? '出場時間' : 'Minutes played', f(sv.minutes)], [ja ? 'シュート決定率' : 'Goals per shot (%)', conv], [ja ? '90分平均得点' : 'Goals per 90 min', p90]],
     ];
     seasonHtml = `<div class="sn-box"><table class="sn-grid"><tbody>${grid.map(r =>
       `<tr>${r.map(c => `<th>${c[0]}</th>`).join('')}</tr><tr>${r.map(c => `<td>${esc(c[1])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
@@ -4035,7 +4040,7 @@ function renderPlayerPage(st) {
       return `<tr${rc}><td class="sn-date">${esc(md)}</td><td class="sn-min">${min}</td><td${hit(g)}>${g}</td><td${hit(pk)}>${pk}</td><td${hit(a)}>${a}</td><td${cardCls}>${cd}</td></tr>`;
     }).join('');
     logHtml = rows
-      ? `<div class="sn-box"><table class="sn-log"><colgroup><col style="width:17%"><col style="width:24%"><col style="width:10%"><col style="width:8%"><col style="width:19%"><col style="width:22%"></colgroup><thead><tr><th>${ja ? '日付' : 'Date'}</th><th>${ja ? '出場時間' : 'Min'}</th><th>${ja ? '得点' : 'G'}</th><th>PK</th><th>${ja ? 'アシスト' : 'A'}</th><th>${ja ? '警告/退場' : 'YC/RC'}</th></tr></thead><tbody>${rows}</tbody></table></div>`
+      ? `<div class="sn-box"><table class="sn-log"><colgroup><col style="width:15%"><col style="width:23%"><col style="width:17%"><col style="width:9%"><col style="width:17%"><col style="width:19%"></colgroup><thead><tr><th>${ja ? '日付' : 'Date'}</th><th>${ja ? '出場時間' : 'Minutes'}</th><th>${ja ? '得点' : 'Goals'}</th><th>PK</th><th>${ja ? 'アシスト' : 'Assists'}</th><th>${ja ? '警告/退場' : 'Cards'}</th></tr></thead><tbody>${rows}</tbody></table></div>`
       : `<div class="pl-err">${ja ? '試合データがありません' : 'No matches'}</div>`;
   }
   const lgName = compLabel(st.lg);
@@ -4262,9 +4267,9 @@ function renderMatchPage(st) {
   const hero = `<div class="mt-hero">
       <div class="mt-meta">${esc(lgLabel)} ・ ${esc(when.md)} ${esc(when.hm)}</div>
       <div class="mt-teams">
-        <div class="mt-team">${h.logo ? `<span class="mt-logo"><img src="${attr(logoSm(h.logo, 160))}" alt="" onerror="this.style.display='none'"></span>` : ''}<span>${esc(h.name)}</span></div>
+        <div class="mt-team">${h.logo ? darkLogoImg(h.logo, 160, 'mt-logo') : ''}<span>${esc(h.name)}</span></div>
         <div><div class="mt-score">${showScore ? `${esc(h.score)}<small>-</small>${esc(a.score)}` : '<small>vs</small>'}</div></div>
-        <div class="mt-team">${a.logo ? `<span class="mt-logo"><img src="${attr(logoSm(a.logo, 160))}" alt="" onerror="this.style.display='none'"></span>` : ''}<span>${esc(a.name)}</span></div>
+        <div class="mt-team">${a.logo ? darkLogoImg(a.logo, 160, 'mt-logo') : ''}<span>${esc(a.name)}</span></div>
       </div>
       <span class="mt-status${state === 'in' ? ' live' : ''}">${esc(stTxt)}</span>
       ${ev.goals.length ? `<div class="mt-goals"><div>${gl(h)}</div><div>${gl(a)}</div></div>` : ''}
