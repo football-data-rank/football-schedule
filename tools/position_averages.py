@@ -39,8 +39,19 @@ METRICS = {
     'tacklePct':   ('rate', 'effectiveTackles', 'totalTackles', 5),
     'duelPct':     ('rate', 'duelsWon', 'duels', 10),
     'savePct':     ('rate', 'saves', ('saves', 'goalsConceded'), 10),   # 枠内に飛んできたシュートの数が無いので セーブ÷(セーブ+失点)
+    'crossPct':    ('rate', 'accurateCrosses', 'totalCrosses', 5),
+    'longballPct': ('rate', 'accurateLongBalls', 'totalLongBalls', 5),
 }
-NEEDED = {'minutes', 'appearances'} | {m[1] for m in METRICS.values()} | {x for m in METRICS.values() if m[2] for x in (m[2] if isinstance(m[2], tuple) else (m[2],))}
+# 1試合平均（選手ページの比較は「1試合平均」で見せる。ユーザー指示 2026-10-22）：分子 ÷ 出場試合数
+PER_GAME = {
+    'goalsPG': 'totalGoals', 'assistsPG': 'goalAssists', 'shotsPG': 'totalShots', 'keyPassesPG': 'shotAssists',
+    'passesPG': 'totalPasses', 'tacklesPG': 'totalTackles', 'interceptPG': 'interceptions', 'clearPG': 'totalClearance',
+    'recovPG': 'recoveries', 'savesPG': 'saves', 'concededPG': 'goalsConceded',
+    'yellowPG': 'yellowCards', 'redPG': 'redCards', 'foulsPG': 'foulsCommitted',
+    'bigChanceCreatedPG': 'bigChanceCreated', 'bigChanceMissedPG': 'bigChanceMissed', 'carriesPG': 'progressiveCarries',
+    'foulsSufferedPG': 'foulsSuffered', 'crossesPG': 'totalCrosses', 'blocksPG': 'blockedShots',
+}
+NEEDED = {'minutes', 'appearances'} | {x for v in PER_GAME.values() for x in (v if isinstance(v, tuple) else (v,))} | {m[1] for m in METRICS.values()} | {x for m in METRICS.values() if m[2] for x in (m[2] if isinstance(m[2], tuple) else (m[2],))}
 
 
 def den_of(m, den):
@@ -117,6 +128,15 @@ def compute(lg, season):
                 continue
             p90 = vals[min(len(vals) - 1, int(len(vals) * 0.9))]   # 上位10%の境目（横棒の目盛りに使う）
             mm[name] = {'avg': round(avg, 3), 'p90': round(p90, 3)}
+        apps = sum(m.get('appearances', 0) for m in group)
+        if apps > 0:
+            for name, num in PER_GAME.items():
+                cnt = lambda m: den_of(m, num)   # 合計の項目(タプル)にも対応
+                avg = sum(cnt(m) for m in group) / apps
+                vals = sorted(cnt(m) / m['appearances'] for m in group if m.get('appearances', 0) > 0)
+                if vals:
+                    p90 = vals[min(len(vals) - 1, int(len(vals) * 0.9))]
+                    mm[name] = {'avg': round(avg, 4), 'p90': round(p90, 4)}
         res[pos] = {'n': len(group), 'm': mm}
     print(f'{lg}: teams={nteams} fetched={len(players)} qualified={len(rows)} ' +
           ' '.join(f'{k}={v["n"]}' for k, v in res.items()), flush=True)

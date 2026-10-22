@@ -391,7 +391,8 @@
     .sn-log td { text-align: right; padding: 11px 5px; border-top: 1px solid #d3deef; border-bottom: 1px solid #d3deef; border-right: 1px solid #93a6c4; border-left: none; font-variant-numeric: tabular-nums; white-space: nowrap; color: #0f172a; }
     .sn-log tbody tr:nth-child(even) td { background: #f7f9fd; }
     .sn-log td.sn-hit { background: #e8f7ee !important; color: #15803d; font-weight: 800; }   /* 得点・PK・アシストが1以上 */
-    .sn-log td.sn-card { color: #b45309; font-weight: 800; }                                /* 警告・退場あり */
+    .sn-yc { color: #e0a800; font-weight: 800; }   /* イエローカードあり：左の数字を黄色 */
+    .sn-rc { color: #dc2626; font-weight: 800; }   /* レッドカードあり：右の数字を赤 */
     .sn-log tr.sn-dnp td { color: #94a3b8; }                                                 /* 出場なし */
     .sn-log tr.sn-future td { background: #fbfcfe; }
     .sn-log tr.sn-future td.sn-date { color: #7aa2e3; }
@@ -406,13 +407,20 @@
     .cmp-body { margin-top: 10px; }
     .cmp-grp { font-size: 11px; font-weight: 800; color: #2563eb; letter-spacing: .08em; margin: 10px 0 0; }
     .cmp-note { font-size: 11px; color: #94a3b8; line-height: 1.4; margin: 0 0 4px; }
+    /* 豆知識（利き足・ヘディング・直接FK）：個人成績の表の下に小さく */
+    .trv { margin: 12px -12px 0; padding: 8px 12px; background: #f6f8fc; border-radius: 10px; }
+    .trv-h { display: block; font-size: 11px; font-weight: 800; color: #2563eb; letter-spacing: .08em; margin-bottom: 2px; }
+    .trv-row { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; padding: 4px 0; color: #64748b; }
+    .trv-row b { color: #0f172a; font-weight: 700; text-align: right; }
     .cmp-warn { color: #b45309; }
     .cmp-legend { margin-left: 8px; white-space: nowrap; }
     .cmp-key { display: inline-block; width: 12px; height: 7px; border-radius: 4px; background: #16a34a; margin: 0 4px 0 6px; vertical-align: 0; }
     .cmp-key.avg { width: 2px; height: 12px; border-radius: 0; background: #0f172a; vertical-align: -2px; }
     .cmp-row { padding: 8px 0; border-top: 1px solid #eef1f5; }
     .cmp-grp + .cmp-row { border-top: none; }
-    .cmp-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+    .cmp-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+    .cmp-lbl { min-width: 0; }
+    .cmp-val { white-space: nowrap; }   /* 数字と平均は折り返さない（長い項目名の側で折り返す） */
     .cmp-lbl { font-size: 13px; font-weight: 700; color: #334155; }
     .cmp-val { font-size: 16px; font-weight: 800; color: #0f172a; font-variant-numeric: tabular-nums; }
     .cmp-val small { font-size: 11px; font-weight: 700; color: #94a3b8; margin-left: 8px; }
@@ -702,6 +710,7 @@
       .score-vs  { color: #94a3b8; font-weight: 600; font-size: 11px; line-height: 1.15; }
       .score-comp { position: static; font-size: 9px; color: var(--muted); line-height: 1.1; }
       .badge { width: 16px; height: 16px; flex-shrink: 0; }
+      .tbl.sched .badge { width: 22px; height: 22px; }   /* 日程のエンブレム：小さすぎて見えなかった */
       #lastUpdated { display: none; }
       /* 順位表: overflow は buildStandingsHtml の div wrapper で対応済み */
       .tbl.stnd td { font-size: 12px; padding: 5px 4px; }
@@ -3755,7 +3764,7 @@ function initEditPage() {
    iPhoneの「戻る」(左端スワイプ)で得点ランキングに戻れるよう、URLの #player-大会-選手ID を履歴に積む
 ════════════════════════════════════════ */
 const POS_ABBR = { Goalkeeper: 'GK', Defender: 'DF', Midfielder: 'MF', Forward: 'FW' };
-const PL_STORE_KEY = 'playerStoreV4';   // V3: 個人成績・試合ごとの表をスポーツナビ再現版の作りに戻した / V4: 平均との比較用の数字を追加(10/22)
+const PL_STORE_KEY = 'playerStoreV7';   // V7: 空中戦(試合ごと)を追加(10/22)。   // V6: 追加の比較項目と豆知識(10/22)。   // V5: 1試合平均・カード比較用の数字を追加(10/22)。   // V3: 個人成績・試合ごとの表をスポーツナビ再現版の作りに戻した / V4: 平均との比較用の数字を追加(10/22)
 const PL_STORE_MAX_AGE = 24 * 60 * 60 * 1000;
 const playerMem = {};
 let playerReturnY = 0;
@@ -3836,7 +3845,10 @@ function fetchPlayerParts(id, lg, tidHint, onPart) {
       apps: plNum(m, 'appearances'), starts: plNum(m, 'starts'), subIns: plNum(m, 'subIns'), minutes: plNum(m, 'minutes'),
       // 同じポジションの平均との比較(横棒)に使う元の数字
       raw: Object.fromEntries(['minutes', 'totalGoals', 'goalAssists', 'totalShots', 'shotsOnTarget', 'shotAssists', 'totalPasses', 'accuratePasses',
-        'totalTackles', 'effectiveTackles', 'interceptions', 'totalClearance', 'recoveries', 'duelsWon', 'duels', 'saves', 'goalsConceded'].map(k => [k, +m[k] || 0])),
+        'totalTackles', 'effectiveTackles', 'interceptions', 'totalClearance', 'recoveries', 'duelsWon', 'duels', 'saves', 'goalsConceded',
+        'appearances', 'yellowCards', 'redCards', 'foulsCommitted',
+        'bigChanceCreated', 'bigChanceMissed', 'progressiveCarries', 'foulsSuffered', 'totalCrosses', 'accurateCrosses',
+        'totalLongBalls', 'accurateLongBalls', 'blockedShots', 'leftFootedShots', 'rightFootedShots', 'headedGoals', 'freeKickGoals'].map(k => [k, +m[k] || 0])),
     } : null;
     onPart({ season });
     return season;
@@ -3849,6 +3861,9 @@ function fetchPlayerParts(id, lg, tidHint, onPart) {
       min: plNum(m, 'minutes'), start: m.starts > 0, sub: m.subIns > 0,
       g: plNum(m, 'totalGoals'), pk: plNum(m, 'penaltyKickGoals'), a: plNum(m, 'goalAssists'),
       yc: plNum(m, 'yellowCards'), rc: plNum(m, 'redCards'),
+      // 空中戦＝全デュエルから地上の競り合いを引いた分（試合ごとの成績にだけある）
+      at: m.groundDuels != null ? Math.max(0, (m.duels || 0) - m.groundDuels) : null,
+      aw: m.groundDuelsWon != null ? Math.max(0, (m.duelsWon || 0) - m.groundDuelsWon) : null,
     }];
   }))).then(Object.fromEntries);
   const pRows = Promise.all([schedP, pPer, tidP]).then(([[past, fut], per, tid]) => {
@@ -3884,19 +3899,32 @@ function loadPosAvg() {
   if (!_posAvgP) _posAvgP = fetchJson(POSAVG_URL, { retries: 1, fresh: false }).catch(() => { _posAvgP = null; return null; });
   return _posAvgP;
 }
-// 比べる軸（ポジションごと）。[日本語, 英語, 種類, 分子, 分母, 少ない方が良いか, 個人の割合を出す最低の分母]
+// 比べる項目。[日本語, 英語, 種類(pg=1試合平均 / rate=割合), 分子, 分母, 少ない方が良いか, 個人の割合を出す最低の分母]
+// 数の項目は「1試合平均」（ユーザー指示：90分あたりではなく1試合平均で）。何の数かが分かるよう「〜数」と書き、単位を小さく添える
 const CMP_META = {
-  goals90:     ['得点', 'Goals', 'per90', 'totalGoals'],
-  assists90:   ['アシスト', 'Assists', 'per90', 'goalAssists'],
-  shots90:     ['シュート', 'Shots', 'per90', 'totalShots'],
-  keyPasses90: ['キーパス', 'Key passes', 'per90', 'shotAssists'],
-  passes90:    ['パス数', 'Passes', 'per90', 'totalPasses'],
-  tackles90:   ['タックル', 'Tackles', 'per90', 'totalTackles'],
-  intercept90: ['インターセプト', 'Interceptions', 'per90', 'interceptions'],
-  clear90:     ['クリア', 'Clearances', 'per90', 'totalClearance'],
-  recov90:     ['ボール回収', 'Ball recoveries', 'per90', 'recoveries'],
-  saves90:     ['セーブ', 'Saves', 'per90', 'saves'],
-  conceded90:  ['失点', 'Goals conceded', 'per90', 'goalsConceded', null, true],
+  goalsPG:     ['得点数', 'Goals', 'pg', 'totalGoals'],
+  assistsPG:   ['アシスト数', 'Assists', 'pg', 'goalAssists'],
+  shotsPG:     ['シュート数', 'Shots', 'pg', 'totalShots'],
+  keyPassesPG: ['キーパス数', 'Key passes', 'pg', 'shotAssists'],
+  passesPG:    ['パス数', 'Passes', 'pg', 'totalPasses'],
+  tacklesPG:   ['タックル数', 'Tackles', 'pg', 'totalTackles'],
+  interceptPG: ['インターセプト数', 'Interceptions', 'pg', 'interceptions'],
+  clearPG:     ['クリア数', 'Clearances', 'pg', 'totalClearance'],
+  recovPG:     ['ボール回収数', 'Ball recoveries', 'pg', 'recoveries'],
+  savesPG:     ['セーブ数', 'Saves', 'pg', 'saves'],
+  concededPG:  ['失点数', 'Goals conceded', 'pg', 'goalsConceded', null, true],
+  foulsPG:     ['ファウル数', 'Fouls committed', 'pg', 'foulsCommitted', null, true],
+  yellowPG:    ['イエローカード数', 'Yellow cards', 'pg', 'yellowCards', null, true],
+  redPG:       ['レッドカード数', 'Red cards', 'pg', 'redCards', null, true],
+  bigChanceCreatedPG: ['ビッグチャンス創出数', 'Big chances created', 'pg', 'bigChanceCreated'],
+  bigChanceMissedPG:  ['ビッグチャンス逸機数', 'Big chances missed', 'pg', 'bigChanceMissed', null, true],
+  carriesPG:   ['ドリブル前進数', 'Progressive carries', 'pg', 'progressiveCarries'],
+  foulsSufferedPG: ['被ファウル数', 'Fouls won', 'pg', 'foulsSuffered'],
+  crossesPG:   ['クロス数', 'Crosses', 'pg', 'totalCrosses'],
+  blocksPG:    ['シュートブロック数', 'Shots blocked', 'pg', 'blockedShots'],
+  aerialPct:   ['空中戦勝率', 'Aerial duels won (%)', 'aerial', null, null, false, 5],
+  crossPct:    ['クロス成功率', 'Cross accuracy (%)', 'rate', 'accurateCrosses', 'totalCrosses', false, 5],
+  longballPct: ['ロングボール成功率', 'Long ball accuracy (%)', 'rate', 'accurateLongBalls', 'totalLongBalls', false, 5],
   shotOnPct:   ['枠内シュート率', 'Shots on target (%)', 'rate', 'shotsOnTarget', 'totalShots', false, 5],
   convPct:     ['決定率', 'Goals per shot (%)', 'rate', 'totalGoals', 'totalShots', false, 5],
   passPct:     ['パス成功率', 'Pass accuracy (%)', 'rate', 'accuratePasses', 'totalPasses', false, 50],
@@ -3904,13 +3932,14 @@ const CMP_META = {
   duelPct:     ['デュエル勝率', 'Duels won (%)', 'rate', 'duelsWon', 'duels', false, 10],
   savePct:     ['セーブ率', 'Saves (%)', 'rate', 'saves', ['saves', 'goalsConceded'], false, 10],
 };
-// 比べる項目：GK以外は全項目（攻撃・パス・守備）を「GKを除く全選手の平均」と比べる。GKはGKの項目をGKの平均と
+// 比べる項目：GK以外は全項目を「GKを除く全選手の平均」と比べる。GKはGKの項目をGKの平均と
 const CMP_GROUPS = [
-  ['攻撃', 'Attack', ['goals90', 'assists90', 'shots90', 'shotOnPct', 'convPct', 'keyPasses90']],
-  ['パス', 'Passing', ['passes90', 'passPct']],
-  ['守備', 'Defending', ['tackles90', 'tacklePct', 'intercept90', 'clear90', 'recov90', 'duelPct']],
+  ['攻撃', 'Attack', ['goalsPG', 'assistsPG', 'shotsPG', 'shotOnPct', 'convPct', 'bigChanceMissedPG', 'carriesPG', 'foulsSufferedPG']],
+  ['パス', 'Passing', ['keyPassesPG', 'bigChanceCreatedPG', 'passesPG', 'passPct', 'crossesPG', 'crossPct', 'longballPct']],
+  ['守備', 'Defending', ['tacklesPG', 'tacklePct', 'interceptPG', 'clearPG', 'blocksPG', 'recovPG', 'duelPct', 'aerialPct']],
+  ['ファウル・カード', 'Fouls and cards', ['foulsPG', 'yellowPG', 'redPG']],
 ];
-const CMP_GROUPS_GK = [['ゴールキーパー', 'Goalkeeping', ['savePct', 'saves90', 'conceded90', 'passPct']]];
+const CMP_GROUPS_GK = [['ゴールキーパー', 'Goalkeeping', ['savePct', 'savesPG', 'concededPG', 'passPct', 'yellowPG']]];
 let curPlayerSt = null;
 function cmpHtml(st) {
   const ja = LANG === 'ja';
@@ -3922,20 +3951,29 @@ function cmpHtml(st) {
   const fmt = (v, kind) => (kind === 'rate' ? `${Math.round(v)}%` : v.toFixed(2));
   const row = key => {
     const [jl, el, kind, num, den, lower, minDen] = CMP_META[key];
-    const a = grp.m?.[key];
+    // 空中戦は必ず勝者と敗者が1人ずつなので、全選手の平均は約50%（全員分の試合ごとデータを集めずに済む）
+    const a = kind === 'aerial' ? { avg: 50, p90: 70 } : grp.m?.[key];
     if (!a) return '';
     // 割合の項目は回数が少なくても出す（ユーザー指示）。少ない時は「5回中3回」のように回数を添える。0回なら「—」
     let v, cnt = '';
-    if (kind === 'per90') v = raw[num] / raw.minutes * 90;
-    else {
+    const sumOf = n => (Array.isArray(n) ? n.reduce((x, k) => x + (raw[k] || 0), 0) : raw[n]);
+    if (kind === 'pg') v = raw.appearances > 0 ? sumOf(num) / raw.appearances : null;
+    else if (kind === 'aerial') {
+      const ps = (st.rows || []).map(r => r.p).filter(x => x && x.at != null);
+      if (!ps.length) return '';
+      const at = ps.reduce((x, q) => x + q.at, 0), aw = ps.reduce((x, q) => x + q.aw, 0);
+      v = at > 0 ? aw / at * 100 : null;
+      if (at < minDen) cnt = `<small class="cmp-cnt">${ja ? `${at}回中${aw}回` : `${aw}/${at}`}</small>`;
+    } else {
       const d = Array.isArray(den) ? den.reduce((x, k) => x + (raw[k] || 0), 0) : raw[den];
       v = d > 0 ? raw[num] / d * 100 : null;
       if (d < minDen) cnt = `<small class="cmp-cnt">${ja ? `${d}回中${raw[num] || 0}回` : `${raw[num] || 0}/${d}`}</small>`;
     }
     const top = Math.max(a.p90 * 1.15, a.avg * 1.6, (v || 0) * 1.05, 0.0001);
+    const pct = kind === 'rate' || kind === 'aerial';
     const good = v != null && (lower ? v <= a.avg : v >= a.avg);
     return `<div class="cmp-row">
-        <div class="cmp-top"><span class="cmp-lbl">${ja ? jl : el}${cnt}</span><span class="cmp-val">${v == null ? '—' : fmt(v, kind)}<small>${ja ? '平均' : 'avg'} ${fmt(a.avg, kind)}</small></span></div>
+        <div class="cmp-top"><span class="cmp-lbl">${ja ? jl : el}${kind === 'pg' ? `<small class="cmp-cnt">${ja ? '1試合平均' : 'per match'}</small>` : ''}${cnt}</span><span class="cmp-val">${v == null ? '—' : fmt(v, pct ? 'rate' : kind)}<small>${ja ? '平均' : 'avg'} ${kind === 'aerial' ? (ja ? '約50%' : '~50%') : fmt(a.avg, kind)}</small></span></div>
         <div class="cmp-track"><div class="cmp-fill${good ? '' : ' low'}" style="width:${v == null ? 0 : Math.min(100, v / top * 100).toFixed(1)}%"></div><div class="cmp-avg" style="left:${Math.min(100, a.avg / top * 100).toFixed(1)}%"></div></div>
       </div>`;
   };
@@ -3950,8 +3988,8 @@ function cmpHtml(st) {
   return `<button class="cmp-toggle" id="plCmpBtn" aria-expanded="${open}">${ja ? (isGK ? 'GKの平均と比べる' : '全選手の平均と比べる') : (isGK ? 'Compare with average goalkeeper' : 'Compare with league average')}<span>${open ? '▲' : '▼'}</span></button>
     ${open ? `<div class="cmp-body">
       <div class="cmp-note">${ja
-        ? `${esc(lgName)}の${isGK ? 'GK' : '全選手（GKを除く）'}${grp.n}人の平均・％以外は90分あたり`
-        : `Average of ${grp.n} ${esc(lgName)} ${isGK ? 'goalkeepers' : 'outfield players'} · numbers are per 90 minutes except %`}
+        ? `${esc(lgName)}の${isGK ? 'GK' : '全選手（GKを除く）'}${grp.n}人の平均`
+        : `Average of ${grp.n} ${esc(lgName)} ${isGK ? 'goalkeepers' : 'outfield players'}`}
         <span class="cmp-legend"><i class="cmp-key"></i>${ja ? 'この選手' : 'Player'}<i class="cmp-key avg"></i>${ja ? '平均' : 'Avg'}</span></div>
       ${few ? `<div class="cmp-note cmp-warn">${ja ? `出場${raw.minutes}分のため参考の数字` : `Only ${raw.minutes} min — indicative`}</div>` : ''}
       ${body}</div>` : ''}`;
@@ -3962,6 +4000,23 @@ document.addEventListener('click', e => {
   curPlayerSt.cmpOpen = !curPlayerSt.cmpOpen;
   renderPlayerPage(curPlayerSt);
 });
+
+function triviaHtml(st) {
+  const ja = LANG === 'ja', r = st.season?.raw;
+  if (!r) return '';
+  const L = r.leftFootedShots || 0, R = r.rightFootedShots || 0, tot = L + R;
+  let foot = '';
+  if (tot >= 3) {
+    const k = L / tot >= 0.7 ? (ja ? '左足' : 'Left') : R / tot >= 0.7 ? (ja ? '右足' : 'Right') : (ja ? '両足' : 'Both');
+    foot = ja ? `${k}（左足シュート${L}本・右足${R}本）` : `${k} (left-foot shots ${L}, right-foot ${R})`;
+  }
+  const items = [
+    foot ? [ja ? '利き足' : 'Stronger foot', foot] : null,
+    [ja ? 'ヘディングでのゴール' : 'Headed goals', ja ? `${r.headedGoals || 0}点` : String(r.headedGoals || 0)],
+    [ja ? '直接フリーキックでのゴール' : 'Direct free-kick goals', ja ? `${r.freeKickGoals || 0}点` : String(r.freeKickGoals || 0)],
+  ].filter(Boolean);
+  return `<div class="trv"><span class="trv-h">${ja ? '豆知識' : 'Did you know'}</span>${items.map(([k, v]) => `<div class="trv-row"><span>${k}</span><b>${esc(v)}</b></div>`).join('')}</div>`;
+}
 
 function renderPlayerPage(st) {
   curPlayerSt = st;
@@ -4011,11 +4066,11 @@ function renderPlayerPage(st) {
   if (sv) {
     const f = v => (v == null ? '-' : String(v));
     const conv = sv.goals != null && sv.shots ? String(Math.round(sv.goals / sv.shots * 100)) : '-';
-    const p90 = sv.goals != null && sv.minutes ? (sv.goals / sv.minutes * 90).toFixed(3) : '-';
+    const p90 = sv.goals != null && sv.apps ? (sv.goals / sv.apps).toFixed(2) : '-';   // 1試合平均得点（得点÷試合数）
     const grid = [
       [[ja ? '得点' : 'Goals', f(sv.goals)], ['PK', f(sv.pk)], [ja ? 'アシスト' : 'Assists', f(sv.assists)]],
       [[ja ? 'シュート' : 'Shots', f(sv.shots)], [ja ? '警告/退場' : 'Yellow / Red cards', `${f(sv.yc)}/${f(sv.rc)}`], [ja ? '試合数' : 'Matches played', f(sv.apps)]],
-      [[ja ? '出場時間' : 'Minutes played', f(sv.minutes)], [ja ? 'シュート決定率' : 'Goals per shot (%)', conv], [ja ? '90分平均得点' : 'Goals per 90 min', p90]],
+      [[ja ? '出場時間' : 'Minutes played', f(sv.minutes)], [ja ? 'シュート決定率' : 'Goals per shot (%)', conv], [ja ? '1試合平均得点' : 'Goals per match', p90]],
     ];
     seasonHtml = `<div class="sn-box"><table class="sn-grid"><tbody>${grid.map(r =>
       `<tr>${r.map(c => `<th>${c[0]}</th>`).join('')}</tr><tr>${r.map(c => `<td>${esc(c[1])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
@@ -4026,18 +4081,20 @@ function renderPlayerPage(st) {
   if (st.rows) {
     const rows = st.rows.map(r => {
       const { md } = plDateTime(r.date);
-      const p = r.p;
+      // ベンチ入りだけで出ていない試合（0分・先発でも途中出場でもない）は「出場なし」として扱う
+      const p = r.p && (r.p.min > 0 || r.p.start || r.p.sub) ? r.p : null;
       let min, g, pk, a, cd;
       if (p) {
         const mark = p.start ? '<span class="sn-s">S</span>' : p.sub ? '<span class="sn-in">▲</span>' : '';
         min = `${mark}${p.min ?? '-'}${ja ? '分' : "'"}`;
-        g = p.g ?? 0; pk = p.pk ?? 0; a = p.a ?? 0; cd = `${p.yc ?? 0}/${p.rc ?? 0}`;
+        g = p.g ?? 0; pk = p.pk ?? 0; a = p.a ?? 0;
+        const yc = p.yc ?? 0, rc2 = p.rc ?? 0;
+        cd = `<span${yc > 0 ? ' class="sn-yc"' : ''}>${yc}</span>/<span${rc2 > 0 ? ' class="sn-rc"' : ''}>${rc2}</span>`;
       } else if (r.done) { min = '-'; g = pk = a = '-'; cd = '-/-'; }
       else { min = g = pk = a = cd = ''; }
       const hit = v => (+v > 0 ? ' class="sn-hit"' : '');
       const rc = p ? '' : r.done ? ' class="sn-dnp"' : ' class="sn-future"';
-      const cardCls = p && ((p.yc ?? 0) + (p.rc ?? 0)) > 0 ? ' class="sn-card"' : '';
-      return `<tr${rc}><td class="sn-date">${esc(md)}</td><td class="sn-min">${min}</td><td${hit(g)}>${g}</td><td${hit(pk)}>${pk}</td><td${hit(a)}>${a}</td><td${cardCls}>${cd}</td></tr>`;
+      return `<tr${rc}><td class="sn-date">${esc(md)}</td><td class="sn-min">${min}</td><td${hit(g)}>${g}</td><td${hit(pk)}>${pk}</td><td${hit(a)}>${a}</td><td>${cd}</td></tr>`;
     }).join('');
     logHtml = rows
       ? `<div class="sn-box"><table class="sn-log"><colgroup><col style="width:15%"><col style="width:23%"><col style="width:17%"><col style="width:9%"><col style="width:17%"><col style="width:19%"></colgroup><thead><tr><th>${ja ? '日付' : 'Date'}</th><th>${ja ? '出場時間' : 'Minutes'}</th><th>${ja ? '得点' : 'Goals'}</th><th>PK</th><th>${ja ? 'アシスト' : 'Assists'}</th><th>${ja ? '警告/退場' : 'Cards'}</th></tr></thead><tbody>${rows}</tbody></table></div>`
@@ -4057,6 +4114,7 @@ function renderPlayerPage(st) {
   put('plProf', `<div class="pl-sec">${head('PROFILE', 'プロフィール')}${profHtml}</div>`);
   put('plSeason', `<div class="pl-sec">${head('SEASON STATS', 'シーズン成績')}
       <h4 class="pl-sub-h">${ja ? '個人成績' : 'Player stats'}</h4>${seasonHtml}
+      ${triviaHtml(st)}
       ${cmpHtml(st)}
     </div>
     <div class="pl-sec">${ja ? `<span class="pl-ov">MATCH LOG</span><h3 class="pl-sec-h">${esc(lgName)}の成績</h3>` : `<h3 class="pl-sec-h">${esc(lgName)} match log</h3>`}${logHtml}</div>`);
@@ -4399,6 +4457,9 @@ window.addEventListener('popstate', ev => {
 });
 
 function showPage(page) {
+  // 選手・試合ページを「戻る」以外（上のメニュー等）で離れた時は、その履歴を普通のページの履歴に置き換える
+  if (page !== 'player' && history.state?.player) history.replaceState(null, '', location.pathname + location.search);
+  if (page !== 'match' && history.state?.match) history.replaceState(null, '', location.pathname + location.search);
   if (page === 'edit' && !adminMode) return;   // 管理者以外はアクセス不可
   activePage = page;
   document.getElementById('schedulePage').style.display  = page==='schedule'  ? '' : 'none';
