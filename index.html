@@ -340,7 +340,7 @@
     .pl-hero-num { margin-top: 12px; display: flex; align-items: center; gap: 10px; min-height: 34px; }
     .pl-hero-num b { font-size: 34px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
     .pl-hero-num span { font-size: 12px; font-weight: 800; letter-spacing: .12em; padding: 4px 10px; border-radius: 999px; background: #22c55e; color: #052e16; }
-    .pl-hero-img { width: 104px; height: 104px; border-radius: 50%; background: rgba(255,255,255,0.08); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .pl-hero-img { width: 104px; height: 104px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }   /* 周りの丸は無し */
     .pl-hero-img img { width: 76px; height: 76px; object-fit: contain; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.35)); }
     .pl-sec { background: var(--white); border-radius: 18px; margin-top: 14px; padding: 18px 16px 16px; box-shadow: 0 2px 10px rgba(15,23,42,0.06); }
     .pl-ov { display: block; font-size: 11px; font-weight: 800; letter-spacing: .16em; color: #2563eb; margin-bottom: 2px; }
@@ -426,7 +426,8 @@
     .cmp-val small { font-size: 11px; font-weight: 700; color: #94a3b8; margin-left: 8px; }
     .cmp-cnt { font-size: 11px; font-weight: 700; color: #94a3b8; margin-left: 6px; }   /* 回数が少ない割合に添える「5回中3回」 */
     .cmp-track { position: relative; height: 10px; background: #eef2f7; border-radius: 5px; }
-    .cmp-fill { height: 10px; border-radius: 5px; background: #16a34a; }
+    .cmp-fill { height: 10px; border-radius: 5px; background: #16a34a; min-width: 6px; }   /* 0の時も短い棒で見せる */
+    .cmp-fill.none { background: #cbd5e1; }
     .cmp-fill.low { background: #f59e0b; }
     .cmp-avg { position: absolute; top: -4px; width: 2px; height: 18px; background: #0f172a; transform: translateX(-1px); }
     .pl-wait { color: var(--muted); font-size: 13px; padding: 10px 0; }
@@ -1920,9 +1921,23 @@ function logoSm(url, px = 64, dark = false) {
   const path = dark ? m[1].replace('/teamlogos/soccer/500/', '/teamlogos/soccer/500-dark/') : m[1];
   return `https://a.espncdn.com/combiner/i?img=${path}&w=${px}&h=${px}`;
 }
-// 濃紺の背景に置くロゴ：暗い背景用(500-dark。ユベントスの白いJ、トッテナムの白い鶏など)を使い、無ければ普通のロゴに
+// 濃紺の背景に置くロゴ：普通のロゴ（元の色）を出し、色が暗すぎて背景に溶けるもの（ユベントスの黒、トッテナムの紺）だけ
+// ESPNの暗い背景用（白い版）に差し替える。ESPNの暗い背景用を全部に使うと、リバプールの赤まで白黒になってしまったため
 function darkLogoImg(url, px, cls = '') {
-  return `<img${cls ? ` class="${cls}"` : ''} src="${attr(logoSm(url, px, true))}" alt="" onerror="if(!this.dataset.f){this.dataset.f=1;this.src='${attr(logoSm(url, px))}'}else{this.style.display='none'}">`;
+  return `<img${cls ? ` class="${cls}"` : ''} src="${attr(logoSm(url, px))}" data-dark="${attr(logoSm(url, px, true))}" crossorigin="anonymous" alt="" style="opacity:0" onload="fixDarkLogo(this)" onerror="this.style.display='none'">`;
+}
+function fixDarkLogo(img) {
+  if (img.dataset.checked) { img.style.opacity = ''; return; }
+  img.dataset.checked = '1';
+  try {
+    const c = document.createElement('canvas'); c.width = c.height = 32;
+    const g = c.getContext('2d'); g.drawImage(img, 0, 0, 32, 32);
+    const d = g.getImageData(0, 0, 32, 32).data;
+    let sum = 0, n = 0;
+    for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 128) { sum += 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]; n++; }
+    if (n && sum / n < 50 && img.dataset.dark) { img.src = img.dataset.dark; return; }   // 暗すぎる → 白い版を読み込んでから見せる
+  } catch {}
+  img.style.opacity = '';
 }
 function getLogo(team) {
   if (!team) return null;
@@ -3974,7 +3989,7 @@ function cmpHtml(st) {
     const good = v != null && (lower ? v <= a.avg : v >= a.avg);
     return `<div class="cmp-row">
         <div class="cmp-top"><span class="cmp-lbl">${ja ? jl : el}${kind === 'pg' ? `<small class="cmp-cnt">${ja ? '1試合平均' : 'per match'}</small>` : ''}${cnt}</span><span class="cmp-val">${v == null ? '—' : fmt(v, pct ? 'rate' : kind)}<small>${ja ? '平均' : 'avg'} ${kind === 'aerial' ? (ja ? '約50%' : '~50%') : fmt(a.avg, kind)}</small></span></div>
-        <div class="cmp-track"><div class="cmp-fill${good ? '' : ' low'}" style="width:${v == null ? 0 : Math.min(100, v / top * 100).toFixed(1)}%"></div><div class="cmp-avg" style="left:${Math.min(100, a.avg / top * 100).toFixed(1)}%"></div></div>
+        <div class="cmp-track"><div class="cmp-fill${v == null ? ' none' : good ? '' : ' low'}" style="width:${v == null ? 0 : Math.min(100, v / top * 100).toFixed(1)}%"></div><div class="cmp-avg" style="left:${Math.min(100, a.avg / top * 100).toFixed(1)}%"></div></div>
       </div>`;
   };
   const body = (isGK ? CMP_GROUPS_GK : CMP_GROUPS).map(([jg, eg, keys]) => {
@@ -4001,21 +4016,28 @@ document.addEventListener('click', e => {
   renderPlayerPage(curPlayerSt);
 });
 
+// ゴールした足（左足・右足・頭）：毎晩、試合の実況から数えた data/goal-feet.json（tools/goal_feet.py）
+const GOALFEET_URL = /^(localhost|127\.0\.0\.1)$/.test(location.hostname)
+  ? 'data/goal-feet.json'
+  : 'https://raw.githubusercontent.com/football-data-rank/football-schedule/main/data/goal-feet.json';
+let _goalFeetP = null;
+function loadGoalFeet() {
+  if (!_goalFeetP) _goalFeetP = fetchJson(GOALFEET_URL, { retries: 1, fresh: false }).catch(() => { _goalFeetP = null; return null; });
+  return _goalFeetP;
+}
 function triviaHtml(st) {
   const ja = LANG === 'ja', r = st.season?.raw;
   if (!r) return '';
-  const L = r.leftFootedShots || 0, R = r.rightFootedShots || 0, tot = L + R;
-  let foot = '';
-  if (tot >= 3) {
-    const k = L / tot >= 0.7 ? (ja ? '左足' : 'Left') : R / tot >= 0.7 ? (ja ? '右足' : 'Right') : (ja ? '両足' : 'Both');
-    foot = ja ? `${k}（左足シュート${L}本・右足${R}本）` : `${k} (left-foot shots ${L}, right-foot ${R})`;
+  const items = [];
+  const f = st.goalFeet?.leagues?.[st.lg]?.players?.[st.id];
+  if (f && f[0] + f[1] + f[2] + f[3] > 0) {
+    const parts = ja
+      ? [`左足 ${f[0]}点`, `右足 ${f[1]}点`, `頭 ${f[2]}点`, f[3] ? `その他 ${f[3]}点` : '']
+      : [`left foot ${f[0]}`, `right foot ${f[1]}`, `head ${f[2]}`, f[3] ? `other ${f[3]}` : ''];
+    items.push([ja ? 'ゴールした足' : 'Goals scored with', parts.filter(Boolean).join(ja ? '・' : ', ')]);
   }
-  const items = [
-    foot ? [ja ? '利き足' : 'Stronger foot', foot] : null,
-    [ja ? 'ヘディングでのゴール' : 'Headed goals', ja ? `${r.headedGoals || 0}点` : String(r.headedGoals || 0)],
-    [ja ? '直接フリーキックでのゴール' : 'Direct free-kick goals', ja ? `${r.freeKickGoals || 0}点` : String(r.freeKickGoals || 0)],
-  ].filter(Boolean);
-  return `<div class="trv"><span class="trv-h">${ja ? '豆知識' : 'Did you know'}</span>${items.map(([k, v]) => `<div class="trv-row"><span>${k}</span><b>${esc(v)}</b></div>`).join('')}</div>`;
+  items.push([ja ? '直接フリーキックでのゴール' : 'Direct free-kick goals', ja ? `${r.freeKickGoals || 0}点` : String(r.freeKickGoals || 0)]);
+  return `<div class="trv">${items.map(([k, v]) => `<div class="trv-row"><span>${k}</span><b>${esc(v)}</b></div>`).join('')}</div>`;
 }
 
 function renderPlayerPage(st) {
@@ -4131,7 +4153,12 @@ function preloadPlayerFonts(extra = '') {
 
 async function openPlayerPage(id, lg, push = true, hint = {}) {
   if (activePage !== 'player') playerReturnY = window.scrollY;
-  if (push) history.pushState({ player: { id, lg, tid: hint.tid || '' } }, '', `#player-${lg}-${id}`);
+  if (push) {
+    const stt = { player: { id, lg, tid: hint.tid || '' } };
+    // すでに選手・試合の履歴の上にいる時は積まずに置き換える（戻ると必ず元のページに戻る）
+    if (history.state?.player || history.state?.match) history.replaceState(stt, '', `#player-${lg}-${id}`);
+    else history.pushState(stt, '', `#player-${lg}-${id}`);
+  }
   showPage('player');
   window.scrollTo(0, 0);
   const seq = ++playerSeq;
@@ -4147,6 +4174,11 @@ async function openPlayerPage(id, lg, push = true, hint = {}) {
   loadPosAvg().then(a => {
     if (seq !== playerSeq || !a) return;
     st.posAvg = a;
+    if (ready && activePage === 'player') renderPlayerPage(st);
+  });
+  loadGoalFeet().then(g => {
+    if (seq !== playerSeq || !g) return;
+    st.goalFeet = g;
     if (ready && activePage === 'player') renderPlayerPage(st);
   });
   const fontWait = Promise.race([preloadPlayerFonts(hint.name || ''), new Promise(r => setTimeout(r, 350))]).then(() => {
@@ -4179,6 +4211,8 @@ async function openPlayerPage(id, lg, push = true, hint = {}) {
   }
 }
 function closePlayerPage() {
+  // アドレスに #player- が残っていたら消す（残ると、次に開いた時や再読み込みで前の選手が出てしまう）
+  if (/^#player-/.test(location.hash)) history.replaceState(null, '', location.pathname + location.search);
   showPage('scorers');
   requestAnimationFrame(() => window.scrollTo(0, playerReturnY));
 }
@@ -4431,7 +4465,10 @@ function openMatchPage(id, lg, push = true) {
   lg = lg || m?.lgCode;
   if (!lg) return;
   if (activePage !== 'match') matchReturnY = window.scrollY;
-  if (push) history.pushState({ match: { id, lg } }, '', `#match-${lg}-${id}`);
+  if (push) {
+    if (history.state?.player || history.state?.match) history.replaceState({ match: { id, lg } }, '', `#match-${lg}-${id}`);
+    else history.pushState({ match: { id, lg } }, '', `#match-${lg}-${id}`);
+  }
   showPage('match');
   window.scrollTo(0, 0);
   const seq = ++matchSeq;
@@ -4440,6 +4477,7 @@ function openMatchPage(id, lg, push = true) {
   refreshMatch(id, lg, seq);
 }
 function closeMatchPage() {
+  if (/^#match-/.test(location.hash)) history.replaceState(null, '', location.pathname + location.search);
   showPage('schedule');
   requestAnimationFrame(() => window.scrollTo(0, matchReturnY));
 }
@@ -4652,9 +4690,16 @@ setInterval(tick, 30_000);
   if (location.protocol !== 'https:' && !swDev) return;   // 手元の確認用サーバーでは使わない（古い版が残って紛らわしいため）
   let touched = false;
   ['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach(ev => addEventListener(ev, () => { touched = true; }, { once: true, passive: true }));
+  let backAt = 0;   // Safariなどに戻ってきた時刻
   navigator.serviceWorker.onmessage = e => {
-    if (e.data?.type === 'page-updated' && !touched && performance.now() < 10000) location.reload();
+    if (e.data?.type !== 'page-updated') return;
+    if ((!touched && performance.now() < 10000) || Date.now() - backAt < 8000) location.reload();
   };
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || !navigator.serviceWorker.controller) return;
+    backAt = Date.now();
+    navigator.serviceWorker.controller.postMessage({ type: 'check-update', url: location.href });
+  });
   navigator.serviceWorker.register('sw.js').catch(() => {});
   // 保存分から表示した時は、新しい版が出ていないかサービスワーカーに確かめてもらう
   if (navigator.serviceWorker.controller) navigator.serviceWorker.controller.postMessage({ type: 'check-update', url: location.href });

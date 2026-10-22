@@ -14,7 +14,7 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -22,11 +22,13 @@ jobs:
           python-version: '3.12'
       - name: Compute position averages
         run: python tools/position_averages.py
+      - name: Count goals by foot
+        run: python tools/goal_feet.py
       - name: Save the result
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/position-averages.json
+          git add data/position-averages.json data/goal-feet.json
           if git diff --cached --quiet; then
             echo "no change"
           else
