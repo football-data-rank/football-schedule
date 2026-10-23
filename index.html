@@ -2372,17 +2372,49 @@ if (document.fonts && document.fonts.addEventListener) {
 function refitSoon() { [300, 1200, 3000].forEach(ms => setTimeout(() => { fitSchedNames(); pinStandingsCols(); }, ms)); }
 // 試合日程ページだけの縮尺（英語表示）：2026-08-28〜09-19の版は、英語の長いクラブ名で表が約510pxに広がり、
 // iPhoneのSafariがページ全体を自動で縮小していた（幅320pxで約63%・1画面約12試合）。その見た目を意図的に再現する。
-// 日程ページの中身を「幅510px」で組み立て、実際の画面幅まで縮小する（CSSのzoom）。ヘッダー・順位表・得点ランキングは対象外。
-// 画面幅は毎回実測するので、iPhoneの機種・画面表示（標準/拡大）・Safariのページ拡大率に関係なく同じ見た目になる。
-// 横向きと510px以上の画面は縮小しない。日本語表示は当時も94%でほぼ縮小されていなかったので対象外。
+// 日程ページの中身を「幅420px」で組み立て、実際の画面幅まで縮小する。ヘッダー・順位表・得点ランキングは対象外。
+// 画面幅は毎回実測するので、iPhoneの機種・画面表示（標準/拡大）に関係なく同じ見た目になる。横向きと420px以上の画面は縮小しない。
+// 英語・日本語とも縮小する（2026-10-24 ユーザー指示で日本語も対象に）。
+// 以前はCSSの zoom で縮めていたが、iOSのアップデート後のSafariで効かなくなった（2026-10-24）ので、
+// どのブラウザでも効く transform: scale に変更。transform は見た目だけ縮めて場所は取ったままなので、
+// 外枠(#schedScaleBox)で包み、外枠の高さを「縮めた後の高さ」にして、はみ出した分は切る（中身の高さが変わるたびに測り直す）。
 const SCHED_DESIGN_W = 420;   // 510(約63%)は小さすぎ→460(約70%)→さらに少し大きく（幅320pxで約76%）
+let _schedRO = null;
+function schedBox(page) {
+  let box = document.getElementById('schedScaleBox');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'schedScaleBox';
+    page.parentNode.insertBefore(box, page);
+    box.appendChild(page);
+  }
+  return box;
+}
 function applySchedScale() {
   const page = document.getElementById('schedulePage');
   if (!page) return;
+  const box = schedBox(page);
   const w = document.documentElement.clientWidth;
   const landscape = window.matchMedia && window.matchMedia('(orientation: landscape)').matches;
-  const z = (LANG !== 'ja' && !landscape && w < SCHED_DESIGN_W) ? w / SCHED_DESIGN_W : 1;
-  page.style.zoom = z === 1 ? '' : z.toFixed(4);
+  const z = (!landscape && w < SCHED_DESIGN_W) ? w / SCHED_DESIGN_W : 1;
+  page.style.zoom = '';
+  page._z = z;
+  if (z === 1) {
+    Object.assign(page.style, { width: '', transform: '', transformOrigin: '' });
+    Object.assign(box.style, { height: '', overflow: '' });
+    return;
+  }
+  Object.assign(page.style, { width: SCHED_DESIGN_W + 'px', transform: `scale(${z.toFixed(4)})`, transformOrigin: '0 0' });
+  box.style.overflow = 'hidden';
+  fixSchedHeight();
+  if (!_schedRO && window.ResizeObserver) { _schedRO = new ResizeObserver(fixSchedHeight); _schedRO.observe(page); }
+}
+function fixSchedHeight() {
+  const page = document.getElementById('schedulePage');
+  const box = document.getElementById('schedScaleBox');
+  if (!page || !box) return;
+  const z = page._z || 1;
+  box.style.height = z === 1 ? '' : `${Math.ceil(page.offsetHeight * z)}px`;
 }
 applySchedScale();
 let _fitT = null;
@@ -4652,8 +4684,11 @@ buildCountryFilter();
 buildLeagueFilter();
 buildScorersFilter();
 // 前回の日程が端末に保存されていれば、通信を待たずに即表示し、裏で最新に差し替える（開いた瞬間に出す）
-if (restoreSchedCache()) { renderSchedule(); load(false); }
-else load(true);
+// 保存分の読み込みと表の組み立ては、最初の画面（ヘッダー）を描いた直後に回す（それまでの白い時間を短くするため）
+requestAnimationFrame(() => setTimeout(() => {
+  if (restoreSchedCache()) { renderSchedule(); load(false); }
+  else load(true);
+}, 0));
 startAutoRefresh();
 tick();
 setInterval(tick, 30_000);
