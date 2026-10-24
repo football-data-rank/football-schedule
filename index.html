@@ -7,6 +7,22 @@
   <meta name="google-site-verification" content="36E2heKne3wfqWYS__XDLWlvbopcAhlE-k4p4K3UlxM" />
   <meta name="description" content="プレミアリーグ・ラ・リーガ・セリエA・ブンデスリーガ・チャンピオンズリーグの試合日程・結果・順位表・得点ランキングをシンプルに確認。日本語・英語対応、毎日自動更新。Soccer schedule, standings and top scorers for Premier League, La Liga, Serie A, Bundesliga, Champions League.">
   <meta name="keywords" content="欧州サッカー,試合日程,順位表,得点ランキング,プレミアリーグ,ラ・リーガ,セリエA,ブンデスリーガ,チャンピオンズリーグ,soccer schedule,Premier League,La Liga,Serie A,Bundesliga,Champions League,football schedule">
+  <!-- 起動画面（ホーム画面のアイコンから開いた時、立ち上がるまでの白い画面の代わりに出す。iPhoneの画面サイズごと。画面表示「拡大」の分も含む） -->
+  <link rel="apple-touch-startup-image" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="splash/320x568@2.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 320px) and (device-height: 693px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/320x693@3.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="splash/375x667@2.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/375x667@3.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/375x812@3.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/390x844@3.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/393x852@3.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/402x874@3.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/414x736@3.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="splash/414x896@2.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/414x896@3.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 420px) and (device-height: 912px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/420x912@3.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/428x926@3.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/430x932@3.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/440x956@3.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- 文字(Webフォント)の読み込みで画面表示が止まらないよう、後から当てる（表示は即、文字は届き次第差し替え） -->
@@ -4685,10 +4701,18 @@ buildLeagueFilter();
 buildScorersFilter();
 // 前回の日程が端末に保存されていれば、通信を待たずに即表示し、裏で最新に差し替える（開いた瞬間に出す）
 // 保存分の読み込みと表の組み立ては、最初の画面（ヘッダー）を描いた直後に回す（それまでの白い時間を短くするため）
-requestAnimationFrame(() => setTimeout(() => {
-  if (restoreSchedCache()) { renderSchedule(); load(false); }
-  else load(true);
-}, 0));
+// 描画の合図(requestAnimationFrame)は画面が見えていないと来ないので、0.06秒たったら合図を待たずに始める（保険）
+{
+  let started = false;
+  const startSchedule = () => {
+    if (started) return;
+    started = true;
+    if (restoreSchedCache()) { renderSchedule(); load(false); }
+    else load(true);
+  };
+  requestAnimationFrame(() => setTimeout(startSchedule, 0));
+  setTimeout(startSchedule, 60);
+}
 startAutoRefresh();
 tick();
 setInterval(tick, 30_000);
@@ -4716,23 +4740,16 @@ setInterval(tick, 30_000);
 })();
 
 /* 2回目以降の表示を速くする（sw.js：ページ本体を端末に保存して即表示、裏で最新版に更新）。
-   新しい版が見つかった時は、開いた直後で、まだ触っていなければ1回だけ読み込み直して新しい版にする
-   （アップロード直後に古い版が出たままにならないように）。触った後なら次に開いた時から新しい版。 */
+   新しい版が見つかっても、その場で読み込み直さない（白い画面が2回出るため。2026-10-24 ユーザー了承）。
+   裏で保存し直した新しい版は、次に開いた時から表示される。 */
 (() => {
   if (!('serviceWorker' in navigator)) return;
   let swDev = false;
   try { swDev = localStorage.getItem('swDev') === '1'; } catch {}
   if (location.protocol !== 'https:' && !swDev) return;   // 手元の確認用サーバーでは使わない（古い版が残って紛らわしいため）
-  let touched = false;
-  ['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach(ev => addEventListener(ev, () => { touched = true; }, { once: true, passive: true }));
-  let backAt = 0;   // Safariなどに戻ってきた時刻
-  navigator.serviceWorker.onmessage = e => {
-    if (e.data?.type !== 'page-updated') return;
-    if ((!touched && performance.now() < 10000) || Date.now() - backAt < 8000) location.reload();
-  };
+  // Safariなどに戻ってきた時も、新しい版が出ていれば裏で保存し直しておく（表示の切り替えは次に開いた時）
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible' || !navigator.serviceWorker.controller) return;
-    backAt = Date.now();
     navigator.serviceWorker.controller.postMessage({ type: 'check-update', url: location.href });
   });
   navigator.serviceWorker.register('sw.js').catch(() => {});
