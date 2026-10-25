@@ -943,6 +943,7 @@ const T = {
   loading:     LANG==='ja' ? '読み込み中…'            : 'Loading…',
   failed:      LANG==='ja' ? '取得失敗'             : 'Failed to load',
   noMatches:   LANG==='ja' ? 'この期間の試合はありません' : 'No matches in this period',
+  noData:      LANG==='ja' ? '試合データに接続できませんでした。通信環境や広告ブロックを確認して、右上の更新ボタンを押してください' : "Couldn't connect to the match data. Please check your connection or ad blocker, then tap the reload button",
   selectLeague:LANG==='ja' ? 'リーグを選択してください' : 'Select a league',
   matchUnit:   LANG==='ja' ? '試合'                 : 'matches',
   clubUnit:    LANG==='ja' ? 'クラブ'               : 'clubs',
@@ -976,18 +977,23 @@ const T = {
 const SCHEDULE_LEAGUES = [
   ...(isWorldCup ? [{ code: 'fifa.world', label: LANG==='ja'?'ワールドカップ':'World Cup', short: 'WC', country: 'world', color: '#dc2626' }] : []),
   { code: 'eng.1',               label: LANG==='ja'?'プレミアリーグ':'Premier League',        short: 'Premier',   country: 'england', color: '#6d28d9' },
+  { code: 'eng.league_cup',      label: LANG==='ja'?'カラバオカップ':'Carabao Cup',          short: 'Carabao',   country: 'england', color: '#6d28d9', hideRounds: /^(preliminary|first|1st|second|2nd)-round/ },   // 2026-10-25 追加（イングランドのリーグカップ）
   // { code: 'eng.fa_cup',       label: LANG==='ja'?'FAカップ':'FA Cup',                      short: 'FA Cup',    country: 'england', color: '#6d28d9' },
   { code: 'esp.1',               label: LANG==='ja'?'ラ・リーガ':'La Liga',                   short: 'La Liga',   country: 'spain',   color: '#dc2626' },
-  { code: 'esp.copa_del_rey',    label: LANG==='ja'?'コパ・デル・レイ':'Copa del Rey',        short: 'Copa',      country: 'spain',   color: '#dc2626' },
+  { code: 'esp.copa_del_rey',    label: LANG==='ja'?'コパ・デル・レイ':'Copa del Rey',        short: 'Copa',      country: 'spain',   color: '#dc2626', hideRounds: /^(preliminary|first|1st|second|2nd)-round/ },
   { code: 'ger.1',               label: LANG==='ja'?'ブンデスリーガ':'Bundesliga',            short: 'Bundesliga',country: 'germany', color: '#d97706' },
-  { code: 'ger.dfb_pokal',       label: LANG==='ja'?'DFBポカール':'DFB Pokal',               short: 'Pokal',     country: 'germany', color: '#d97706' },
+  { code: 'ger.dfb_pokal',       label: LANG==='ja'?'DFBポカール':'DFB Pokal',               short: 'Pokal',     country: 'germany', color: '#d97706', hideRounds: /^(first|1st)-round/ },
   { code: 'ita.1',               label: LANG==='ja'?'セリエA':'Serie A',                     short: 'Serie A',   country: 'italy',   color: '#2563eb' },
-  { code: 'ita.coppa_italia',    label: LANG==='ja'?'コッパ・イタリア':'Coppa Italia',        short: 'Coppa',     country: 'italy',   color: '#2563eb' },
+  { code: 'ita.coppa_italia',    label: LANG==='ja'?'コッパ・イタリア':'Coppa Italia',        short: 'Coppa',     country: 'italy',   color: '#2563eb', hideRounds: /^(preliminary|first|1st|second|2nd)-round|^round-of-(64|32)/ },
   { code: 'fra.1',               label: LANG==='ja'?'リーグ・アン':'Ligue 1',                 short: 'Ligue 1',   country: 'france',  color: '#059669' },
   { code: 'fra.coupe_de_france', label: LANG==='ja'?'クープ・ド・フランス':'Coupe de France', short: 'Coupe',     country: 'france',  color: '#059669' },
   { code: 'uefa.champions',      label: LANG==='ja'?'チャンピオンズリーグ':'Champions League',short: 'CL',        country: 'europe',  color: '#1e40af' },
   { code: 'uefa.europa',         label: LANG==='ja'?'ヨーロッパリーグ':'Europa League',       short: 'EL',        country: 'europe',  color: '#ea580c' },
   { code: 'uefa.europa.conf',    label: LANG==='ja'?'カンファレンスリーグ':'Conference League',short: 'UECL',     country: 'europe',  color: '#0891b2' },
+  // hideRounds：カップ戦の早い回戦は日程表に出さない。基準は「1部のクラブが全部出そろう回」から出す（2026-10-25 ユーザー指示）。
+  //   コパ・デル・レイ＝ベスト32から／ポカール＝2回戦から／コッパ・イタリア＝ベスト16から／カラバオ＝3回戦から。
+  //   ESPNの試合データの回戦名（season.slug：first-round 等）で判定。出さない回戦を指定する形なので、
+  //   ESPNの書き方が想定と違っても試合が消えることはない（早い回戦が出てしまうだけ）。クープ・ド・フランスは早い回戦がESPNに無いので指定なし
   // ── 代表戦（試合日程のみ。順位・得点ランキングには出さない） ──
   // UEFAネーションズリーグは全試合。国際親善試合は小国同士の試合が大量にあるので、
   // nationFilter:true ＝「日本・欧州・南米の国がどちらか片方でも出る試合」だけ表示する
@@ -1058,6 +1064,7 @@ const TEAM_NAMES_JA = {
   'Leeds':'リーズ','Leeds United':'リーズ','Burnley':'バーンリー','Sheffield Utd':'シェフィールドU','Sheffield United':'シェフィールドU',
   'Luton':'ルートン','Luton Town':'ルートン',
   'Watford':'ワトフォード','Middlesbrough':'ミドルスブラ','Sunderland':'サンダーランド','Millwall':'ミルウォール',
+  'Bradford City':'ブラッドフォード・シティ','Peterborough United':'ピーターバラ・ユナイテッド','Fleetwood Town':'フリートウッド・タウン',   // カラバオカップ
   'Preston North End':'プレストン','Coventry City':'コベントリー','Norwich City':'ノリッジ',
   'West Bromwich Albion':'W・ブロム','West Brom':'W・ブロム',
   'Swansea City':'スウォンジー','Stoke City':'ストーク',
@@ -1997,6 +2004,8 @@ function parseEvent(ev, lg) {
   const home = comp.competitors?.find(c => c.homeAway === 'home');
   const away = comp.competitors?.find(c => c.homeAway === 'away');
   if (!home || !away) return null;
+  // カップ戦の早い回戦（hideRounds）は出さない
+  if (lg.hideRounds && lg.hideRounds.test(ev.season?.slug || '')) return null;
   // 国際親善試合など(nationFilter)：日本・欧州・南米の国がどちらも出ない試合は一覧に出さない
   if (lg.nationFilter) {
     const hEn = home.team?.displayName || home.team?.name, aEn = away.team?.displayName || away.team?.name;
@@ -2046,8 +2055,8 @@ async function fetchSchedule() {
     try {
       const d = await fetchJson(url);
       return { code: lg.code, evs: (d.events || []).map(ev => parseEvent(ev, lg)).filter(Boolean) };
-    } catch {
-      return { code: lg.code, evs: null };   // このURLは失敗（他のクエリ/前回データで補う）
+    } catch (e) {
+      return { code: lg.code, evs: null, err: e?.name === 'AbortError' ? 'timeout' : (e?.message || '') };   // このURLは失敗（他のクエリ/前回データで補う）
     }
   });
 
@@ -2058,6 +2067,12 @@ async function fetchSchedule() {
     (perLeague[code] = perLeague[code] || []).push(...evs);
   }
   for (const code of Object.keys(perLeague)) lastSchedByLeague[code] = perLeague[code];
+  // 全部失敗して手元にも何も無い時は「試合はありません」ではなく、読み込めなかったと出す
+  // （2026-10-25 トルコの友達で「No matches」と出た件。ESPNに繋がらない回線・広告ブロック等）
+  if (!Object.keys(perLeague).length && !Object.keys(lastSchedByLeague).length) {
+    const why = results.map(r => r.err).find(Boolean) || '';
+    throw new Error(T.noData + (why ? ` (${why})` : ''));
+  }
   return assembleMatches();
 }
 
