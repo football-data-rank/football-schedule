@@ -1009,6 +1009,9 @@ const COUNTRY_FILTERS = [
   { id: 'germany', label: LANG==='ja'?'ドイツ':'Germany'       },
   { id: 'italy',   label: LANG==='ja'?'イタリア':'Italy'       },
   { id: 'france',  label: LANG==='ja'?'フランス':'France'      },
+  // CL・ELは大会単位で絞る（codes：その大会の試合だけ。2026-10-27 ユーザー指示でフランスの下に追加）
+  { id: 'cl',      label: LANG==='ja'?'チャンピオンズリーグ':'Champions League', codes: ['uefa.champions'] },
+  { id: 'el',      label: LANG==='ja'?'ヨーロッパリーグ':'Europa League',       codes: ['uefa.europa'] },
   { id: 'europe',  label: LANG==='ja'?'欧州カップ':'Euro Cups' },
   { id: 'intl',    label: LANG==='ja'?'代表戦':'National Teams' },
 ];
@@ -2189,7 +2192,10 @@ function renderSchedule() {
   const wrap = document.getElementById('scheduleWrap');
   const tz = LANG === 'ja' ? 'Asia/Tokyo' : Intl.DateTimeFormat().resolvedOptions().timeZone;
   const todayLocal = new Date().toLocaleDateString('sv-SE', { timeZone: tz });
-  const base = activeCountry === 'all' ? allMatches : allMatches.filter(m => m.country === activeCountry);
+  const cf = COUNTRY_FILTERS.find(f => f.id === activeCountry);
+  const base = activeCountry === 'all' ? allMatches
+    : cf?.codes ? allMatches.filter(m => cf.codes.includes(m.lgCode))
+    : allMatches.filter(m => m.country === activeCountry);
   // 終了試合は開始から12時間で消す（以前は「昨日の日付以降」を残していたが、日本時間だと前夜の深夜分と
   // その日の夜の分が両方残って多すぎた）
   const nowMs = Date.now();
