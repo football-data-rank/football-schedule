@@ -407,6 +407,16 @@
     .sn-log td { text-align: right; padding: 11px 5px; border-top: 1px solid #d3deef; border-bottom: 1px solid #d3deef; border-right: 1px solid #93a6c4; border-left: none; font-variant-numeric: tabular-nums; white-space: nowrap; color: #0f172a; }
     .sn-log tbody tr:nth-child(even) td { background: #f7f9fd; }
     .sn-log td.sn-hit { background: #e8f7ee !important; color: #15803d; font-weight: 800; }   /* 得点・PK・アシストが1以上 */
+    /* 過去の成績：チームのタブ＋大会ごとの表 */
+    .cr-tabs { display: flex; overflow-x: auto; margin: 0 -12px 4px; border-bottom: 1px solid #d3deef; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .cr-tabs::-webkit-scrollbar { display: none; }
+    .cr-tab { flex: 1 0 auto; padding: 10px 14px; border: none; border-bottom: 3px solid transparent; margin-bottom: -1px; background: none; color: #64748b; font: inherit; font-size: 14px; font-weight: 700; white-space: nowrap; cursor: pointer; }
+    .cr-tab.on { color: #0f172a; border-bottom-color: #1e3a8a; }
+    .cr-log td { text-align: center; padding-left: 2px; padding-right: 2px; }
+    .cr-log td.cr-yr { font-weight: 700; color: #0f172a; }
+    .cr-card { display: inline-block; width: 10px; height: 14px; border-radius: 2px; vertical-align: -2px; }
+    .cr-card.y { background: #facc15; }
+    .cr-card.r { background: #ef4444; }
     .sn-yc { color: #e0a800; font-weight: 800; }   /* イエローカードあり：左の数字を黄色 */
     .sn-rc { color: #dc2626; font-weight: 800; }   /* レッドカードあり：右の数字を赤 */
     .sn-log tr.sn-dnp td { color: #94a3b8; }                                                 /* 出場なし */
@@ -1159,6 +1169,7 @@ const TEAM_NAMES_JA = {
   'Lille':'リール','OSC Lille':'リール','LOSC Lille':'リール',
   'Lens':'ランス','RC Lens':'ランス',
   'Rennes':'レンヌ','Stade Rennais':'レンヌ','Stade Rennais FC':'レンヌ',
+  'Vitória de Guimaraes':'ヴィトーリア・ギマランエス','Avaí':'アヴァイ','Inter Miami CF':'インテル・マイアミ',
   'Nice':'ニース','OGC Nice':'ニース',
   'Strasbourg':'ストラスブール','RC Strasbourg':'ストラスブール','RC Strasbourg Alsace':'ストラスブール',
   'Reims':'スタッド・ランス','Stade Reims':'スタッド・ランス','Stade de Reims':'スタッド・ランス',
@@ -3860,6 +3871,16 @@ const COMP_JA = {
   'uefa.super_cup': 'UEFAスーパーカップ', 'uefa.euro': 'EURO', 'conmebol.america': 'コパ・アメリカ', 'afc.asian.cup': 'アジアカップ',
   'eng.charity': 'コミュニティ・シールド', 'esp.joan_gamper': 'ジョアン・ガンペール杯', 'eng.fa': 'FAカップ', 'eng.league_cup': 'カラバオカップ',
   'esp.super_cup': 'スーペルコパ', 'ita.super_cup': 'スーペルコッパ', 'ger.super_cup': 'DFLスーパーカップ', 'fra.super_cup': 'トロフェ・デ・シャンピオン',
+  // 過去の成績で出る大会
+  'fifa.worldq.conmebol': 'W杯南米予選', 'fifa.worldq.afc': 'W杯アジア予選', 'fifa.worldq.caf': 'W杯アフリカ予選', 'fifa.worldq.concacaf': 'W杯北中米カリブ海予選',
+  'fifa.confederations': 'コンフェデレーションズカップ', 'fifa.olympics': 'オリンピック', 'fifa.world.u20': 'U-20ワールドカップ', 'uefa.euroq': 'EURO予選',
+  'uefa.champions_qual': 'チャンピオンズリーグ予選', 'uefa.europa_qual': 'ヨーロッパリーグ予選', 'uefa.europa.conf_qual': 'カンファレンスリーグ予選',
+  'conmebol.libertadores': 'コパ・リベルタドーレス', 'conmebol.sudamericana': 'コパ・スダメリカーナ', 'afc.champions': 'AFCチャンピオンズリーグ', 'afc.cup': 'AFCカップ',
+  'concacaf.champions': 'CONCACAFチャンピオンズカップ', 'concacaf.leagues.cup': 'リーグスカップ', 'campeones.cup': 'カンペオネスカップ', 'usa.1': 'MLS', 'usa.open': '全米オープンカップ',
+  'ksa.1': 'サウジ・プロリーグ', 'ksa.kings.cup': 'サウジ国王杯', 'por.1': 'ポルトガル・リーグ', 'bra.1': 'ブラジル全国選手権', 'ned.1': 'エールディヴィジ',
+  'bel.1': 'ベルギー・リーグ', 'sco.1': 'スコティッシュ・プレミアシップ', 'tur.1': 'トルコ・スュペルリグ', 'jpn.1': 'J1リーグ', 'eng.2': 'チャンピオンシップ',
+  'eng.3': 'イングランド3部', 'eng.4': 'イングランド4部', 'esp.2': 'ラ・リーガ2', 'ger.2': '2.ブンデスリーガ', 'ita.2': 'セリエB', 'fra.2': 'リーグ・ドゥ',
+  'fra.coupe_de_la_ligue': 'クープ・ドゥ・ラ・リーグ',
 };
 function compLabel(slug, fallback) {
   if (LANG === 'ja' && COMP_JA[slug]) return COMP_JA[slug];
@@ -4197,7 +4218,7 @@ function renderPlayerPage(st) {
   // 中身が変わった部分だけを差し替える（見た目は変えない）
   const key = `${st.lg}:${st.id}`;
   if (wrap.dataset.pk !== key || !document.getElementById('plHero')) {
-    wrap.innerHTML = `${back}<div id="plHero"></div><div id="plProf"></div><div id="plSeason"></div>`;
+    wrap.innerHTML = `${back}<div id="plHero"></div><div id="plProf"></div><div id="plSeason"></div><div id="plCareer"></div>`;
     wrap.dataset.pk = key;
   }
   const put = (id, html) => { const el = document.getElementById(id); if (el && el._h !== html) { el.innerHTML = html; el._h = html; } };
@@ -4209,7 +4230,124 @@ function renderPlayerPage(st) {
       ${cmpHtml(st)}
     </div>
     <div class="pl-sec">${ja ? `<span class="pl-ov">MATCH LOG</span><h3 class="pl-sec-h">${esc(lgName)}の成績</h3>` : `<h3 class="pl-sec-h">${esc(lgName)} match log</h3>`}${logHtml}</div>`);
+  put('plCareer', careerHtml(st));
+  const crTabs = wrap.querySelector('.cr-tabs');
+  if (crTabs && st.career?.scrollX) crTabs.scrollLeft = st.career.scrollX;
 }
+
+/* ── 過去の成績：所属チームごと・大会ごとのシーズン成績 ──
+   statisticslog＝出た大会とシーズンの一覧（1回）。成績の数字は1大会1シーズンごとに別の取得になるので
+   （長い選手は100回以上）、開いているチームの分だけ取り、他のチームはタブを押した時に取る。 */
+const careerMem = {};
+const CAREER_SKIP = /^club\.|^global\.|joan_gamper/;   // クラブの親善試合・プレシーズン大会は出さない
+const CAREER_NATIONAL = /^fifa\.(world|friendly|confederations|olympics)|^uefa\.(euro(q|\.|$)|nations)|^conmebol\.america|^afc\.asian|^concacaf\.(gold|nations)|^caf\.nations/;
+// 年の表記：代表戦と、1年で完結するリーグは「2024」、それ以外は「2024-25」
+const careerYear = (lg, y) => CAREER_NATIONAL.test(lg) || /^(fifa|conmebol|concacaf|campeones|usa|bra|arg|jpn|kor|chn|nor|swe)\./.test(lg)
+  ? String(y) : `${y}-${String((y + 1) % 100).padStart(2, '0')}`;
+function careerRank(lg) {   // 大会の並び：リーグ → 欧州の大会 → 国内カップ → スーパーカップ。代表は W杯 → 大陸王者 → 予選 → 親善試合
+  if (lg === 'fifa.friendly') return 90;
+  if (/^fifa\.worldq|euroq$/.test(lg)) return 5;
+  if (lg === 'fifa.world') return 1;
+  if (CAREER_NATIONAL.test(lg)) return 3;
+  if (/\.\d$/.test(lg)) return 0;
+  const u = ['uefa.champions', 'uefa.champions_qual', 'uefa.europa', 'uefa.europa_qual', 'uefa.europa.conf', 'uefa.europa.conf_qual'].indexOf(lg);
+  if (u >= 0) return 10 + u;
+  return /super|charity/.test(lg) ? 40 : 30;
+}
+const careerTeamName = (name, national) => {
+  if (LANG !== 'ja') return name;
+  // 辞書に無いチームは、崩れた自動カタカナにせず英語のまま
+  return (national && NATIONAL_TEAMS_JA[name]) || nameOverrides.teams[name] || TEAM_NAMES_JA[name] || TEAM_NAMES_JA[name.replace(/\s+FC$/i, '').trim()] || name;
+};
+async function loadCareer(st) {
+  const j = u => fetchJson(u, { retries: 1, fresh: false }).catch(() => null);
+  let c = careerMem[st.id];
+  if (!c) {
+    const [log, info] = await Promise.all([j(`${ESPN_CORE}/all/athletes/${st.id}/statisticslog`), j(`${ESPN_COMMON}/athletes/${st.id}/stats`)]);
+    if (!log) return;
+    const byTeam = {};
+    for (const e of log.entries || []) {
+      const [, lg, y] = e.season?.$ref?.match(/leagues\/([^/]+)\/seasons\/(\d+)/) || [];
+      if (!lg || CAREER_SKIP.test(lg)) continue;
+      for (const x of e.statistics || []) {
+        const tid = x.type === 'team' ? extractId(x.team?.$ref, 'teams') : null;
+        if (!tid || !x.statistics?.$ref) continue;
+        const t = byTeam[tid] = byTeam[tid] || { tid, items: [], last: 0, national: false, teamRef: x.team.$ref.replace(/^http:/, 'https:') };
+        t.items.push({ lg, y: +y, ref: x.statistics.$ref.replace(/^http:/, 'https:') });
+        t.last = Math.max(t.last, +y);
+        if (CAREER_NATIONAL.test(lg)) t.national = true;
+      }
+    }
+    const names = Object.fromEntries((info?.filters?.find(f => f.name === 'team')?.options || []).map(o => [o.value, o.displayValue]));
+    const teams = Object.values(byTeam);
+    await Promise.all(teams.map(async t => {
+      const en = names[t.tid] || (await j(t.teamRef))?.displayName || '';
+      t.name = en ? careerTeamName(en, t.national) : '';
+    }));
+    const cur = String(st.prof?.tid || st.tid || '');
+    const order = t => (t.tid === cur ? 0 : t.national ? 1 : 2);
+    c = careerMem[st.id] = { teams: teams.filter(t => t.name).sort((a, b) => order(a) - order(b) || b.last - a.last) };
+    c.tab = c.teams[0]?.tid;
+  }
+  st.career = c;
+  if (st === curPlayerSt && activePage === 'player') renderPlayerPage(st);
+  if (c.tab) loadCareerTeam(st, c.teams.find(t => t.tid === c.tab));
+}
+async function loadCareerTeam(st, t) {
+  if (!t || t.comps || t.loading) return;
+  t.loading = true;
+  t.failed = false;
+  const rows = await mapPool(t.items, 6, async it => {
+    const js = await fetchJson(it.ref, { retries: 1, fresh: it.y === currentSeason() }).catch(() => null);
+    if (!js) return { ...it, bad: true };
+    const m = statMapOf(js);
+    return { ...it, apps: plNum(m, 'appearances'), g: plNum(m, 'totalGoals'), a: plNum(m, 'goalAssists'), yc: plNum(m, 'yellowCards'), rc: plNum(m, 'redCards') };
+  });
+  const groups = {};
+  for (const r of rows) {
+    if (!(r.apps > 0)) continue;   // 0試合（ベンチ入りだけ）は出さない
+    const g = groups[r.lg] = groups[r.lg] || [];
+    // MLSなどはレギュラーシーズンとプレーオフが別のデータになっているので、同じ年は足して1行にする
+    const same = g.find(x => x.y === r.y);
+    if (same) for (const k of ['apps', 'g', 'a', 'yc', 'rc']) same[k] = (same[k] || 0) + (r[k] || 0);
+    else g.push(r);
+  }
+  const lgs = Object.keys(groups);
+  // 名前の登録が無い大会だけ、ESPNの大会名を取る
+  const known = lg => (LANG === 'ja' && COMP_JA[lg]) || [...SCHEDULE_LEAGUES, ...SCORERS_LEAGUES].some(l => l.code === lg);
+  const lgName = Object.fromEntries(await Promise.all(lgs.map(async lg => [lg, known(lg) ? '' : (await fetchJson(`${ESPN_CORE}/${lg}`, { retries: 1, fresh: false }).catch(() => null))?.name || ''])));
+  t.loading = false;
+  if (!lgs.length && rows.some(r => r.bad)) { t.failed = true; }
+  else {
+    t.comps = lgs.map(lg => ({ lg, name: compLabel(lg, lgName[lg]), rows: groups[lg].sort((a, b) => b.y - a.y) }))
+      .sort((a, b) => careerRank(a.lg) - careerRank(b.lg) || b.rows[0].y - a.rows[0].y);
+  }
+  if (st === curPlayerSt && activePage === 'player') renderPlayerPage(st);
+}
+function careerHtml(st) {
+  const c = st.career, ja = LANG === 'ja';
+  if (!c?.teams?.length) return '';
+  const t = c.teams.find(x => x.tid === c.tab) || c.teams[0];
+  const tabs = c.teams.map(x => `<button class="cr-tab${x === t ? ' on' : ''}" data-tid="${attr(x.tid)}">${esc(x.name)}</button>`).join('');
+  const f = v => (v == null ? '-' : v);
+  let body = `<div class="pl-wait">${T.loading}</div>`;
+  if (t.failed) body = `<div class="pl-err">${T.failed}</div>`;
+  else if (t.comps) body = t.comps.length ? t.comps.map(cp => `<h4 class="pl-sub-h">${esc(cp.name)}</h4>
+      <div class="sn-box"><table class="sn-log cr-log"><colgroup><col style="width:26%"><col style="width:17%"><col style="width:15%"><col style="width:20%"><col style="width:11%"><col style="width:11%"></colgroup>
+      <thead><tr><th>${ja ? '年' : 'Season'}</th><th>${ja ? '試合数' : 'Matches'}</th><th>${ja ? '得点' : 'Goals'}</th><th>${ja ? 'アシスト' : 'Assists'}</th><th><i class="cr-card y" title="${ja ? '警告' : 'Yellow cards'}"></i></th><th><i class="cr-card r" title="${ja ? '退場' : 'Red cards'}"></i></th></tr></thead>
+      <tbody>${cp.rows.map(r => `<tr><td class="cr-yr">${esc(careerYear(cp.lg, r.y))}</td><td>${f(r.apps)}</td><td>${f(r.g)}</td><td>${f(r.a)}</td><td><span${r.yc > 0 ? ' class="sn-yc"' : ''}>${f(r.yc)}</span></td><td><span${r.rc > 0 ? ' class="sn-rc"' : ''}>${f(r.rc)}</span></td></tr>`).join('')}</tbody></table></div>`).join('')
+    : `<div class="pl-err">${ja ? '出場記録はありません' : 'No appearances'}</div>`;
+  return `<div class="pl-sec">${ja ? '<span class="pl-ov">CAREER</span><h3 class="pl-sec-h">過去の成績</h3>' : '<h3 class="pl-sec-h">Career stats</h3>'}<div class="cr-tabs">${tabs}</div>${body}</div>`;
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('.cr-tab');
+  if (!b || !curPlayerSt?.career) return;
+  const c = curPlayerSt.career;
+  c.tab = b.dataset.tid;
+  c.scrollX = b.parentElement.scrollLeft;   // タブが多い時、押した位置のままにする
+  renderPlayerPage(curPlayerSt);
+  loadCareerTeam(curPlayerSt, c.teams.find(t => t.tid === c.tab));
+});
 
 // 選手ページの文字(M PLUS 1p)を先に読み込んでおく。日本語の文字は必要な分だけ後から届くため、
 // 開いた直後は仮の文字で表示され、届いた瞬間に書体が切り替わって見えていた
@@ -4266,6 +4404,7 @@ async function openPlayerPage(id, lg, push = true, hint = {}) {
     Object.assign(st, full, { done: true });
     if (activePage === 'player') renderPlayerPage(st);
     if (full.prof) { playerMem[key] = full; savePlayerStore(key, full); }
+    loadCareer(st).catch(() => {});   // 過去の成績は今季の分が出そろってから取る
     // 日本語名が未登録なら、得点ランキングと同じくWikipediaで探して差し替える
     const nameEn = full.prof?.nameEn;
     if (LANG === 'ja' && nameEn && playerNameJa(nameEn) === nameEn && !nameOverrides.players[nameEn] && !PLAYER_NAMES_JA[nameEn] && !isMissFresh(nameEn)) {
