@@ -408,9 +408,9 @@
     .sn-log tbody tr:nth-child(even) td { background: #f7f9fd; }
     .sn-log td.sn-hit { background: #e8f7ee !important; color: #15803d; font-weight: 800; }   /* 得点・PK・アシストが1以上 */
     /* 過去の成績：チームのタブ＋大会ごとの表 */
-    .cr-tabs { display: flex; overflow-x: auto; margin: 0 -12px 4px; border-bottom: 1px solid #d3deef; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .cr-tabs { display: flex; overflow-x: auto; overflow-y: hidden; margin: 0 -12px 4px; box-shadow: inset 0 -1px 0 #d3deef; scrollbar-width: none; -webkit-overflow-scrolling: touch; touch-action: pan-x; overscroll-behavior: none; }   /* 横にだけ動かす */
     .cr-tabs::-webkit-scrollbar { display: none; }
-    .cr-tab { flex: 1 0 auto; padding: 10px 14px; border: none; border-bottom: 3px solid transparent; margin-bottom: -1px; background: none; color: #64748b; font: inherit; font-size: 14px; font-weight: 700; white-space: nowrap; cursor: pointer; }
+    .cr-tab { flex: 1 0 auto; padding: 10px 14px; border: none; border-bottom: 3px solid transparent; background: none; color: #64748b; font: inherit; font-size: 14px; font-weight: 700; white-space: nowrap; cursor: pointer; }
     .cr-tab.on { color: #0f172a; border-bottom-color: #1e3a8a; }
     .cr-log td { text-align: center; padding-left: 2px; padding-right: 2px; }
     .cr-log td.cr-yr { font-weight: 700; color: #0f172a; }
@@ -420,8 +420,9 @@
     .sn-yc { color: #e0a800; font-weight: 800; }   /* イエローカードあり：左の数字を黄色 */
     .sn-rc { color: #dc2626; font-weight: 800; }   /* レッドカードあり：右の数字を赤 */
     .sn-log tr.sn-dnp td { color: #94a3b8; }                                                 /* 出場なし */
-    .sn-log tr.sn-future td { background: #fbfcfe; }
-    .sn-log tr.sn-future td.sn-date { color: #7aa2e3; }
+    .sn-box.sn-scroll { overflow-x: hidden; overflow-y: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }   /* 試合一覧：最新5試合の高さで止め、古い試合は上へ */
+    .sn-box.sn-scroll::-webkit-scrollbar { display: none; }
+    .sn-scroll .sn-log th { position: sticky; top: 0; z-index: 1; }
     .sn-log td.sn-date { color: #1d6fd8; font-weight: 700; text-align: center; padding-left: 1px; padding-right: 1px; font-size: 13px; }
     .sn-log td.sn-min { padding-left: 4px; padding-right: 2px; }
     .sn-log td.sn-min { text-align: left; }
@@ -4191,7 +4192,7 @@ function renderPlayerPage(st) {
   // ④ 大会の成績（試合ごと）：スポーツナビ再現版の作り（青い日付・緑の四角いS=先発・▲=途中出場）
   let logHtml = wait;
   if (st.rows) {
-    const rows = st.rows.map(r => {
+    const rows = st.rows.filter(r => r.done).map(r => {
       const { md } = plDateTime(r.date);
       // ベンチ入りだけで出ていない試合（0分・先発でも途中出場でもない）は「出場なし」として扱う
       const p = r.p && (r.p.min > 0 || r.p.start || r.p.sub) ? r.p : null;
@@ -4202,14 +4203,13 @@ function renderPlayerPage(st) {
         g = p.g ?? 0; pk = p.pk ?? 0; a = p.a ?? 0;
         const yc = p.yc ?? 0, rc2 = p.rc ?? 0;
         cd = `<span${yc > 0 ? ' class="sn-yc"' : ''}>${yc}</span>/<span${rc2 > 0 ? ' class="sn-rc"' : ''}>${rc2}</span>`;
-      } else if (r.done) { min = '-'; g = pk = a = '-'; cd = '-/-'; }
-      else { min = g = pk = a = cd = ''; }
+      } else { min = '-'; g = pk = a = '-'; cd = '-/-'; }
       const hit = v => (+v > 0 ? ' class="sn-hit"' : '');
-      const rc = p ? '' : r.done ? ' class="sn-dnp"' : ' class="sn-future"';
+      const rc = p ? '' : ' class="sn-dnp"';
       return `<tr${rc}><td class="sn-date">${esc(md)}</td><td class="sn-min">${min}</td><td${hit(g)}>${g}</td><td${hit(pk)}>${pk}</td><td${hit(a)}>${a}</td><td>${cd}</td></tr>`;
     }).join('');
     logHtml = rows
-      ? `<div class="sn-box"><table class="sn-log"><colgroup><col style="width:15%"><col style="width:23%"><col style="width:17%"><col style="width:9%"><col style="width:17%"><col style="width:19%"></colgroup><thead><tr><th>${ja ? '日付' : 'Date'}</th><th>${ja ? '出場時間' : 'Minutes'}</th><th>${ja ? '得点' : 'Goals'}</th><th>PK</th><th>${ja ? 'アシスト' : 'Assists'}</th><th>${ja ? '警告/退場' : 'Cards'}</th></tr></thead><tbody>${rows}</tbody></table></div>`
+      ? `<div class="sn-box sn-scroll" id="plLog"><table class="sn-log"><colgroup><col style="width:15%"><col style="width:23%"><col style="width:17%"><col style="width:9%"><col style="width:17%"><col style="width:19%"></colgroup><thead><tr><th>${ja ? '日付' : 'Date'}</th><th>${ja ? '出場時間' : 'Minutes'}</th><th>${ja ? '得点' : 'Goals'}</th><th>PK</th><th>${ja ? 'アシスト' : 'Assists'}</th><th>${ja ? '警告/退場' : 'Cards'}</th></tr></thead><tbody>${rows}</tbody></table></div>`
       : `<div class="pl-err">${ja ? '試合データがありません' : 'No matches'}</div>`;
   }
   const lgName = compLabel(st.lg);
@@ -4221,6 +4221,10 @@ function renderPlayerPage(st) {
     wrap.innerHTML = `${back}<div id="plHero"></div><div id="plProf"></div><div id="plSeason"></div><div id="plCareer"></div>`;
     wrap.dataset.pk = key;
   }
+  // 描き直しの前に、試合一覧の位置(下端からの距離)とチームのタブの横位置を控えておく
+  const oldLog = document.getElementById('plLog');
+  const logFromEnd = oldLog ? oldLog.scrollHeight - oldLog.scrollTop : 0;
+  const crX = wrap.querySelector('.cr-tabs')?.scrollLeft || 0;
   const put = (id, html) => { const el = document.getElementById(id); if (el && el._h !== html) { el.innerHTML = html; el._h = html; } };
   put('plHero', hero);
   put('plProf', `<div class="pl-sec">${head('PROFILE', 'プロフィール')}${profHtml}</div>`);
@@ -4232,27 +4236,35 @@ function renderPlayerPage(st) {
     <div class="pl-sec">${ja ? `<span class="pl-ov">MATCH LOG</span><h3 class="pl-sec-h">${esc(lgName)}の成績</h3>` : `<h3 class="pl-sec-h">${esc(lgName)} match log</h3>`}${logHtml}</div>`);
   put('plCareer', careerHtml(st));
   const crTabs = wrap.querySelector('.cr-tabs');
-  if (crTabs && st.career?.scrollX) crTabs.scrollLeft = st.career.scrollX;
+  if (crTabs) crTabs.scrollLeft = crX;
+  const crT = st.career?.teams?.find(x => x.tid === st.career.tab);
+  if (crT?.comps || crT?.failed) document.getElementById('plCareer').style.minHeight = '';
+  const logBox = document.getElementById('plLog');
+  if (logBox) {
+    // 高さは最新5試合ぶん。開いた時は一番下(最新)を見せ、上へ遡る
+    const trs = [...logBox.querySelectorAll('tbody tr')];
+    logBox.style.maxHeight = trs.length > 5
+      ? `${logBox.offsetHeight - logBox.clientHeight + logBox.querySelector('thead').getBoundingClientRect().height + trs.slice(-5).reduce((h, tr) => h + tr.getBoundingClientRect().height, 0)}px`
+      : '';
+    logBox.scrollTop = logFromEnd ? logBox.scrollHeight - logFromEnd : logBox.scrollHeight;
+  }
 }
 
 /* ── 過去の成績：所属チームごと・大会ごとのシーズン成績 ──
    statisticslog＝出た大会とシーズンの一覧（1回）。成績の数字は1大会1シーズンごとに別の取得になるので
    （長い選手は100回以上）、開いているチームの分だけ取り、他のチームはタブを押した時に取る。 */
 const careerMem = {};
-const CAREER_SKIP = /^club\.|^global\.|joan_gamper/;   // クラブの親善試合・プレシーズン大会は出さない
-const CAREER_NATIONAL = /^fifa\.(world|friendly|confederations|olympics)|^uefa\.(euro(q|\.|$)|nations)|^conmebol\.america|^afc\.asian|^concacaf\.(gold|nations)|^caf\.nations/;
+const CAREER_NATIONAL = /^fifa\.(world(q\.|$)|confederations)|^uefa\.(euro(q|$)|nations)|^conmebol\.america|^afc\.asian|^concacaf\.(gold|nations)|^caf\.nations/;   // A代表の公式戦（U世代・五輪・親善試合は入れない）
+const CAREER_UNDER = /\bU-?\d{2}\b|\bUnder[- ]?\d{2}\b/i;   // 上の大会に混ざるU世代代表はチーム名で除く
+const careerKeep = lg => /\.\d$/.test(lg) || lg === 'uefa.champions' || lg === 'uefa.europa' || CAREER_NATIONAL.test(lg);   // クラブはリーグとCL・ELだけ
 // 年の表記：代表戦と、1年で完結するリーグは「2024」、それ以外は「2024-25」
 const careerYear = (lg, y) => CAREER_NATIONAL.test(lg) || /^(fifa|conmebol|concacaf|campeones|usa|bra|arg|jpn|kor|chn|nor|swe)\./.test(lg)
   ? String(y) : `${y}-${String((y + 1) % 100).padStart(2, '0')}`;
-function careerRank(lg) {   // 大会の並び：リーグ → 欧州の大会 → 国内カップ → スーパーカップ。代表は W杯 → 大陸王者 → 予選 → 親善試合
-  if (lg === 'fifa.friendly') return 90;
+function careerRank(lg) {   // 大会の並び：リーグ → CL → EL。代表は W杯 → 大陸王者 → 予選
   if (/^fifa\.worldq|euroq$/.test(lg)) return 5;
   if (lg === 'fifa.world') return 1;
   if (CAREER_NATIONAL.test(lg)) return 3;
-  if (/\.\d$/.test(lg)) return 0;
-  const u = ['uefa.champions', 'uefa.champions_qual', 'uefa.europa', 'uefa.europa_qual', 'uefa.europa.conf', 'uefa.europa.conf_qual'].indexOf(lg);
-  if (u >= 0) return 10 + u;
-  return /super|charity/.test(lg) ? 40 : 30;
+  return lg === 'uefa.champions' ? 10 : lg === 'uefa.europa' ? 11 : 0;
 }
 const careerTeamName = (name, national) => {
   if (LANG !== 'ja') return name;
@@ -4268,7 +4280,7 @@ async function loadCareer(st) {
     const byTeam = {};
     for (const e of log.entries || []) {
       const [, lg, y] = e.season?.$ref?.match(/leagues\/([^/]+)\/seasons\/(\d+)/) || [];
-      if (!lg || CAREER_SKIP.test(lg)) continue;
+      if (!lg || !careerKeep(lg)) continue;
       for (const x of e.statistics || []) {
         const tid = x.type === 'team' ? extractId(x.team?.$ref, 'teams') : null;
         if (!tid || !x.statistics?.$ref) continue;
@@ -4282,7 +4294,7 @@ async function loadCareer(st) {
     const teams = Object.values(byTeam);
     await Promise.all(teams.map(async t => {
       const en = names[t.tid] || (await j(t.teamRef))?.displayName || '';
-      t.name = en ? careerTeamName(en, t.national) : '';
+      t.name = en && !CAREER_UNDER.test(en) ? careerTeamName(en, t.national) : '';
     }));
     const cur = String(st.prof?.tid || st.tid || '');
     const order = t => (t.tid === cur ? 0 : t.national ? 1 : 2);
@@ -4344,7 +4356,8 @@ document.addEventListener('click', e => {
   if (!b || !curPlayerSt?.career) return;
   const c = curPlayerSt.career;
   c.tab = b.dataset.tid;
-  c.scrollX = b.parentElement.scrollLeft;   // タブが多い時、押した位置のままにする
+  const box = document.getElementById('plCareer');
+  box.style.minHeight = `${box.offsetHeight}px`;   // 読み込み中にページが縮んで上下に動かないように
   renderPlayerPage(curPlayerSt);
   loadCareerTeam(curPlayerSt, c.teams.find(t => t.tid === c.tab));
 });
