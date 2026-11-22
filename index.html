@@ -2043,7 +2043,8 @@ function parseEvent(ev, lg) {
     awayScore: (state !== 'pre') ? away.score : null,
     state, clock: comp.status?.displayClock || '',
     period: comp.status?.period ?? null, fetchedAt: Date.now(),   // ライブの経過時間を取得後も進めるため
-    lgCode: lg.code, homeId: home.id ?? null, awayId: away.id ?? null,   // ライブ照合(verifyStaleLive)用
+    half: stType.name === 'STATUS_HALFTIME',   // ハーフタイム中は分数を進めない
+    lgCode: lg.code, homeId: home.id ?? null, awayId: away.id ?? null,   // ライブ照合(verifyLive)用
     // 英語表示のスマホ幅で長い名前を収めるためのESPN公式短縮名・略号（日本語表示では未使用）
     homeShort: home.team?.shortDisplayName || null, awayShort: away.team?.shortDisplayName || null,
     homeAbbr: home.team?.abbreviation || null, awayAbbr: away.team?.abbreviation || null,
@@ -2147,6 +2148,8 @@ function restoreSchedCache() {
     const { firstDay, lastDay } = schedWindowDays();
     allMatches = (c.allMatches || []).filter(m => m.logicalDate >= firstDay && m.logicalDate <= lastDay);
     lastSchedByLeague = c.lastSchedByLeague || {};
+    // 保存した時の分数は今の分数ではないので、最新が届くまでライブの印だけ出す（古い分数を出さない）
+    for (const m of [...allMatches, ...Object.values(lastSchedByLeague).flat()]) if (m.state === 'in') m.clock = '';
     farByLeague = c.farByLeague || {};
     farFetchedAt = c.farFetchedAt || 0;
     return allMatches.length > 0;
@@ -2287,18 +2290,23 @@ function fitTeamName(name) {
 // 「HT」や「45'+2'」などESPNが分数以外を返している時、延長戦（period 3以降）は、ESPNの表示をそのまま出す。
 // 今の推定分数（分数で表せない時は null）
 // ── ライブ照合 ──
-// 日程(scoreboard)の応答は試合ごとに古いまま固まることがあり、他の試合はライブで動いているのに
-// 2時間前に始まった試合が「ライブ」のまま残った（2026-10-20 実機）。
-// 開始から STALE_LIVE_MIN 分以上たっても試合中の試合だけ、試合単位の状態・スコア（数百バイトの小さなデータ）を
-// 別の取得口(sports.core)から取り直して照合する。端末の時計は「照合するかどうか」にだけ使い、状態は決めつけない
-// （延長戦などで本当に続いていれば、照合結果も試合中のまま）。
-const STALE_LIVE_MIN = 115;   // 90分＋ハーフタイム15分＋追加時間の目安
+// 日程(scoreboard)の応答は古い。実測(2026-11-22)：同じ瞬間に試合ページより1〜4分遅れ、開いた直後は18分遅れ
+// （35分の試合が17分）。後半が始まっているのにハーフタイムのまま、という応答もあった。
+// 以前は「開始から115分たっても試合中の試合」だけ照合していたが、経過時間そのものがずれるので、
+// 試合中の試合と、開始時刻を過ぎたのに試合前のままの試合は毎回、試合単位の状態・スコア（数百バイトの小さなデータ）を
+// 別の取得口(sports.core。試合ページと同じ進み方)から取り直して合わせる。
+// 端末の時計は「照合するかどうか」にだけ使い、状態は決めつけない。
+const LIVE_CHECK_PRE_MS = 3 * 60 * 60 * 1000;   // 開始時刻から3時間までは「始まっているはず」として照合する
+const LIVE_CHECK_WAIT_MS = 1500;                // 照合を待ってから描く上限（これより遅い時は先に描いて後で直す）
 const liveCheckedAt = {};
-async function verifyStaleLive() {
+async function verifyLive() {
   const now = Date.now();
-  const sus = allMatches.filter(m => m.state === 'in' && m.lgCode
-    && now - new Date(m.utcDate).getTime() > STALE_LIVE_MIN * 60000
-    && now - (liveCheckedAt[m.id] || 0) > 50_000);
+  const sus = allMatches.filter(m => {
+    if (!m.lgCode || now - (liveCheckedAt[m.id] || 0) < 50_000) return false;
+    if (m.state === 'in') return true;
+    const since = now - new Date(m.utcDate).getTime();
+    return m.state === 'pre' && since >= 0 && since < LIVE_CHECK_PRE_MS;
+  });
   if (!sus.length) return false;
   let changed = false;
   await mapPool(sus, 6, async m => {
@@ -2306,10 +2314,19 @@ async function verifyStaleLive() {
     try {
       const base = `${ESPN_CORE}/${m.lgCode}/events/${m.id}/competitions/${m.id}`;
       const score = id => id ? fetchJson(`${base}/competitors/${id}/score`, { retries: 1 }).catch(() => null) : null;
-      const [st, hs, as] = await Promise.all([fetchJson(`${base}/status`, { retries: 1 }), score(m.homeId), score(m.awayId)]);
+      const scores = () => Promise.all([score(m.homeId), score(m.awayId)]);
+      let st, hs, as;
+      if (m.state === 'in') [st, [hs, as]] = await Promise.all([fetchJson(`${base}/status`, { retries: 1 }), scores()]);
+      else {
+        // 試合前のままの試合：本当に始まっていた（または終わっていた）時だけスコアを取る。延期などは日程の応答に任せる
+        st = await fetchJson(`${base}/status`, { retries: 1 });
+        if (st.type?.state !== 'in' && st.type?.completed !== true) return;
+        [hs, as] = await scores();
+      }
       const type = st.type || {};
       const upd = { ...m, state: type.completed === true ? 'post' : (type.state || m.state),
-                    clock: st.displayClock || m.clock, period: st.period ?? m.period, fetchedAt: Date.now() };
+                    clock: st.displayClock || m.clock, period: st.period ?? m.period, fetchedAt: Date.now(),
+                    half: type.name === 'STATUS_HALFTIME' };
       if (hs?.displayValue != null && as?.displayValue != null) { upd.homeScore = hs.displayValue; upd.awayScore = as.displayValue; }
       if (applyMonotonic(upd) === upd &&
           (upd.state !== m.state || upd.homeScore !== m.homeScore || upd.awayScore !== m.awayScore || upd.clock !== m.clock)) changed = true;
@@ -2321,7 +2338,7 @@ async function verifyStaleLive() {
 
 function liveMinute(m) {
   const mm = String(m.clock || '').match(/^(\d+)'?$/);
-  if (!mm || !(m.period === 1 || m.period === 2) || !m.fetchedAt) return null;
+  if (!mm || m.half || !(m.period === 1 || m.period === 2) || !m.fetchedAt) return null;
   const add = Math.min(15, Math.max(0, Math.floor((Date.now() - m.fetchedAt) / 60000)));   // 通信が止まっても暴走しないよう最大15分
   return parseInt(mm[1], 10) + add;
 }
@@ -4769,12 +4786,15 @@ async function load(showLoader = false) {
   if (showLoader) document.getElementById('scheduleWrap').innerHTML = `<div class="state"><span class="ico">⚽</span>${T.loading}</div>`;
   try {
     allMatches = await fetchSchedule();
+    // 試合中の試合は、試合単位のデータで経過時間・スコア・状態を合わせてから描く（日程の応答は数分古い）。
+    // 照合が遅い時は待たずに描き、届いたら描き直す
+    const live = verifyLive().catch(() => false);
+    const inTime = await Promise.race([live.then(() => true), new Promise(r => setTimeout(() => r(false), LIVE_CHECK_WAIT_MS))]);
     buildCountryFilter();
     renderSchedule();
     markUpdated();
     saveSchedCache();   // 次に開いた時に即表示できるよう保存
-    // 終わっているはずの時間なのに「ライブ」のままの試合は、試合単位のデータで照合して直す
-    verifyStaleLive().then(ch => { if (!ch) return; renderSchedule(); saveSchedCache(); }).catch(() => {});
+    if (!inTime) live.then(ch => { if (!ch) return; renderSchedule(); saveSchedCache(); });
     // 先の日程は裏で取得し、取れたら表示に足す（初回表示を待たせない）
     fetchFarDays().then(got => {
       if (!got) return;
